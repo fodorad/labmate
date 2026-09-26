@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "id": "task_set",
+      "label": "Task Set D",
+      "kind": "input"
+    },
+    {
+      "id": "harness_evolution",
+      "label": "Harness Evolution",
+      "kind": "process"
+    },
+    {
+      "id": "leakage_screening",
+      "label": "Leakage Screening",
+      "kind": "component"
+    },
+    {
+      "id": "stability_acceptance",
+      "label": "Stability-Aware Acceptance",
+      "kind": "process"
+    },
+    {
+      "id": "improved_harness",
+      "label": "Improved Harness H'",
+      "kind": "output"
+    }
+  ],
+  "edges": [
+    {
+      "source": "task_set",
+      "target": "harness_evolution",
+      "label": "evaluates"
+    },
+    {
+      "source": "harness_evolution",
+      "target": "leakage_screening",
+      "label": "generates"
+    },
+    {
+      "source": "leakage_screening",
+      "target": "stability_acceptance",
+      "label": "filters"
+    },
+    {
+      "source": "stability_acceptance",
+      "target": "improved_harness",
+      "label": "selects"
+    }
+  ],
+  "caption": "Task set drives harness evolution, filtered by leakage screening and stability acceptance to produce an improved harness."
+}

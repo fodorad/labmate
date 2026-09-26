@@ -1,0 +1,62 @@
+{
+  "nodes": [
+    {
+      "id": "rgb_texture",
+      "label": "RGB texture",
+      "kind": "input"
+    },
+    {
+      "id": "landmarks",
+      "label": "iris and eye landmarks",
+      "kind": "input"
+    },
+    {
+      "id": "pose_angles",
+      "label": "head pose angles",
+      "kind": "input"
+    },
+    {
+      "id": "cross_modal_transformer",
+      "label": "Cross-modal transformer",
+      "kind": "component"
+    },
+    {
+      "id": "linear_multimodal_transformer",
+      "label": "Linear multimodal transformer",
+      "kind": "component"
+    },
+    {
+      "id": "blink_estimates",
+      "label": "blink estimates",
+      "kind": "output"
+    }
+  ],
+  "edges": [
+    {
+      "source": "rgb_texture",
+      "target": "cross_modal_transformer",
+      "label": "texture input"
+    },
+    {
+      "source": "landmarks",
+      "target": "cross_modal_transformer",
+      "label": "landmark input"
+    },
+    {
+      "source": "pose_angles",
+      "target": "linear_multimodal_transformer",
+      "label": "pose input"
+    },
+    {
+      "source": "cross_modal_transformer",
+      "target": "linear_multimodal_transformer",
+      "label": "translated features"
+    },
+    {
+      "source": "linear_multimodal_transformer",
+      "target": "blink_estimates",
+      "label": "independent estimates"
+    }
+  ],
+  "caption": "Inputs feed into a cross-modal transformer, then a linear multimodal transformer outputs independent blink estimates."
+}
