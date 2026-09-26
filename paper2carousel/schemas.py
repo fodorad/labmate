@@ -85,7 +85,7 @@ class Deck(BaseModel):
 PaperType = Literal["method", "benchmark", "survey", "position"]
 """Narrative families; each has its own slide template (see ``steps/outline.py``)."""
 
-ClaimKind = Literal["contribution", "method", "result", "limitation"]
+ClaimKind = Literal["task", "challenge", "contribution", "method", "result", "limitation"]
 """What a claim card is about."""
 
 

@@ -17,6 +17,10 @@ Rules:
   "results".
 - Build every slide on 3 to 5 claim cards from the list below, referenced by id, so it has
   material for specific bullets. Do not use a claim on more than two slides.
+- Match claims to blocks by their kind: [task] and [contribution] claims for the task,
+  [challenge] claims for the challenges, [method] claims for the method, [result] and
+  [limitation] claims for the results. Background about other approaches belongs to the
+  challenges, not the task.
 - Prefer claims with concrete numbers, named datasets, baselines and components. Put
   claims whose numbers can be compared (a result and its baselines) on the results slide.
 - "title": a specific headline for the slide (at most 8 words), not just the block name.

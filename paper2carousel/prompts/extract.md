@@ -1,7 +1,13 @@
 You extract claim cards from one section of a research paper.
 
-A claim card is one self-contained statement a reader should remember: a contribution,
-how the method works, a result, or a limitation. For each claim:
+A claim card is one self-contained statement a reader should remember. Its "kind":
+- task: what the paper sets out to do (the problem, its inputs and outputs, the setting).
+- challenge: what makes the problem hard, or where earlier approaches fall short.
+- contribution: what the authors claim as new.
+- method: how the proposed approach works.
+- result: a measured outcome, ideally with numbers and the comparison.
+- limitation: where the approach falls short.
+For each claim:
 - "claim": one sentence in your own words, understandable without the paper.
 - "evidence_quote": a short passage copied character for character from the SECTION TEXT
   below (at most 30 words). It must support the claim. Do not paraphrase, fix typos or
