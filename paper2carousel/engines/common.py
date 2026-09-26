@@ -764,6 +764,6 @@ def stage_summary(
             image, caption = summary_image(s, deck, paper)
             render_summary(deck, paper, s.path("summary.pdf"), image=image, caption=caption)
             span.update(image=image or "")
-    log.info("rendered: %s", s.path("carousel.pdf"))
+        log.info("rendered: %s", s.path("summary.pdf"))
     s.switcher.release()
     return s.result("done")
