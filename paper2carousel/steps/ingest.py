@@ -15,6 +15,7 @@ import pymupdf
 from pydantic import BaseModel
 
 from paper2carousel.schemas import Paper, Section
+from paper2carousel.steps.figures import extract_figures
 
 ARXIV_PDF = "https://arxiv.org/pdf/{id}"
 """PDF download URL template."""
@@ -198,16 +199,20 @@ def ingest_arxiv(ref: str, run_dir: Path, http: httpx.Client) -> Paper:
         abstract=meta.abstract,
         url=f"https://arxiv.org/abs/{arxiv_id}",
         sections=split_sections(pdf),
+        figures=extract_figures(pdf, run_dir / "figures", run_dir),
     )
 
 
-def ingest_pdf(pdf: Path, title: str | None = None, url: str = "") -> Paper:
+def ingest_pdf(
+    pdf: Path, title: str | None = None, url: str = "", run_dir: Path | None = None
+) -> Paper:
     """Ingest a local PDF (for papers that are not on arXiv).
 
     Args:
         pdf: PDF path.
         title: Title override; defaults to the PDF metadata title or the file name.
         url: Link to show on the slides.
+        run_dir: Where figure crops go (``run_dir/figures``); no figures if omitted.
 
     Returns:
         The ingested paper. The abstract is taken from a section titled "Abstract" if any.
@@ -222,4 +227,5 @@ def ingest_pdf(pdf: Path, title: str | None = None, url: str = "") -> Paper:
         abstract=abstract,
         url=url,
         sections=sections,
+        figures=extract_figures(pdf, run_dir / "figures", run_dir) if run_dir else [],
     )

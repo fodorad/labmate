@@ -51,6 +51,12 @@ API Reference
 .. automodule:: paper2carousel.steps.factcheck
    :members:
 
+.. automodule:: paper2carousel.steps.figures
+   :members:
+
+.. automodule:: paper2carousel.steps.visuals
+   :members:
+
 .. automodule:: paper2carousel.steps.draft
    :members:
 

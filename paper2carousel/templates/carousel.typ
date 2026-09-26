@@ -24,16 +24,29 @@
 #footer(1, data.slides.len() + 1)
 
 #for (i, slide) in data.slides.enumerate() {
+  let img = slide.at("image", default: none)
   pagebreak()
   block(height: 100%)[
     #text(size: 12pt, fill: rgb(theme.accent), weight: "bold", str(i + 1))
     #v(6pt)
     #text(size: 26pt, weight: "bold", slide.title)
-    #v(22pt)
+    #v(if img == none { 22pt } else { 14pt })
     #for b in slide.bullets {
       grid(columns: (14pt, 1fr), column-gutter: 6pt,
-        text(fill: rgb(theme.accent), "•"), text(b))
-      v(12pt)
+        text(fill: rgb(theme.accent), "•"),
+        text(size: if img == none { 17pt } else { 15pt }, b))
+      v(if img == none { 12pt } else { 8pt })
+    }
+    #if img != none {
+      v(6pt)
+      block(height: 1fr, width: 100%, clip: true,
+        align(center + horizon, image(img, fit: "contain", width: 100%, height: 100%)))
+      let cap = slide.at("image_caption", default: none)
+      if cap != none and cap != "" {
+        v(4pt)
+        align(center, text(size: 10pt, fill: rgb(theme.muted), cap))
+      }
+      v(14pt)
     }
   ]
   footer(i + 2, data.slides.len() + 1)

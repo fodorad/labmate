@@ -21,6 +21,9 @@ num_ctx = 16384  # Ollama's default window would silently truncate the paper
 workers = 2  # concurrent calls for parallel steps; Ollama queues beyond OLLAMA_NUM_PARALLEL
 max_rewrite_rounds = 2  # fact-check loop budget; bullets still unsupported after it are dropped
 
+[visuals]
+enabled = true  # figures from the paper / Graphviz diagrams chosen by the visuals agent
+
 [replay]
 # live   : always call Ollama, store nothing
 # record : always call Ollama, (over)write cassettes

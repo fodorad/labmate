@@ -8,7 +8,7 @@ import yaml
 from paper2carousel.config import Config, ReplayMode
 from paper2carousel.engines.plain import NothingSupportedError, run, run_id_for
 from paper2carousel.llm.replay import CassetteMissError
-from paper2carousel.schemas import Claims, Deck, Outline, WrittenSlides
+from paper2carousel.schemas import Claims, Deck, Outline, Visuals, WrittenSlides
 from paper2carousel.steps.gate import GateError
 from paper2carousel.tracing import read_trace
 from tests.conftest import DECK, agentic_chat, deck_chat, make_pdf
@@ -114,8 +114,8 @@ def test_auto_approve_runs_straight_through_and_traces_every_step(model, arxiv, 
     assert len(llm_in_extract) == 3  # one per section, parent kept across worker threads
     factcheck = next(s for s in spans if s["name"] == "step.factcheck")
     assert factcheck["failed_first"] == 0 and factcheck["rounds"] == 1 and factcheck["swaps"] == 1
-    # route 1 + extract 3 + outline 1 + write 4 + judge 4
-    assert n_chats(model) == 13
+    # route 1 + extract 3 + outline 1 + write 4 + judge 4 + visuals 4
+    assert n_chats(model) == 17
     assert not model.loaded  # every model released at the end
 
 
@@ -136,7 +136,7 @@ def test_fresh_replay_reproduces_the_agentic_run_without_any_model(model, arxiv,
     assert again.artifact("02_claims.json").read_text() == claims
     spans = [s for s in read_trace(again.trace) if s["trace_id"] == again.trace_id]
     llm = [s for s in spans if s["name"] == "llm.chat"]
-    assert len(llm) == 13 and all(s["cached"] for s in llm)
+    assert len(llm) == 17 and all(s["cached"] for s in llm)
 
 
 def test_replay_without_cassettes_fails_loudly(arxiv, config):
@@ -178,3 +178,21 @@ def test_run_fails_clearly_when_nothing_survives_the_fact_check(fake, arxiv, con
     with pytest.raises(NothingSupportedError, match="05_factcheck.json"):
         run(config, ref=REF, auto_approve=True, client=fake.client(), http=arxiv.client())
     assert not fake.loaded
+
+
+def test_paper_figures_reach_the_slides(model, config, tmp_path):
+    pdf = make_pdf(tmp_path / "Figs.pdf", figure=True)
+    result = run(config, pdf=pdf, auto_approve=True, client=model.client())
+    visuals = Visuals.model_validate_json(result.artifact("06_visuals.json").read_text())
+    assert visuals.slides[0] is not None and visuals.slides[0].source == "fig1"
+    assert (result.run_dir / visuals.slides[0].path).exists()
+    sources = [v.source for v in visuals.slides if v is not None]
+    assert sources == ["fig1", "fig2"]  # each figure used once, in slide order
+    with pymupdf.open(result.carousel) as doc:
+        assert doc[1].get_images()  # the figure is embedded on the first content slide
+
+
+def test_visuals_can_be_disabled(model, arxiv, config):
+    config.visuals.enabled = False
+    result = go(config, model, arxiv, auto_approve=True)
+    assert result.status == "done" and not result.artifact("06_visuals.json").exists()

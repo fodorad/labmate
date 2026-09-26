@@ -2,7 +2,7 @@
 
 Agentic pipeline (default)::
 
-    ingest ─▶ route ─▶ extract ─▶ outline ─▶ ✋ gate ─▶ write ─▶ fact-check loop ─▶ render
+    ingest ─▶ route ─▶ extract ─▶ outline ─▶ ✋ gate ─▶ write ─▶ fact-check ─▶ visuals ─▶ render
 
 Baseline (``--baseline``, the M1 walking skeleton, kept for evaluation)::
 
@@ -38,6 +38,7 @@ from paper2carousel.schemas import (
     Outline,
     Paper,
     Route,
+    Visuals,
     WrittenSlides,
 )
 from paper2carousel.steps.draft import draft_deck
@@ -49,6 +50,7 @@ from paper2carousel.steps.llm import LLM
 from paper2carousel.steps.outline import TEMPLATES, plan_outline
 from paper2carousel.steps.render import render_deck
 from paper2carousel.steps.route import route_paper
+from paper2carousel.steps.visuals import choose_visuals
 from paper2carousel.steps.write import write_slides
 from paper2carousel.tracing import TracedClient, Tracer
 
@@ -180,6 +182,7 @@ def run(
             "03_outline.json",
             "04_slides.json",
             "05_factcheck.json",
+            "06_visuals.json",
             "01_deck.json",
         ]
     }
@@ -203,7 +206,7 @@ def run(
                     paper_dir / "00_paper.json",
                     Paper,
                     lambda: (
-                        ingest_pdf(pdf, title=title)
+                        ingest_pdf(pdf, title=title, run_dir=paper_dir)
                         if pdf is not None
                         else ingest_arxiv(str(ref), paper_dir, http)
                     ),
@@ -211,8 +214,13 @@ def run(
             finally:
                 if own_http:
                     http.close()
-            s.update(sections=len(paper.sections), title=paper.title)
-        log.info("ingested: %s (%d sections)", paper.title, len(paper.sections))
+            s.update(sections=len(paper.sections), figures=len(paper.figures), title=paper.title)
+        log.info(
+            "ingested: %s (%d sections, %d figures)",
+            paper.title,
+            len(paper.sections),
+            len(paper.figures),
+        )
 
         switcher.use(llm.model)
         if baseline:
@@ -321,7 +329,23 @@ def run(
             raise NothingSupportedError(
                 f"the fact-check dropped every slide; see {paths['05_factcheck.json']}"
             )
-        return _finish(tracer, checked.slides.to_deck(), paper, result("done"), switcher)
+        final = checked.slides.slides
+        with tracer.span("step.visuals", enabled=config.visuals.enabled) as s:
+            if config.visuals.enabled:
+                switcher.use(llm.model)
+                visuals = _checkpoint(
+                    paths["06_visuals.json"],
+                    Visuals,
+                    lambda: choose_visuals(final, paper.figures, paper_dir, llm),
+                    reuse=not fresh,
+                )
+            else:
+                visuals = Visuals(slides=[None] * len(final))
+            chosen = [v.source for v in visuals.slides if v is not None]
+            s.update(visuals=chosen, tool_calls=len(visuals.steps))
+        log.info("visuals: %s", ", ".join(chosen) or "none")
+        deck = checked.slides.to_deck(visuals.slides)
+        return _finish(tracer, deck, paper, result("done"), switcher)
 
 
 def _finish(

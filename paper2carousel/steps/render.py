@@ -1,5 +1,7 @@
 """Step 8: render a deck to a PDF carousel with Typst. Plain code, no LLM.
 
+Image paths in the deck are relative to the output PDF's directory.
+
 Layout is deterministic and lives in ``templates/carousel.typ``; the model only ever
 produces data. Content is passed as JSON through Typst's ``sys.inputs``, so paper text
 cannot inject markup.
@@ -8,7 +10,7 @@ cannot inject markup.
 from __future__ import annotations
 
 import json
-from importlib.resources import as_file, files
+from importlib.resources import files
 from pathlib import Path
 
 import typst
@@ -43,12 +45,14 @@ def render_deck(deck: Deck, paper: Paper, out: Path, theme: Theme | None = None)
         "title": deck.title,
         "paper_title": paper.title,
         "source": paper.url or paper.title,
-        "slides": [s.model_dump() for s in deck.slides],
+        "slides": [s.model_dump(exclude_none=True) for s in deck.slides],
         "theme": (theme or Theme()).model_dump(),
     }
-    template = files("paper2carousel.templates").joinpath("carousel.typ")
-    with as_file(template) as path:
-        pdf = typst.compile(str(path), sys_inputs={"deck": json.dumps(data)})
     out.parent.mkdir(parents=True, exist_ok=True)
+    # Typst resolves image paths relative to the template, so it is compiled from the
+    # output directory, where the figure and diagram PNGs live.
+    source = out.with_suffix(".typ")
+    source.write_text(files("paper2carousel.templates").joinpath("carousel.typ").read_text())
+    pdf = typst.compile(str(source), root=str(out.parent), sys_inputs={"deck": json.dumps(data)})
     out.write_bytes(pdf)
     return out

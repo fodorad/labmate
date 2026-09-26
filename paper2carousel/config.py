@@ -62,6 +62,12 @@ class PipelineConfig(BaseModel):
     max_rewrite_rounds: int = 2
 
 
+class VisualsConfig(BaseModel):
+    """Visuals agent settings."""
+
+    enabled: bool = True
+
+
 class ReplayConfig(BaseModel):
     """Record/replay cache settings."""
 
@@ -83,6 +89,7 @@ class Config(BaseModel):
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
+    visuals: VisualsConfig = Field(default_factory=VisualsConfig)
     replay: ReplayConfig = Field(default_factory=ReplayConfig)
     tracing: TracingConfig = Field(default_factory=TracingConfig)
 

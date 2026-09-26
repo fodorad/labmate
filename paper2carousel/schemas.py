@@ -21,6 +21,24 @@ class Section(BaseModel):
     text: str
 
 
+class Figure(BaseModel):
+    """A figure cropped from the paper PDF.
+
+    Attributes:
+        id: ``fig1``, ``fig2``, ... by figure number.
+        number: Figure number as printed in the caption.
+        caption: Caption text (whitespace-normalised, truncated).
+        page: 1-based page number.
+        path: PNG path relative to the paper's run directory.
+    """
+
+    id: str
+    number: int
+    caption: str
+    page: int
+    path: str
+
+
 class Paper(BaseModel):
     """An ingested paper.
 
@@ -39,15 +57,18 @@ class Paper(BaseModel):
     abstract: str = ""
     url: str = ""
     sections: list[Section] = Field(default_factory=list)
+    figures: list[Figure] = Field(default_factory=list)
 
 
 class DraftSlide(BaseModel):
-    """One slide of the walking-skeleton deck."""
+    """One slide of the walking-skeleton deck (also the render input)."""
 
     title: str = Field(description="Short slide title, at most 8 words.")
     bullets: list[str] = Field(
         description="1 to 3 bullets, each at most 20 words.", min_length=1, max_length=3
     )
+    image: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    image_caption: str | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class Deck(BaseModel):
@@ -154,16 +175,26 @@ class WrittenSlides(BaseModel):
     hook: str
     slides: list[SlideText]
 
-    def to_deck(self) -> Deck:
-        """Drop the citations for rendering.
+    def to_deck(self, visuals: list[Visual | None] | None = None) -> Deck:
+        """Drop the citations and attach visuals for rendering.
+
+        Args:
+            visuals: One optional visual per slide.
 
         Returns:
             A render-ready deck.
         """
+        visuals = visuals or [None] * len(self.slides)
         return Deck(
             title=self.hook,
             slides=[
-                DraftSlide(title=s.title, bullets=[b.text for b in s.bullets]) for s in self.slides
+                DraftSlide(
+                    title=s.title,
+                    bullets=[b.text for b in s.bullets],
+                    image=v.path if v else None,
+                    image_caption=v.caption if v else None,
+                )
+                for s, v in zip(self.slides, visuals, strict=True)
             ],
         )
 
@@ -244,3 +275,38 @@ class FactChecked(BaseModel):
 
     slides: WrittenSlides
     report: FactCheckReport
+
+
+# --- M4: visuals ----------------------------------------------------------------------------
+
+
+class Visual(BaseModel):
+    """An image placed on a slide.
+
+    Attributes:
+        kind: A figure cropped from the paper, or a diagram drawn by the agent.
+        source: Figure id (``fig2``) or ``diagram``.
+        path: PNG path relative to the paper's run directory.
+        caption: Caption shown under the image.
+    """
+
+    kind: Literal["figure", "diagram"]
+    source: str
+    path: str
+    caption: str
+
+
+class AgentStep(BaseModel):
+    """One tool call of the visuals agent, with what the tool answered."""
+
+    slide: int
+    tool: str
+    arguments: dict[str, object]
+    observation: str
+
+
+class Visuals(BaseModel):
+    """Visuals agent output: one optional visual per slide plus the full tool-call log."""
+
+    slides: list[Visual | None]
+    steps: list[AgentStep] = Field(default_factory=list)

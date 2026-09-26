@@ -171,14 +171,32 @@ SECTIONS = [
 ]
 
 
-def make_pdf(path, sections=SECTIONS, toc=True, references=True, title="A Test Paper"):
-    """Write a small multi-page PDF with numbered headings and (optionally) an outline."""
+def make_pdf(
+    path, sections=SECTIONS, toc=True, references=True, title="A Test Paper", figure=False
+):
+    """Write a small multi-page PDF with numbered headings and (optionally) an outline.
+
+    With ``figure=True`` the first page also gets a raster image with a "Figure 1:" caption
+    and a vector drawing with a "Figure 2:" caption.
+    """
     doc = pymupdf.open()
     entries = []
     for i, (heading, body) in enumerate(sections, start=1):
         page = doc.new_page()
         page.insert_text((72, 72), f"{i} {heading}", fontsize=14)
-        page.insert_textbox(pymupdf.Rect(72, 90, 520, 760), body, fontsize=10)
+        page.insert_textbox(pymupdf.Rect(72, 90, 520, 300), body, fontsize=10)
+        if figure and i == 1:
+            png = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 120, 80), False)
+            png.set_rect(png.irect, (40, 90, 200))
+            page.insert_text((150, 318), "Encoder", fontsize=9)
+            page.insert_image(pymupdf.Rect(150, 320, 390, 480), pixmap=png)
+            page.insert_text((72, 500), "Figure 1: A synthetic architecture diagram.", fontsize=9)
+            shape = page.new_shape()
+            shape.draw_rect(pymupdf.Rect(150, 530, 390, 680))
+            shape.draw_line((150, 530), (390, 680))
+            shape.finish(color=(0, 0, 0), width=1)
+            shape.commit()
+            page.insert_text((72, 700), "Figure 2: Vector-only drawing.", fontsize=9)
         entries.append([1, heading, i])
     if references:
         page = doc.new_page()
@@ -299,6 +317,17 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
                 }
                 for n, text in bullets
             ]
+        }
+    elif any(t["function"]["name"] == "no_visual" for t in body.get("tools", [])):
+        figure = re.search(r"^(fig\d+) \(page", prompt, re.MULTILINE)
+        call = (
+            {"name": "use_paper_figure", "arguments": {"figure_id": figure.group(1)}}
+            if figure
+            else {"name": "no_visual", "arguments": {"reason": "text is clearer"}}
+        )
+        return {
+            "model": body["model"],
+            "message": {"content": "", "tool_calls": [{"function": call}]},
         }
     elif "bullets" in props:
         ids = ALL_IDS.findall(conversation)

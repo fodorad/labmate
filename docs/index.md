@@ -6,11 +6,12 @@ Keep near-identical to README.md (minus GitHub chrome). Update both in the same 
 
 > Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
 
-**Status: pre-alpha (milestone M3).** The agentic core runs end to end: routing, parallel
-claim extraction with a quote-verification guard, an orchestrated outline, a human approval
-gate, grounded slide writing and a fact-check loop (a separate judge model plus exact
-number checks, with rewrites), all traced and replayable. Next: visuals (M4) and the
-evaluation suite (M5).
+**Status: pre-alpha (milestone M4a).** The agentic pipeline runs end to end: routing,
+parallel claim extraction with a quote-verification guard, an orchestrated outline, a human
+approval gate, grounded slide writing, a fact-check loop (a separate judge model plus exact
+number checks, with rewrites) and a visuals agent that places paper figures or draws Graphviz
+diagrams, all traced and replayable. Next: slide critic, alt texts and cover image (M4b),
+then the evaluation suite (M5).
 
 ## What it will do
 
@@ -38,6 +39,7 @@ arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline �
 | gate | human-in-the-loop | writes `outline.yaml` and pauses; your edits are validated with the same rules |
 | write | prompt chaining | one call per slide; every bullet cites the claim ids it uses |
 | fact-check | evaluator–optimizer | numbers must match the cited evidence exactly; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
+| visuals | agent (tool use) | per slide the model calls `use_paper_figure`, `make_diagram` (Graphviz) or `no_visual`; tool errors come back as observations, ≤ 3 calls per slide; figures are cropped from the PDF during ingest |
 | render | plain code | Typst → 4:5 PDF |
 
 ## Models
