@@ -140,6 +140,7 @@ def build_graph(
     pdf: Path | None,
     title: str | None,
     http: httpx.Client | None,
+    url: str,
     approve: bool,
     auto_approve: bool,
 ) -> StateGraph:
@@ -151,6 +152,7 @@ def build_graph(
         pdf: Local PDF.
         title: Title override for local PDFs.
         http: HTTP client for arXiv.
+        url: Link to a local PDF's source.
         approve: Accept ``outline.yaml`` without pausing.
         auto_approve: Accept the draft outline without review.
 
@@ -159,7 +161,7 @@ def build_graph(
     """
 
     def ingest(state: State) -> State:
-        return {"paper": stage_ingest(s, ref, pdf, title, http)}
+        return {"paper": stage_ingest(s, ref, pdf, title, http, url)}
 
     def route(state: State) -> State:
         return {"route": stage_route(s, state["paper"])}
@@ -345,6 +347,7 @@ def run(
     ref: str | None = None,
     pdf: Path | None = None,
     title: str | None = None,
+    url: str = "",
     mode: ReplayMode | None = None,
     fresh: bool = False,
     approve: bool = False,
@@ -362,6 +365,7 @@ def run(
         ref: arXiv id, reference or URL.
         pdf: Local PDF instead of arXiv.
         title: Title override for local PDFs.
+        url: Link to a local PDF's source (shown on the slides).
         mode: Replay mode override.
         fresh: Discard the graph checkpoint and start over.
         approve: Resume a paused run (or accept ``outline.yaml`` without pausing).
@@ -382,7 +386,7 @@ def run(
         closing(sqlite3.connect(db, check_same_thread=False)) as conn,
     ):
         saver = SqliteSaver(conn, serde=_serializer())
-        graph = build_graph(s, ref, pdf, title, http, approve, auto_approve).compile(
+        graph = build_graph(s, ref, pdf, title, http, url, approve, auto_approve).compile(
             checkpointer=saver
         )
         paused = bool(graph.get_state(THREAD).interrupts)

@@ -28,6 +28,7 @@ from paper2carousel.evals.metrics import RunMetrics, latest_completed, run_metri
 from paper2carousel.llm.replay import CassetteStore
 from paper2carousel.llm.types import _cache_key
 from paper2carousel.schemas import Claims, FactChecked, Paper, Post, Route, Visuals
+from paper2carousel.steps.ingest import download_url, is_url
 from paper2carousel.steps.render import Theme
 from paper2carousel.traceview import environment, render_trace
 
@@ -65,7 +66,7 @@ class Meta(BaseModel):
         url: Link to the paper.
         abstract: Abstract (arXiv metadata is CC0).
         source: ``arxiv`` (re-fetched when verifying) or ``pdf`` (``<paper_id>.pdf`` is
-            published alongside, e.g. for the author's own paper).
+            published alongside, or downloaded again from ``url``).
         published: Date the entry was published (UTC, ISO).
     """
 
@@ -203,15 +204,30 @@ def verify(entry: Path, config: Config, http: httpx.Client | None = None) -> Ver
         run_dir.mkdir(parents=True)
         shutil.copy2(entry / "03_outline.json", run_dir / "03_outline.json")
         pdf = None
-        if meta.source == "pdf":
-            pdf = Path(tmp) / f"{meta.paper_id}.pdf"
-            shutil.copy2(entry / f"{meta.paper_id}.pdf", pdf)
         try:
+            if meta.source == "pdf":
+                pdf = Path(tmp) / f"{meta.paper_id}.pdf"
+                published = entry / f"{meta.paper_id}.pdf"
+                if published.exists():
+                    shutil.copy2(published, pdf)
+                elif is_url(meta.url):
+                    own = http is None
+                    client = http or httpx.Client(timeout=120, follow_redirects=True)
+                    try:
+                        pdf.write_bytes(
+                            download_url(meta.url, Path(tmp) / "dl", client).read_bytes()
+                        )
+                    finally:
+                        if own:
+                            client.close()
+                else:
+                    raise FileNotFoundError(f"no PDF published and no URL to fetch {meta.paper_id}")
             run(
                 cfg,
                 ref=meta.paper_id if pdf is None else None,
                 pdf=pdf,
                 title=meta.title,
+                url=meta.url,
                 mode=ReplayMode.REPLAY,
                 fresh=True,
                 approve=True,

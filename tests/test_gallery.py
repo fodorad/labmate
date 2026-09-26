@@ -174,3 +174,12 @@ def test_build_site(entry, tmp_path):
 def test_build_site_without_entries(tmp_path):
     assert build_site(tmp_path / "none", tmp_path / "site") == []
     assert "No published papers yet" in (tmp_path / "site" / "index.html").read_text()
+
+
+def test_verify_local_pdf_without_pdf_or_url_reports_it(fake, config, tmp_path):
+    fake.chat_handler = agentic_chat
+    kw = {"pdf": make_pdf(tmp_path / "mine.pdf"), "title": "Mine", "client": fake.client()}
+    run(config, auto_approve=True, **kw)
+    entry, _ = publish(config.tracing.runs_dir / "mine", tmp_path / "gallery", config)
+    report = verify(entry, Config())
+    assert "no PDF published and no URL" in report.error and not report.ok

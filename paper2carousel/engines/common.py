@@ -267,7 +267,12 @@ def open_session(
 
 
 def stage_ingest(
-    s: Session, ref: str | None, pdf: Path | None, title: str | None, http: httpx.Client | None
+    s: Session,
+    ref: str | None,
+    pdf: Path | None,
+    title: str | None,
+    http: httpx.Client | None,
+    url: str = "",
 ) -> Paper:
     """Fetch and parse the paper (always reused once ingested: it is an input).
 
@@ -277,6 +282,7 @@ def stage_ingest(
         pdf: Local PDF.
         title: Title override for local PDFs.
         http: HTTP client for arXiv (built if omitted).
+        url: Link shown on the slides for local PDFs (e.g. where it was downloaded from).
 
     Returns:
         The paper.
@@ -289,7 +295,7 @@ def stage_ingest(
                 "00_paper.json",
                 Paper,
                 lambda: (
-                    ingest_pdf(pdf, title=title, run_dir=s.paper_dir)
+                    ingest_pdf(pdf, title=title, url=url, run_dir=s.paper_dir)
                     if pdf is not None
                     else ingest_arxiv(str(ref), s.paper_dir, client)
                 ),

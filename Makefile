@@ -45,28 +45,33 @@ lock:  ## pin installed model digests into models.lock
 
 ARXIV ?= 1706.03762
 ENGINE ?= plain
+PDF ?=
+TITLE ?=
+# The paper: an arXiv id, or a PDF path/URL (make run PDF=https://.../paper.pdf)
+SRC = $(if $(PDF),--pdf "$(PDF)" $(if $(TITLE),--title "$(TITLE)"),$(ARXIV))
+REF = $(if $(PDF),$(PDF),$(ARXIV))
 
 run:  ## paper -> outline.yaml for review (reuses finished steps), e.g. make run ARXIV=1706.03762
-	uv run paper2carousel run $(ARXIV) --engine $(ENGINE)
+	uv run paper2carousel run $(SRC) --engine $(ENGINE)
 
 approve:  ## accept the (edited) outline.yaml and finish the carousel
-	uv run paper2carousel run $(ARXIV) --engine $(ENGINE) --approve
+	uv run paper2carousel run $(SRC) --engine $(ENGINE) --approve
 
 baseline:  ## M1 one-shot pipeline, for comparison
-	uv run paper2carousel run $(ARXIV) --baseline
+	uv run paper2carousel run $(SRC) --baseline
 
 replay:  ## re-run the LLM steps from cassettes only (no Ollama needed)
-	uv run paper2carousel run $(ARXIV) --engine $(ENGINE) --mode replay --fresh --approve
+	uv run paper2carousel run $(SRC) --engine $(ENGINE) --mode replay --fresh --approve
 
 trace:  ## HTML trace viewer -> runs/$(ARXIV)/trace.html
-	uv run paper2carousel trace $(ARXIV)
+	uv run paper2carousel trace "$(REF)"
 
 # --- Gallery ---
 
 PAPER ?=
 
 publish:  ## copy a finished run + its cassettes into gallery/$(ARXIV)
-	uv run paper2carousel publish $(ARXIV)
+	uv run paper2carousel publish "$(REF)"
 
 verify:  ## replay gallery entries from their cassettes only and compare every artifact
 	uv run paper2carousel verify $(PAPER)

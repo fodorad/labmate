@@ -9,7 +9,8 @@ from __future__ import annotations
 import re
 import shutil
 import xml.etree.ElementTree as ET
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import urlparse
 
 import httpx
 import pymupdf
@@ -160,7 +161,7 @@ def split_sections(pdf: Path, max_level: int = 1) -> list[Section]:
 
     starts: list[tuple[str, int, int]] = []  # (title, page, offset)
     for title, page in toc:
-        if not 1 <= page <= len(pages):
+        if not 1 <= page <= len(pages) or _REFERENCES.search(f"\n{title.strip()}\n"):
             continue
         offset = _find_heading(text, title, page_offsets[page - 1])
         if 0 <= offset < end and (not starts or offset > starts[-1][2]):
@@ -204,6 +205,55 @@ def ingest_arxiv(ref: str, run_dir: Path, http: httpx.Client) -> Paper:
     )
 
 
+def is_url(ref: str) -> bool:
+    """True for ``http(s)://`` references.
+
+    Args:
+        ref: Path or URL.
+
+    Returns:
+        Whether ``ref`` is a URL.
+    """
+    return ref.startswith(("http://", "https://"))
+
+
+def url_stem(url: str) -> str:
+    """File stem of a URL's path, e.g. ``2023_Fodor_Adam_MDPI_BlinkLinMulT``.
+
+    Args:
+        url: PDF URL.
+
+    Returns:
+        The stem (the run id is its slug).
+    """
+    return PurePosixPath(urlparse(url).path).stem or "paper"
+
+
+def download_url(url: str, cache_dir: Path, http: httpx.Client) -> Path:
+    """Download a PDF from a URL unless it is already cached.
+
+    Args:
+        url: PDF URL.
+        cache_dir: Download cache (``runs/.downloads``).
+        http: HTTP client.
+
+    Returns:
+        The local PDF, named after the URL (so the run id is stable).
+
+    Raises:
+        IngestError: If the response is not a PDF.
+    """
+    dest = cache_dir / f"{url_stem(url)}.pdf"
+    if not dest.exists():
+        response = http.get(url)
+        response.raise_for_status()
+        if not response.content.startswith(b"%PDF"):
+            raise IngestError(f"{url} did not return a PDF")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(response.content)
+    return dest
+
+
 def ingest_pdf(
     pdf: Path, title: str | None = None, url: str = "", run_dir: Path | None = None
 ) -> Paper:
@@ -217,19 +267,23 @@ def ingest_pdf(
             (``run_dir/figures``); no figures if omitted.
 
     Returns:
-        The ingested paper. The abstract is taken from a section titled "Abstract" if any.
+        The ingested paper. Authors come from the PDF metadata; the abstract from a
+        section titled "Abstract", else from the metadata subject (LaTeX/hyperref PDFs
+        often carry it there).
     """
     if run_dir is not None and pdf.resolve() != (run_dir / "paper.pdf").resolve():
         run_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(pdf, run_dir / "paper.pdf")
     with pymupdf.open(pdf) as doc:
-        meta_title = (doc.metadata or {}).get("title") or ""
+        meta = doc.metadata or {}
     sections = split_sections(pdf)
     abstract = next((s.text for s in sections if s.title.lower() == "abstract"), "")
+    authors = [a.strip() for a in re.split(r",| and ", meta.get("author") or "") if a.strip()]
     return Paper(
         paper_id=slugify(pdf.stem),
-        title=title or meta_title or pdf.stem,
-        abstract=abstract,
+        title=title or meta.get("title") or pdf.stem,
+        authors=authors,
+        abstract=abstract or " ".join((meta.get("subject") or "").split()),
         url=url,
         sections=sections,
         figures=extract_figures(pdf, run_dir / "figures", run_dir) if run_dir else [],

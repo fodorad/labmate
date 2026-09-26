@@ -21,7 +21,14 @@ from paper2carousel.llm.client import OllamaClient, OllamaError, normalize_tag
 from paper2carousel.llm.replay import CassetteStore, ReplayClient, read_lock, write_lock
 from paper2carousel.phases import ModelSwitcher
 from paper2carousel.probe import run_probe
-from paper2carousel.steps.ingest import IngestError, parse_arxiv_id, slugify
+from paper2carousel.steps.ingest import (
+    IngestError,
+    download_url,
+    is_url,
+    parse_arxiv_id,
+    slugify,
+    url_stem,
+)
 from paper2carousel.steps.llm import LLM
 from paper2carousel.traceview import write_trace_html
 from paper2carousel.tracing import TracedClient, Tracer
@@ -116,10 +123,21 @@ def cmd_run(
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     mode = ReplayMode(args.mode) if args.mode else None
+    pdf, url = (Path(args.pdf) if args.pdf else None), args.url or ""
+    if args.pdf and is_url(args.pdf):
+        own = http is None
+        client_http = http or httpx.Client(timeout=120, follow_redirects=True)
+        try:
+            pdf = download_url(args.pdf, config.tracing.runs_dir / ".downloads", client_http)
+        finally:
+            if own:
+                client_http.close()
+        url = url or args.pdf
     common = {
         "ref": args.ref,
-        "pdf": args.pdf,
+        "pdf": pdf,
         "title": args.title,
+        "url": url,
         "mode": mode,
         "fresh": args.fresh,
         "approve": args.approve,
@@ -152,7 +170,8 @@ def resolve_run(config: Config, ref: str) -> Path:
 
     Args:
         config: Loaded configuration.
-        ref: ``runs/1706.03762``, ``1706.03762`` or ``arXiv:1706.03762``.
+        ref: ``runs/1706.03762``, ``1706.03762``, ``arXiv:1706.03762``, or the PDF path or
+            URL the run was made from.
 
     Returns:
         The run directory (may not exist).
@@ -160,6 +179,8 @@ def resolve_run(config: Config, ref: str) -> Path:
     path = Path(ref)
     if path.is_dir():
         return path
+    if is_url(ref) or ref.lower().endswith(".pdf"):
+        return config.tracing.runs_dir / slugify(url_stem(ref) if is_url(ref) else path.stem)
     try:
         return config.tracing.runs_dir / parse_arxiv_id(ref)
     except IngestError:
@@ -392,7 +413,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_p = sub.add_parser("run", help="turn a paper into a carousel")
     run_p.add_argument("ref", nargs="?", help="arXiv id or URL, e.g. 1706.03762")
-    run_p.add_argument("--pdf", type=Path, help="local PDF instead of arXiv")
+    run_p.add_argument("--pdf", help="PDF path or URL instead of arXiv")
+    run_p.add_argument("--url", help="link shown on the slides for --pdf (default: the URL)")
     run_p.add_argument("--title", help="title override for --pdf")
     run_p.add_argument(
         "--mode", choices=[m.value for m in ReplayMode], help="override [replay].mode"

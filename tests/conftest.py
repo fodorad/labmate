@@ -172,7 +172,13 @@ SECTIONS = [
 
 
 def make_pdf(
-    path, sections=SECTIONS, toc=True, references=True, title="A Test Paper", figure=False
+    path,
+    sections=SECTIONS,
+    toc=True,
+    references=True,
+    title="A Test Paper",
+    figure=False,
+    metadata=None,
 ):
     """Write a small multi-page PDF with numbered headings and (optionally) an outline.
 
@@ -202,9 +208,10 @@ def make_pdf(
         page = doc.new_page()
         page.insert_text((72, 72), "References", fontsize=14)
         page.insert_text((72, 100), "[1] Someone. A cited paper. 2020.", fontsize=10)
+        entries.append([1, "References", doc.page_count])
     if toc:
         doc.set_toc(entries)
-    doc.set_metadata({"title": title})
+    doc.set_metadata({"title": title, **(metadata or {})})
     doc.save(path)
     doc.close()
     return path

@@ -122,3 +122,11 @@ def test_diagram_tool_is_only_offered_with_graphviz(fake, tmp_path, monkeypatch)
     agent(fake, tmp_path)
     tools = [t["function"]["name"] for t in fake.requests[0][1]["tools"]]
     assert tools == ["use_paper_figure", "no_visual"]
+
+
+def test_figure_label_is_stripped_but_not_the_rest_of_the_caption():
+    from paper2carousel.steps.visuals import _FIGURE_LABEL
+
+    caption = "Figure 1. BlinkLinMulT: a multimodal transformer."
+    assert _FIGURE_LABEL.sub("", caption) == "BlinkLinMulT: a multimodal transformer."
+    assert _FIGURE_LABEL.sub("", "Fig. 3: Results.") == "Results."

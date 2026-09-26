@@ -5,12 +5,15 @@ import pytest
 from paper2carousel.steps.ingest import (
     IngestError,
     download_pdf,
+    download_url,
     fetch_metadata,
     ingest_arxiv,
     ingest_pdf,
+    is_url,
     parse_arxiv_id,
     slugify,
     split_sections,
+    url_stem,
 )
 from tests.conftest import EMPTY_ATOM, FakeArxiv, make_pdf
 
@@ -109,3 +112,46 @@ def test_ingest_local_pdf_uses_abstract_section_and_slug(tmp_path):
 
 def test_slugify():
     assert slugify("  LinMulT: v2 (Final) ") == "linmult-v2-final"
+
+
+def test_references_heading_in_the_outline_is_not_a_section(tmp_path):
+    sections = split_sections(make_pdf(tmp_path / "p.pdf"))
+    assert [s.title for s in sections] == ["Introduction", "Method", "Results"]
+
+
+def test_ingest_local_pdf_takes_authors_and_abstract_from_metadata(tmp_path):
+    meta = {
+        "author": "Ádám Fodor, Kristian Fenech and András Lőrincz",
+        "subject": "We  detect blinks.",
+    }
+    paper = ingest_pdf(make_pdf(tmp_path / "blink.pdf", metadata=meta), run_dir=tmp_path / "run")
+    assert paper.authors == ["Ádám Fodor", "Kristian Fenech", "András Lőrincz"]
+    assert paper.abstract == "We detect blinks."
+    assert (tmp_path / "run" / "paper.pdf").exists()  # cached next to the artifacts
+
+
+def test_is_url_and_url_stem():
+    assert is_url("https://a.org/x.pdf") and not is_url("papers/x.pdf")
+    assert url_stem("https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf?dl=1") == (
+        "2023_Fodor_Adam_MDPI_BlinkLinMulT"
+    )
+    assert url_stem("https://example.org/") == "paper"
+
+
+def test_download_url_caches_and_rejects_non_pdfs(tmp_path):
+    pdf_bytes = make_pdf(tmp_path / "src.pdf").read_bytes()
+    hits = []
+
+    def handle(request):
+        hits.append(request.url.path)
+        if request.url.path.endswith("html.pdf"):
+            return httpx.Response(200, content=b"<html>login</html>")
+        return httpx.Response(200, content=pdf_bytes)
+
+    http = httpx.Client(transport=httpx.MockTransport(handle))
+    out = download_url("https://x.org/a/My_Paper.pdf", tmp_path / "dl", http)
+    assert out == tmp_path / "dl" / "My_Paper.pdf" and out.read_bytes() == pdf_bytes
+    download_url("https://x.org/a/My_Paper.pdf", tmp_path / "dl", http)
+    assert len(hits) == 1
+    with pytest.raises(IngestError, match="did not return a PDF"):
+        download_url("https://x.org/html.pdf", tmp_path / "dl", http)

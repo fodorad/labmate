@@ -238,3 +238,34 @@ def test_run_with_the_langgraph_engine(fake, arxiv, workdir, capsys):
     assert "carousel.pdf" in capsys.readouterr().out
     assert main([*argv, "--baseline"], client=fake.client(), http=arxiv.client()) == 1
     assert "only available with --engine plain" in capsys.readouterr().err
+
+
+def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
+    import httpx
+
+    from tests.conftest import agentic_chat, make_pdf
+
+    pdf_bytes = make_pdf(workdir / "src.pdf").read_bytes()
+    downloads = []
+
+    def serve(request):
+        downloads.append(str(request.url))
+        return httpx.Response(200, content=pdf_bytes)
+
+    http = httpx.Client(transport=httpx.MockTransport(serve))
+    fake.chat_handler = agentic_chat
+    url = "https://example.org/pdf/2023_My_Paper.pdf"
+    argv = ["run", "--pdf", url, "--auto-approve"]
+    assert main(argv, client=fake.client(), http=http) == 0
+    run_dir = workdir / "runs" / "2023-my-paper"
+    paper = json.loads((run_dir / "00_paper.json").read_text())
+    assert paper["url"] == url and paper["title"] == "A Test Paper"
+    assert "https://example.org/pdf/2023_My_Paper.pdf" in (run_dir / "post.md").read_text()
+
+    assert main(["trace", url]) == 0
+    assert main(["publish", url]) == 0
+    capsys.readouterr()
+    assert not (workdir / "gallery" / "2023-my-paper" / "2023-my-paper.pdf").exists()
+    assert main(["verify"], http=http) == 0  # re-downloads the PDF from its URL
+    assert "OK   2023-my-paper" in capsys.readouterr().out
+    assert len(downloads) == 2

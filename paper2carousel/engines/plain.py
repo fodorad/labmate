@@ -96,6 +96,7 @@ def run(
     ref: str | None = None,
     pdf: Path | None = None,
     title: str | None = None,
+    url: str = "",
     mode: ReplayMode | None = None,
     fresh: bool = False,
     approve: bool = False,
@@ -111,6 +112,7 @@ def run(
         ref: arXiv id, reference or URL.
         pdf: Local PDF instead of arXiv.
         title: Title override for local PDFs.
+        url: Link to a local PDF's source (shown on the slides).
         mode: Replay mode override (defaults to ``config.replay.mode``).
         fresh: Recompute LLM steps even if their artifacts exist.
         approve: Accept the (possibly edited) ``outline.yaml`` and continue.
@@ -126,7 +128,7 @@ def run(
     s = open_session(config, ref, pdf, mode, reuse=not fresh, baseline=baseline, client=client)
     root_attrs = {"paper": ref or str(pdf), "mode": s.mode.value, "baseline": baseline}
     with s.tracer.span("run", engine="plain", **root_attrs) as root:
-        paper = stage_ingest(s, ref, pdf, title, http)
+        paper = stage_ingest(s, ref, pdf, title, http, url)
 
         if baseline:
             s.switcher.use(s.llm.model)

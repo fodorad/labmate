@@ -83,7 +83,14 @@ Each run folder contains `carousel.pdf`, `post.md` (paste-ready LinkedIn text),
 `summary.md` (every bullet with its page and quote), `alt_texts.json`, `pages/*.png`, every
 step's JSON artifact and `trace.jsonl`.
 
-Local PDFs work too: `uv run paper2carousel run --pdf path/to/paper.pdf --title "..."`.
+Papers that aren't on arXiv work too, from a path or a URL (title and authors come from
+the PDF metadata when present; the URL is linked on the slides):
+
+```bash
+make run PDF=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
+make approve PDF=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
+make run PDF=papers/mine.pdf TITLE="My paper"
+```
 
 `make probe` writes `probe/probe_report.md`.
 

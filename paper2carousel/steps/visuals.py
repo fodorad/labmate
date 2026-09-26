@@ -9,6 +9,7 @@ handled in order, so a figure is never used twice.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -24,6 +25,10 @@ MAX_STEPS = 3
 
 DOT_TIMEOUT_S = 20
 """Graphviz render timeout."""
+
+
+_FIGURE_LABEL = re.compile(r"^\s*(Figure|Fig\.)\s*\d+\s*[.:]\s*", re.IGNORECASE)
+"""The "Figure 3." / "Fig. 3:" prefix, stripped from captions shown on slides."""
 
 
 def _tool(name: str, description: str, **params: tuple[str, str]) -> dict[str, Any]:
@@ -139,7 +144,7 @@ class _Toolbox:
                 return f"error: {fid} is already on slide {self.used[fid]}", None, False
             self.used[fid] = slide
             fig = self.figures[fid]
-            caption = fig.caption.split(":", 1)[-1].strip() or fig.caption
+            caption = _FIGURE_LABEL.sub("", fig.caption).strip() or fig.caption
             return (
                 f"ok: {fid} placed",
                 Visual(kind="figure", source=fid, path=fig.path, caption=caption),
