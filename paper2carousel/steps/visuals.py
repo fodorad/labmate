@@ -125,14 +125,15 @@ _STOPWORDS = frozenset(
     "about above after also among another based because been being between both could does "
     "each from have into its more most other over same show shows shown such than that the "
     "their them then there these they this those through under using used uses very were "
-    "what when where which while with within without would case".split()
+    "what when where which while with within without would case figure".split()
 )
 
 
 def content_words(text: str, ignore: frozenset[str] = frozenset()) -> set[str]:
     """Topic words of a text: lower-cased words of 4+ letters, crude plural stripping.
 
-    Hyphens inside words are dropped ("multi-modal" == "multimodal").
+    Hyphenated words count both joined and as parts ("multi-modal" matches "multimodal",
+    "Transformer-Based" yields "transformer").
 
     Args:
         text: Any text.
@@ -141,10 +142,10 @@ def content_words(text: str, ignore: frozenset[str] = frozenset()) -> set[str]:
     Returns:
         The set of content words.
     """
-    text = re.sub(r"(?<=[a-z])-(?=[a-z])", "", text.lower())
-    words = {
-        w[:-1] if len(w) > 4 and w.endswith("s") else w for w in re.findall(r"[a-z]{4,}", text)
-    }
+    text = text.lower()
+    joined = re.sub(r"(?<=[a-z])-(?=[a-z])", "", text)
+    raw = re.findall(r"[a-z]{4,}", text) + re.findall(r"[a-z]{4,}", joined)
+    words = {w[:-1] if len(w) > 4 and w.endswith("s") else w for w in raw}
     return words - _STOPWORDS - ignore
 
 

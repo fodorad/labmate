@@ -163,5 +163,8 @@ def test_figure_on_a_different_topic_is_refused_as_an_observation(fake, tmp_path
     # title words don't count as shared topics; plurals and hyphens are normalised
     assert content_words("Multi-modal angles of Transformers", frozenset({"transformer"})) == {
         "multimodal",
+        "multi",
+        "modal",
         "angle",
     }
+    assert "transformer" in content_words("Transformer-Based Eye Blink Detection")
