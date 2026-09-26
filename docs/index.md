@@ -6,9 +6,10 @@ Keep near-identical to README.md (minus GitHub chrome). Update both in the same 
 
 > Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
 
-**Status: pre-alpha (milestone M1).** A walking skeleton runs end to end: arXiv id → PDF →
-sections → one structured LLM call → rendered carousel, with tracing and record/replay. The
-agentic steps (routing, claim extraction, outline, fact-check loop, visuals agent) come next.
+**Status: pre-alpha (milestone M2).** The agentic core runs end to end: routing, parallel
+claim extraction with a quote-verification guard, an orchestrated outline, a human approval
+gate and grounded slide writing, all traced and replayable. Next: the fact-check loop (M3)
+and visuals (M4).
 
 ## What it will do
 
@@ -24,6 +25,18 @@ arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline �
 - **Local and free:** runs on a Mac mini M4 (32 GB) with Ollama. No paid APIs.
 - **Reproducible:** every model call is recorded to a cassette. `replay` mode reruns a
   published run byte-for-byte without any model installed; this is also what CI runs.
+
+## How it works
+
+| Step | Pattern | What it does |
+|---|---|---|
+| ingest | plain code | arXiv PDF → sections via the PDF outline, references dropped |
+| route | routing | title + abstract → method / benchmark / survey / position template |
+| extract | parallelisation | per section: claim cards with verbatim evidence quotes; quotes that aren't in the paper, or whose numbers differ, are dropped in code |
+| outline | orchestrator | picks the slides and assigns claim cards; rules (template order, valid ids, ≤ 2 uses per claim) are checked in code and fed back on violation |
+| gate | human-in-the-loop | writes `outline.yaml` and pauses; your edits are validated with the same rules |
+| write | prompt chaining | one call per slide; every bullet cites the claim ids it uses |
+| render | plain code | Typst → 4:5 PDF |
 
 ## Models
 
@@ -51,8 +64,10 @@ make check       # lint + type-check + tests + docs (no Ollama needed)
 # with Ollama running:
 make lock        # pin installed model digests into models.lock
 make probe       # verify structured output, tools, vision, determinism; benchmark image models
-make run ARXIV=1706.03762   # -> runs/1706.03762/carousel.pdf + trace.jsonl
-make replay ARXIV=1706.03762  # same run from cassettes only, no Ollama needed
+make run ARXIV=1706.03762      # route, extract, plan -> pauses with runs/1706.03762/outline.yaml
+make approve ARXIV=1706.03762  # after reviewing/editing the outline: write + render carousel.pdf
+make replay ARXIV=1706.03762   # the whole run again from cassettes only, no Ollama needed
+make baseline ARXIV=1706.03762 # the M1 one-shot version, for comparison
 ```
 
 Local PDFs work too: `uv run paper2carousel run --pdf path/to/paper.pdf --title "..."`.

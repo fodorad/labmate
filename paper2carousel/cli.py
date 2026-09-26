@@ -113,9 +113,18 @@ def cmd_run(
         title=args.title,
         mode=mode,
         fresh=args.fresh,
+        approve=args.approve,
+        auto_approve=args.auto_approve,
+        baseline=args.baseline,
         client=client,
         http=http,
     )
+    if result.status == "awaiting_approval":
+        print(
+            f"Outline ready for review: {result.gate}\n"
+            "Edit it if you like, then continue with --approve (make approve)."
+        )
+        return 0
     print(f"Carousel: {result.carousel}\nTrace:    {result.trace}")
     return 0
 
@@ -144,6 +153,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--mode", choices=[m.value for m in ReplayMode], help="override [replay].mode"
     )
     run_p.add_argument("--fresh", action="store_true", help="recompute LLM steps")
+    run_p.add_argument("--approve", action="store_true", help="accept outline.yaml, continue")
+    run_p.add_argument("--auto-approve", action="store_true", help="skip the human gate")
+    run_p.add_argument("--baseline", action="store_true", help="M1 one-shot pipeline")
     return parser
 
 

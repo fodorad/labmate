@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe probe-fast lock run replay
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe probe-fast lock run approve baseline replay
 
 install:
 	uv sync --extra dev
@@ -45,11 +45,17 @@ lock:  ## pin installed model digests into models.lock
 
 ARXIV ?= 1706.03762
 
-run:  ## paper -> carousel, e.g. make run ARXIV=1706.03762 (reuses finished steps)
+run:  ## paper -> outline.yaml for review (reuses finished steps), e.g. make run ARXIV=1706.03762
 	uv run paper2carousel run $(ARXIV)
 
+approve:  ## accept the (edited) outline.yaml and finish the carousel
+	uv run paper2carousel run $(ARXIV) --approve
+
+baseline:  ## M1 one-shot pipeline, for comparison
+	uv run paper2carousel run $(ARXIV) --baseline
+
 replay:  ## re-run the LLM steps from cassettes only (no Ollama needed)
-	uv run paper2carousel run $(ARXIV) --mode replay --fresh
+	uv run paper2carousel run $(ARXIV) --mode replay --fresh --approve
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov dist build docs/_build coverage.xml .coverage

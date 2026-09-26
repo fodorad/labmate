@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -149,9 +150,24 @@ def fast_unload_polling(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 SECTIONS = [
-    ("Introduction", "Transformers are everywhere. We study attention cost."),
-    ("Method", "We propose LinAttn with linear complexity in sequence length."),
-    ("Results", "LinAttn reaches 84.6% accuracy, up from 82.1%, with 38% less memory."),
+    (
+        "Introduction",
+        "Transformers are everywhere in modern machine learning systems. Their attention "
+        "cost grows quadratically with the sequence length, which limits long inputs. "
+        "We study how to remove this bottleneck without losing accuracy on benchmarks.",
+    ),
+    (
+        "Method",
+        "We propose LinAttn with linear complexity in sequence length. It replaces the "
+        "softmax kernel with a feature map that can be computed incrementally. The model "
+        "keeps the same number of layers and parameters as the baseline transformer.",
+    ),
+    (
+        "Results",
+        "LinAttn reaches 84.6% accuracy, up from 82.1%, with 38% less memory. Training is "
+        "twice as fast on sequences of length 4096. The gains grow with sequence length "
+        "while short sequences show no measurable difference.",
+    ),
 ]
 
 
@@ -162,7 +178,7 @@ def make_pdf(path, sections=SECTIONS, toc=True, references=True, title="A Test P
     for i, (heading, body) in enumerate(sections, start=1):
         page = doc.new_page()
         page.insert_text((72, 72), f"{i} {heading}", fontsize=14)
-        page.insert_text((72, 100), body, fontsize=10)
+        page.insert_textbox(pymupdf.Rect(72, 90, 520, 760), body, fontsize=10)
         entries.append([1, heading, i])
     if references:
         page = doc.new_page()
@@ -231,3 +247,53 @@ def deck_chat(body: dict[str, Any]) -> dict[str, Any]:
     if "slides" in body.get("format", {}).get("properties", {}):
         return {"model": body["model"], "message": {"content": DECK.model_dump_json()}}
     return default_chat(body)
+
+
+# --- M2: a fake model that plays router, extractor, planner and writer ---------------------
+
+ALL_IDS = re.compile(r"^(c\d{2}) ", re.MULTILINE)
+
+
+def _last_user(body: dict[str, Any]) -> str:
+    return next(m["content"] for m in reversed(body["messages"]) if m["role"] == "user")
+
+
+def _first_sentences(text: str, n: int) -> list[str]:
+    sentences = [s.strip() for s in text.replace("\n", " ").split(". ") if len(s.split()) >= 4]
+    return sentences[:n]
+
+
+def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
+    """Answer each pipeline step's schema with plausible, grounded content."""
+    props = body.get("format", {}).get("properties", {})
+    prompt = _last_user(body)
+    conversation = "\n".join(m["content"] for m in body["messages"] if m["role"] == "user")
+    if "paper_type" in props:
+        content: Any = {"paper_type": "method", "confidence": 0.9, "reason": "new model"}
+    elif "claims" in props:
+        text = prompt.split("SECTION TEXT:", 1)[1]
+        content = {
+            "claims": [
+                {"claim": f"Claim: {q}.", "evidence_quote": q, "kind": "result"}
+                for q in _first_sentences(text, 2)
+            ]
+        }
+    elif "hook" in props:
+        ids = ALL_IDS.findall(conversation)
+        purposes = ["problem", "idea", "result", "takeaway"]
+        content = {
+            "hook": "Linear attention, same accuracy",
+            "slides": [
+                {"title": f"Slide about {p}", "purpose": p, "claim_ids": [ids[i % len(ids)]]}
+                for i, p in enumerate(purposes)
+            ],
+        }
+    elif "bullets" in props:
+        ids = ALL_IDS.findall(conversation)
+        content = {
+            "title": "A written slide",
+            "bullets": [{"text": f"Grounded in {cid}.", "claim_ids": [cid]} for cid in ids],
+        }
+    else:
+        return default_chat(body)
+    return {"model": body["model"], "message": {"content": json.dumps(content)}}

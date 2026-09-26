@@ -26,6 +26,8 @@ dependencies = [
     "httpx>=0.28",
     "pydantic>=2.10",
     "pymupdf>=1.25",
+    "pyyaml>=6.0",
+    "rapidfuzz>=3.10",
     "typst>=0.13",
 ]
 
@@ -40,6 +42,7 @@ dev = [
     "furo>=2024.8",
     "myst-parser>=4.0",
     "sphinx-autodoc-typehints>=2.5",
+    "types-pyyaml>=6.0",
 ]
 
 [project.scripts]

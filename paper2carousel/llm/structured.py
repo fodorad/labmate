@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel, ValidationError
@@ -104,19 +105,26 @@ def _validation_error(text: str, model: type[BaseModel]) -> str:
 
 
 def structured_chat[M: BaseModel](
-    backend: Backend, request: ChatRequest, model: type[M], max_retries: int = 2
+    backend: Backend,
+    request: ChatRequest,
+    model: type[M],
+    max_retries: int = 2,
+    check: Callable[[M], list[str]] | None = None,
 ) -> M:
     """Run a chat request and return its output validated as ``model``.
 
     Sends the schema both ways: ``format=`` (honoured by some backends) and a system
     instruction (followed by the rest). On invalid output it retries, showing the model its
     previous reply and the validation error, which is the cheapest self-correction loop.
+    ``check`` adds semantic rules on top of the schema (a programmatic *gate*): any problems
+    it returns are fed back exactly like schema errors.
 
     Args:
         backend: Any backend (usually traced + replayed).
         request: The base request; its ``format`` is overwritten with the schema.
         model: Target Pydantic model class.
         max_retries: Extra attempts after the first.
+        check: Optional semantic validator returning a list of problems (empty = OK).
 
     Returns:
         The validated instance.
@@ -131,18 +139,23 @@ def structured_chat[M: BaseModel](
             request.model_copy(update={"messages": messages, "format": model.model_json_schema()})
         )
         parsed, _ = parse_structured(response.content, model)
-        if parsed is not None:
-            return parsed
         last = response.content
+        if parsed is not None:
+            problems = check(parsed) if check else []
+            if not problems:
+                return parsed
+            feedback = "That reply is valid JSON but breaks these rules:\n- " + "\n- ".join(
+                problems
+            )
+        else:
+            feedback = (
+                f"That reply does not validate against the schema:\n"
+                f"{_validation_error(last, model)}"
+            )
         messages = [
             *messages,
             Message(role="assistant", content=last),
-            Message(
-                role="user",
-                content="That reply does not validate against the schema:\n"
-                f"{_validation_error(last, model)}\n"
-                "Reply again with only the corrected JSON object.",
-            ),
+            Message(role="user", content=f"{feedback}\nReply again with only the corrected JSON."),
         ]
     raise StructuredOutputError(
         f"{request.model}: no valid {model.__name__} after {max_retries + 1} attempts; "

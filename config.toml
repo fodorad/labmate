@@ -17,6 +17,9 @@ temperature = 0.0
 seed = 42
 num_ctx = 16384  # Ollama's default window would silently truncate the paper
 
+[pipeline]
+workers = 2  # concurrent calls for parallel steps; Ollama queues beyond OLLAMA_NUM_PARALLEL
+
 [replay]
 # live   : always call Ollama, store nothing
 # record : always call Ollama, (over)write cassettes

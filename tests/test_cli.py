@@ -109,14 +109,23 @@ def test_main_builds_a_real_client_when_none_injected(workdir, monkeypatch):
     assert built["host"] == "http://localhost:11434"
 
 
-def test_run_command_end_to_end(fake, arxiv, workdir, capsys):
+def test_run_pauses_then_approve_finishes(fake, arxiv, workdir, capsys):
+    from tests.conftest import agentic_chat
+
+    fake.chat_handler = agentic_chat
+    assert main(["run", "2401.00001"], client=fake.client(), http=arxiv.client()) == 0
+    assert "Outline ready for review: runs/2401.00001/outline.yaml" in capsys.readouterr().out
+    assert main(["run", "2401.00001", "--approve"], client=fake.client(), http=arxiv.client()) == 0
+    assert "runs/2401.00001/carousel.pdf" in capsys.readouterr().out
+
+
+def test_run_baseline_flag(fake, arxiv, workdir, capsys):
     from tests.conftest import deck_chat
 
     fake.chat_handler = deck_chat
-    assert main(["run", "2401.00001"], client=fake.client(), http=arxiv.client()) == 0
-    out = capsys.readouterr().out
-    assert "runs/2401.00001/carousel.pdf" in out
-    assert (workdir / "runs" / "2401.00001" / "carousel.pdf").exists()
+    argv = ["run", "2401.00001", "--baseline"]
+    assert main(argv, client=fake.client(), http=arxiv.client()) == 0
+    assert "runs/2401.00001/baseline/carousel.pdf" in capsys.readouterr().out
 
 
 def test_run_without_paper_is_an_error(fake, workdir, capsys):

@@ -55,6 +55,12 @@ class GenerationConfig(BaseModel):
     num_ctx: int = 16384
 
 
+class PipelineConfig(BaseModel):
+    """Orchestration settings."""
+
+    workers: int = 2
+
+
 class ReplayConfig(BaseModel):
     """Record/replay cache settings."""
 
@@ -75,6 +81,7 @@ class Config(BaseModel):
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
+    pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     replay: ReplayConfig = Field(default_factory=ReplayConfig)
     tracing: TracingConfig = Field(default_factory=TracingConfig)
 

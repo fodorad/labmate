@@ -30,6 +30,24 @@ API Reference
 .. automodule:: paper2carousel.steps.ingest
    :members:
 
+.. automodule:: paper2carousel.steps.llm
+   :members:
+
+.. automodule:: paper2carousel.steps.route
+   :members:
+
+.. automodule:: paper2carousel.steps.extract
+   :members:
+
+.. automodule:: paper2carousel.steps.outline
+   :members:
+
+.. automodule:: paper2carousel.steps.gate
+   :members:
+
+.. automodule:: paper2carousel.steps.write
+   :members:
+
 .. automodule:: paper2carousel.steps.draft
    :members:
 
@@ -37,6 +55,9 @@ API Reference
    :members:
 
 .. automodule:: paper2carousel.engines.plain
+   :members:
+
+.. automodule:: paper2carousel.parallel
    :members:
 
 .. automodule:: paper2carousel.tracing
