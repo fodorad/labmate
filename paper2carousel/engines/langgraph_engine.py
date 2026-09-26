@@ -247,7 +247,11 @@ def build_graph(
             save(s.path("04_slides.json"), written)
             span.update(slides=len(written.slides))
         log.info("written: %d slides", len(written.slides))
-        return {"written": written, "loop": start_loop(written), "swaps_before": s.switcher.swaps}
+        return {
+            "written": written,
+            "loop": start_loop(written, state["paper"].title),
+            "swaps_before": s.switcher.swaps,
+        }
 
     def judge(state: State) -> State:
         by_id = {c.id: c for c in state["claims"].cards}

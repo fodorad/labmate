@@ -53,21 +53,78 @@ def numbers_in(text: str) -> set[str]:
     return {n.replace(",", "") for n in _NUMBER.findall(normalize(text))}
 
 
-def deterministic_problems(text: str, cards: list[ClaimCard]) -> list[str]:
-    """Checks that need no model: every number in the bullet must be in its evidence.
+GENERIC_NAMES = frozenset(
+    "f1 bleu rouge auc roc map mae mse rmse cnn cnns rnn rnns lstm gru gpu gpus tpu tpus cpu "
+    "rgb ai ml llm llms nlp cv sota api fps".split()
+)
+"""Acronyms common enough to use without a quote naming them."""
 
-    Evidence means the verified quotes, not the claim paraphrases, which are model output.
+_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_\-]*[A-Za-z0-9]")
+
+
+def names_in(text: str) -> set[str]:
+    """Identifiers in ``text``, lower-cased: ``DenseNet121``, ``MRL``, ``TalkingFace``.
+
+    Model, dataset and method names are what a paraphrase most easily gets wrong.
+
+    Args:
+        text: Any text.
+
+    Returns:
+        Tokens that mix letters and digits, are all capitals, or are CamelCase.
+    """
+    names = set()
+    for token in _TOKEN.findall(text):
+        letters = [c for c in token if c.isalpha()]
+        if (
+            (any(c.isdigit() for c in token) and letters)
+            or (len(letters) >= 2 and token.isupper())
+            or re.search(r"[a-z][A-Z]", token)
+        ):
+            names.add(token.lower())
+    return names
+
+
+def deterministic_problems(
+    text: str, cards: list[ClaimCard], exempt: frozenset[str] = frozenset()
+) -> list[str]:
+    """Checks that need no model: numbers and names in the bullet must be in its evidence.
+
+    Evidence means the verified quotes, not the claim paraphrases, which are model output
+    and can carry context the quote doesn't (a real run wrote "DenseNet121 achieves 0.9953
+    on MRL" from a quote that names neither).
 
     Args:
         text: Bullet text.
         cards: The claim cards the bullet cites.
+        exempt: Names that need no quote (e.g. the paper title's, like the method's name).
 
     Returns:
         Problems; empty if the bullet passes.
     """
-    evidence = numbers_in(" ".join(c.evidence_quote for c in cards))
-    missing = sorted(numbers_in(text) - evidence, key=lambda n: (len(n), n))
-    return [f"number(s) {', '.join(missing)} not in the cited evidence"] if missing else []
+    quotes = " ".join(c.evidence_quote for c in cards)
+    problems = []
+    missing = sorted(numbers_in(text) - numbers_in(quotes), key=lambda n: (len(n), n))
+    if missing:
+        problems.append(f"number(s) {', '.join(missing)} not in the cited evidence")
+    evidence = normalize(quotes)
+    unnamed = sorted(n for n in names_in(text) - GENERIC_NAMES - exempt if n not in evidence)
+    if unnamed:
+        problems.append(f"name(s) {', '.join(unnamed)} not in the cited evidence")
+    return problems
+
+
+def title_names(title: str) -> frozenset[str]:
+    """Names from the paper title, which bullets may use without quoting them.
+
+    Args:
+        title: Paper title.
+
+    Returns:
+        Lower-cased names, including the parts of hyphenated ones.
+    """
+    names = names_in(title)
+    return frozenset(names | {part for n in names for part in n.split("-") if part})
 
 
 def format_for_judge(slide: SlideText, by_id: dict[str, ClaimCard]) -> str:
@@ -161,6 +218,7 @@ class FactCheckLoop(BaseModel):
         latest: Latest checks per slide index.
         pending: Slide indices that still fail (to rewrite, then re-judge).
         report: Audit trail so far.
+        exempt: Names bullets may use without quoting them (from the paper title).
     """
 
     hook: str
@@ -168,19 +226,24 @@ class FactCheckLoop(BaseModel):
     latest: dict[int, list[BulletCheck]] = Field(default_factory=dict)
     pending: list[int]
     report: FactCheckReport = Field(default_factory=lambda: FactCheckReport(rounds=[]))
+    exempt: list[str] = Field(default_factory=list)
 
 
-def start_loop(written: WrittenSlides) -> FactCheckLoop:
+def start_loop(written: WrittenSlides, paper_title: str = "") -> FactCheckLoop:
     """Initial loop state: every slide is pending judgement.
 
     Args:
         written: Slides from the writer.
+        paper_title: Its names (e.g. the method's) need no quote.
 
     Returns:
         The loop state.
     """
     return FactCheckLoop(
-        hook=written.hook, slides=list(written.slides), pending=list(range(len(written.slides)))
+        hook=written.hook,
+        slides=list(written.slides),
+        pending=list(range(len(written.slides))),
+        exempt=sorted(title_names(paper_title)),
     )
 
 
@@ -210,7 +273,9 @@ def judge_pending(
                 text=bullet.text,
                 claim_ids=bullet.claim_ids,
                 problems=deterministic_problems(
-                    bullet.text, [by_id[c] for c in bullet.claim_ids if c in by_id]
+                    bullet.text,
+                    [by_id[c] for c in bullet.claim_ids if c in by_id],
+                    frozenset(loop.exempt),
                 ),
                 verdict=by_bullet[b].verdict,
                 reason=by_bullet[b].reason,
@@ -305,6 +370,7 @@ def fact_check(
     switcher: ModelSwitcher,
     max_rounds: int = 2,
     workers: int = 2,
+    paper_title: str = "",
 ) -> FactChecked:
     """Run the evaluator-optimizer loop over all slides.
 
@@ -317,12 +383,13 @@ def fact_check(
         switcher: Keeps one model in memory per phase.
         max_rounds: Rewrite rounds after the first check.
         workers: Concurrent calls within a phase.
+        paper_title: Its names need no quote.
 
     Returns:
         Corrected slides and the per-round report.
     """
     by_id = {c.id: c for c in claims.cards}
-    loop = start_loop(written)
+    loop = start_loop(written, paper_title)
     while True:
         switcher.use(judge.model)
         loop = judge_pending(loop, by_id, judge, workers)

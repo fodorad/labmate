@@ -229,3 +229,23 @@ def test_style_dot_replaces_the_models_styling_with_the_house_style():
     styled = style_dot(dot)
     assert "lightblue" not in styled and "red" not in styled and "ellipse" not in styled
     assert 'label="A"' in styled and styled.startswith("digraph { " + DOT_STYLE)
+
+
+@needs_dot
+def test_diagram_numbers_must_come_from_the_evidence(fake, tmp_path):
+    from paper2carousel.schemas import ClaimCard, Claims
+
+    claims = Claims(
+        cards=[ClaimCard(id="c01", claim="c", evidence_quote="an F1 score of 0.917 at 25 degrees",
+                         kind="result", section="R", page=1, match=100.0)]
+    )  # fmt: skip
+    slide = SlideText(title="Results", bullets=[Bullet(text="0.917 F1.", claim_ids=["c01"])])
+    scripted(
+        fake,
+        ("make_diagram", {"dot": 'digraph { a [label="0.95 F1"]; a -> b }', "caption": "x"}),
+        ("make_diagram", {"dot": 'digraph { a [label="0.917 F1"]; a -> b }', "caption": "ok"}),
+    )
+    llm = LLM(fake.client(), "qwen3.6:35b-mlx")
+    result = choose_visuals([slide], [], tmp_path, llm, "", claims)
+    assert "number(s) 0.95 that are not in the evidence" in result.steps[0].observation
+    assert result.slides[0].kind == "diagram"

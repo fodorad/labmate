@@ -465,7 +465,7 @@ def factcheck_attrs(checked: FactChecked, swaps: int) -> dict[str, object]:
 
 
 def stage_factcheck(
-    s: Session, written: WrittenSlides, outline: Outline, claims: Claims
+    s: Session, written: WrittenSlides, outline: Outline, claims: Claims, paper: Paper
 ) -> FactChecked:
     """Check every bullet against its evidence, rewrite or drop failures.
 
@@ -474,6 +474,7 @@ def stage_factcheck(
         written: Written slides.
         outline: Approved outline (rewrite scope per slide).
         claims: Claims.
+        paper: The paper (its title's names need no quote).
 
     Returns:
         The corrected slides and the audit.
@@ -492,6 +493,7 @@ def stage_factcheck(
                 s.switcher,
                 s.config.pipeline.max_rewrite_rounds,
                 s.workers,
+                paper.title,
             ),
         )
         span.update(**factcheck_attrs(checked, s.switcher.swaps - swaps_before))

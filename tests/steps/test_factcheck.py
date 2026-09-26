@@ -156,3 +156,27 @@ def test_switcher_unloads_previous_model(fake):
     assert switcher.swaps == 1 and "qwen3.6:35b-mlx" not in fake.loaded
     switcher.release()
     assert "gemma4:26b-mlx" not in fake.loaded and switcher.active is None
+
+
+def test_names_must_be_in_the_evidence_unless_generic_or_in_the_title():
+    from paper2carousel.steps.factcheck import names_in, title_names
+
+    assert names_in("DenseNet121 gets 0.99 F1 on MRL, EN-DE and TalkingFace data") == {
+        "densenet121",
+        "f1",
+        "mrl",
+        "en-de",
+        "talkingface",
+    }
+    quote = [
+        CARDS[0].model_copy(
+            update={"evidence_quote": "a 0.9953 average F1 score is successfully reproduced"}
+        )
+    ]
+    bullet = "DenseNet121 achieves a 0.9953 average F1 score on the MRL database."
+    assert deterministic_problems(bullet, quote) == [
+        "name(s) densenet121, mrl not in the cited evidence"
+    ]
+    exempt = title_names("BlinkLinMulT: Transformer-Based Eye Blink Detection")
+    assert "blinklinmult" in exempt
+    assert deterministic_problems("BlinkLinMulT reaches 0.9953 F1.", quote, exempt) == []

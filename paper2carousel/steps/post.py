@@ -76,7 +76,14 @@ def write_post(
         hook=draft.hook, slides=[SlideText(title=draft.hook, bullets=g) for g in groups]
     )
     checked = fact_check(
-        as_slides, [used] * len(groups), claims, writer, judge, switcher, max_rounds
+        as_slides,
+        [used] * len(groups),
+        claims,
+        writer,
+        judge,
+        switcher,
+        max_rounds,
+        paper_title=paper.title,
     )
     takeaways = [b for slide in checked.slides.slides for b in slide.bullets]
     return Post(

@@ -160,7 +160,7 @@ def run(
             root.update(status="awaiting_approval")
             return s.result("awaiting_approval")
         written = stage_write(s, outline, claims)
-        checked = stage_factcheck(s, written, outline, claims)
+        checked = stage_factcheck(s, written, outline, claims, paper)
         stage_post(s, checked, claims, paper)
         visuals = stage_visuals(s, checked.slides.slides, paper, claims)
         labels = slide_labels(outline, checked)

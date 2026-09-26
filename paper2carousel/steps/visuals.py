@@ -19,6 +19,7 @@ from typing import Any
 from paper2carousel.llm.types import Message, ToolCall
 from paper2carousel.schemas import AgentStep, Claims, Figure, SlideText, Visual, Visuals
 from paper2carousel.steps.charts import bar_chart_svg, check_chart
+from paper2carousel.steps.factcheck import numbers_in
 from paper2carousel.steps.llm import LLM, load_prompt
 
 MAX_STEPS = 5
@@ -259,6 +260,15 @@ class _Toolbox:
                 True,
             )
         if name == "make_diagram":
+            shown_text = " ".join(re.findall(r'"([^"]*)"', str(args.get("dot", ""))))
+            invented = sorted(numbers_in(shown_text) - numbers_in(" ".join(evidence or [])))
+            if invented:
+                return (
+                    f"error: the diagram shows number(s) {', '.join(invented)} that are not "
+                    "in the evidence; leave numbers out or use make_chart",
+                    None,
+                    False,
+                )
             path = self.out_dir / "diagrams" / f"slide{slide}.png"
             error = render_dot(str(args.get("dot", "")), path)
             if error:
