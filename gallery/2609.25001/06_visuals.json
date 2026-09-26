@@ -1,0 +1,79 @@
+{
+  "slides": [
+    null,
+    {
+      "kind": "diagram",
+      "source": "diagram",
+      "path": "diagrams/slide2.png",
+      "caption": "Limitations of prior game benchmarks: narrow coverage and reproducibility issues."
+    },
+    {
+      "kind": "diagram",
+      "source": "diagram",
+      "path": "diagrams/slide3.png",
+      "caption": "Annotator pipeline: from raw traces to standardized benchmark clips and questions."
+    },
+    {
+      "kind": "chart",
+      "source": "chart",
+      "path": "charts/slide4.svg",
+      "caption": "Proprietary model GPT-6-Astra leads with 80.2% accuracy, while UMMs lag behind the mean of 64.7%."
+    }
+  ],
+  "steps": [
+    {
+      "slide": 1,
+      "tool": "use_paper_figure",
+      "arguments": {
+        "figure_id": "fig1"
+      },
+      "observation": "error: unknown figure id 'fig1'; available: ['fig2', 'fig3', 'fig4', 'fig5', 'fig6', 'fig7', 'fig8', 'fig9']"
+    },
+    {
+      "slide": 1,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "The paper's Figure 1, which introduces the GameHorizon framework, is not available in the provided list of figures (fig2–fig9). No other figure or chart directly illustrates the multi-horizon gameplay evaluation structure described."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 2,
+      "tool": "make_diagram",
+      "arguments": {
+        "caption": "Limitations of prior game benchmarks: narrow coverage and reproducibility issues.",
+        "dot": "digraph {\n  rankdir=LR;\n  node [shape=box, style=filled, fillcolor=lightyellow];\n  \"GameWorld\\nSimple Mini-games\" -> \"Narrow Coverage\";\n  \"Small Samples\\nLow Confidence\" -> \"Reproducibility Issues\";\n  \"Online Rollouts\\nEnvironment Sensitive\" -> \"Reproducibility Issues\";\n  \"Minecraft / Non-AAA\\nLimited Model Types\" -> \"Narrow Coverage\";\n}"
+      },
+      "observation": "ok: diagram rendered"
+    },
+    {
+      "slide": 3,
+      "tool": "make_diagram",
+      "arguments": {
+        "caption": "Annotator pipeline: from raw traces to standardized benchmark clips and questions.",
+        "dot": "digraph {\n  rankdir=LR;\n  node [shape=box, style=filled, fillcolor=lightblue];\n  \"Keyboard-Mouse\\nTraces\" -> \"Action-Aware\\nSegmentation\";\n  \"Action-Aware\\nSegmentation\" -> \"Dynamic\\nProgramming\";\n  \"Dynamic\\nProgramming\" -> \"Level-Specific\\nClips (L1-L3)\";\n  \"Level-Specific\\nClips (L1-L3)\" -> \"Unified MCQs\";\n  \"Unified MCQs\" -> \"Standardized\\nEvaluation\";\n}"
+      },
+      "observation": "ok: diagram rendered"
+    },
+    {
+      "slide": 4,
+      "tool": "make_chart",
+      "arguments": {
+        "caption": "Proprietary model GPT-6-Astra leads with 80.2% accuracy, while UMMs lag behind the mean of 64.7%.",
+        "highlight": "GPT-6-Astra",
+        "labels": [
+          "GPT-6-Astra",
+          "BAGEL-7B-MoT",
+          "Mean Accuracy"
+        ],
+        "unit": "%",
+        "values": [
+          80.2,
+          61.4,
+          64.7
+        ]
+      },
+      "observation": "ok: chart drawn"
+    }
+  ]
+}

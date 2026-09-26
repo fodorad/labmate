@@ -1,0 +1,41 @@
+{
+  "hook": "Why AI agents fail at AAA games",
+  "slides": [
+    {
+      "title": "Measuring Multi-Horizon Gameplay",
+      "purpose": "task",
+      "claim_ids": [
+        "c01",
+        "c21",
+        "c29"
+      ]
+    },
+    {
+      "title": "Narrow Coverage and Reproducibility Issues",
+      "purpose": "challenges",
+      "claim_ids": [
+        "c02",
+        "c03",
+        "c32"
+      ]
+    },
+    {
+      "title": "Annotator Pipeline and Benchmark Design",
+      "purpose": "method",
+      "claim_ids": [
+        "c18",
+        "c19",
+        "c35"
+      ]
+    },
+    {
+      "title": "Proprietary Models Lead, UMMs Lag",
+      "purpose": "results",
+      "claim_ids": [
+        "c33",
+        "c37",
+        "c38"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "pages": [
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Headline: Why AI agents fail at AAA games. The page features an illustration related to GameHorizon Suite: Multi-Horizon Data and Evaluation in Gameplay."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Measuring Multi-Horizon Gameplay. The paper introduces GameHorizon, a unified framework using 5,000 hours of human gameplay across 21 titles."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Prior game benchmarks suffer from narrow coverage and reproducibility issues. Datasets focus on simple mini-games, and methods use small, hard-to-reproduce samples."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "The annotator pipeline processes raw traces through segmentation, dynamic programming, and question generation to create standardized benchmark clips and questions."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Proprietary model GPT-6-Astra leads with 80.2% accuracy, while UMMs lag behind the mean of 64.7%."
+    }
+  ],
+  "dropped_visuals": []
+}
