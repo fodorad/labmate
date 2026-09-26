@@ -1,6 +1,11 @@
 {
   "slides": [
-    null,
+    {
+      "kind": "diagram",
+      "source": "diagram",
+      "path": "diagrams/slide1.png",
+      "caption": "Transformers enable parallel processing, overcoming the sequential bottleneck of recurrent models."
+    },
     {
       "kind": "figure",
       "source": "fig1",
@@ -13,24 +18,26 @@
       "path": "figures/fig2.png",
       "caption": "(left) Scaled Dot-Product Attention. (right) Multi-Head Attention consists of several attention layers running in parallel."
     },
-    null,
-    null,
-    null,
     {
-      "kind": "figure",
-      "source": "fig5",
-      "path": "figures/fig5.png",
-      "caption": "Many of the attention heads exhibit behaviour that seems related to the structure of the sentence."
-    }
+      "kind": "diagram",
+      "source": "diagram",
+      "path": "diagrams/slide4.png",
+      "caption": "The multi-head self-attention mechanism: queries, keys, and values are processed through scaled dot-product attention to produce the output."
+    },
+    null,
+    null,
+    null,
+    null
   ],
   "steps": [
     {
       "slide": 1,
-      "tool": "no_visual",
+      "tool": "make_diagram",
       "arguments": {
-        "reason": "No figures are available from the paper, and the slide's concept of parallelization bottleneck is abstract enough to be understood through text alone without a diagram."
+        "caption": "Transformers enable parallel processing, overcoming the sequential bottleneck of recurrent models.",
+        "dot": "digraph {\n  rankdir=LR;\n  node [shape=box, style=filled, fillcolor=lightblue];\n  RNN [label=\"Recurrent Model\\nSequential Processing\"];\n  Transformer [label=\"Transformer\\nParallel Processing\"];\n  RNN -> Transformer [label=\"Evolution:\\nBetter Parallelization\"];\n}"
       },
-      "observation": "ok: no visual"
+      "observation": "ok: diagram rendered"
     },
     {
       "slide": 2,
@@ -50,35 +57,166 @@
     },
     {
       "slide": 4,
-      "tool": "no_visual",
+      "tool": "make_diagram",
       "arguments": {
-        "reason": "No figures are available from the paper to illustrate the translation results. The slide focuses on performance metrics (BLEU scores) and training cost, which are better explained with text and tables rather than a diagram or figure."
+        "caption": "The multi-head self-attention mechanism: queries, keys, and values are processed through scaled dot-product attention to produce the output.",
+        "dot": "digraph {\n  rankdir=LR;\n  node [shape=box, style=filled, fillcolor=lightblue];\n  Q [label=\"Query\"];\n  K [label=\"Key\"];\n  V [label=\"Value\"];\n  Attention [label=\"Scaled\\nDot-Product\\nAttention\"];\n  Output [label=\"Output\"];\n  MultiHead [label=\"Multi-Head\\nAttention\"];\n  Q -> Attention;\n  K -> Attention;\n  V -> Attention;\n  Attention -> MultiHead;\n  MultiHead -> Output;\n}"
       },
-      "observation": "ok: no visual"
+      "observation": "ok: diagram rendered"
     },
     {
       "slide": 5,
-      "tool": "no_visual",
+      "tool": "make_chart",
       "arguments": {
-        "reason": "The slide presents specific numerical results (BLEU scores) without an accompanying figure in the paper that directly visualizes these exact metrics. A diagram would not effectively represent comparative performance statistics."
+        "caption": "Transformer achieves a new state-of-the-art BLEU score of 41.0, outperforming all previously published single models (28.4).",
+        "highlight": "Transformer Big Model",
+        "labels": [
+          "Previously Published Single Models",
+          "Transformer Big Model"
+        ],
+        "unit": "BLEU",
+        "values": [
+          28.4,
+          41
+        ]
       },
-      "observation": "ok: no visual"
+      "observation": "error: label 'Previously Published Single Models' is longer than 24 characters; no evidence quote gives 28.4 for 'Previously Published Single Models'; pair each value with the name it belongs to in the same quote"
+    },
+    {
+      "slide": 5,
+      "tool": "make_chart",
+      "arguments": {
+        "caption": "Transformer Big Model achieves a new state-of-the-art BLEU score of 41.0, outperforming all previously published single models (28.4).",
+        "highlight": "Transformer Big Model",
+        "labels": [
+          "Single Models",
+          "Big Model"
+        ],
+        "unit": "BLEU",
+        "values": [
+          28.4,
+          41
+        ]
+      },
+      "observation": "error: no evidence quote gives 28.4 for 'Single Models'; pair each value with the name it belongs to in the same quote"
+    },
+    {
+      "slide": 5,
+      "tool": "make_chart",
+      "arguments": {
+        "caption": "Transformer Big Model achieves a new state-of-the-art BLEU score of 41.0, outperforming all previously published single models (28.4).",
+        "highlight": "Big Model",
+        "labels": [
+          "Single Models",
+          "Big Model"
+        ],
+        "unit": "BLEU",
+        "values": [
+          28.4,
+          41
+        ]
+      },
+      "observation": "error: no evidence quote gives 28.4 for 'Single Models'; pair each value with the name it belongs to in the same quote"
+    },
+    {
+      "slide": 5,
+      "tool": "make_chart",
+      "arguments": {
+        "caption": "Transformer Big Model achieves a new state-of-the-art BLEU score of 41.0, outperforming all previously published single models (28.4).",
+        "highlight": "Big Model",
+        "labels": [
+          "Previously Published Single Models",
+          "Our Big Model"
+        ],
+        "unit": "BLEU",
+        "values": [
+          28.4,
+          41
+        ]
+      },
+      "observation": "error: label 'Previously Published Single Models' is longer than 24 characters; no evidence quote gives 28.4 for 'Previously Published Single Models'; pair each value with the name it belongs to in the same quote"
+    },
+    {
+      "slide": 6,
+      "tool": "make_chart",
+      "arguments": {
+        "caption": "Transformer achieves 92.7 F1 in semi-supervised English constituency parsing, outperforming most baselines including Berkeley-Parser trained on only 40K sentences.",
+        "highlight": "Transformer",
+        "labels": [
+          "Transformer",
+          "Recurrent Neural Network Grammar",
+          "Berkeley-Parser"
+        ],
+        "unit": "F1",
+        "values": [
+          92.7,
+          93,
+          88.5
+        ]
+      },
+      "observation": "error: label 'Recurrent Neural Network Grammar' is longer than 24 characters; value 93 for 'Recurrent Neural Network Grammar' is not in the evidence; value 88.5 for 'Berkeley-Parser' is not in the evidence"
+    },
+    {
+      "slide": 6,
+      "tool": "make_chart",
+      "arguments": {
+        "caption": "Transformer achieves 92.7 F1 in semi-supervised English constituency parsing, outperforming most baselines including Berkeley-Parser trained on only 40K sentences.",
+        "highlight": "Transformer",
+        "labels": [
+          "Transformer",
+          "RNN Grammar",
+          "Berkeley-Parser"
+        ],
+        "unit": "F1",
+        "values": [
+          92.7,
+          0,
+          0
+        ]
+      },
+      "observation": "error: value 0 for 'RNN Grammar' is not in the evidence; value 0 for 'Berkeley-Parser' is not in the evidence"
+    },
+    {
+      "slide": 6,
+      "tool": "make_chart",
+      "arguments": {
+        "caption": "Transformer achieves 92.7 F1 in semi-supervised English constituency parsing, outperforming most baselines including Berkeley-Parser trained on only 40K sentences.",
+        "highlight": "Transformer",
+        "labels": [
+          "Transformer",
+          "Berkeley-Parser"
+        ],
+        "unit": "F1",
+        "values": [
+          92.7,
+          0
+        ]
+      },
+      "observation": "error: value 0 for 'Berkeley-Parser' is not in the evidence"
     },
     {
       "slide": 6,
       "tool": "no_visual",
       "arguments": {
-        "reason": "The slide discusses limitations (reduced resolution) and future directions (other modalities, local attention), which are conceptual points not illustrated by any figures in the paper. No visual is needed as this is a concluding/forward-looking slide."
+        "reason": "The evidence provides only one specific numerical result (92.7 F1) and qualitative comparisons (\"better than all previously reported models\", \"outperforms Berkeley-Parser\") without providing the specific baseline scores needed for a chart. A figure is not relevant to parsing results."
       },
       "observation": "ok: no visual"
     },
     {
       "slide": 7,
-      "tool": "use_paper_figure",
+      "tool": "no_visual",
       "arguments": {
-        "figure_id": "fig5"
+        "reason": "This slide discusses limitations and future work, which are conceptual points rather than a specific result, architecture, or process that can be visualized with a figure, chart, or diagram. The evidence does not contain numerical data for a chart, nor does it describe a mechanism suitable for a diagram."
       },
-      "observation": "ok: fig5 placed"
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 8,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "This is the final takeaway slide summarizing key results (state-of-the-art performance and training speed). The available figure (fig4) shows attention heads for anaphora resolution, which is more specific to the mechanism explanation rather than the high-level summary of results. No chart data is provided in the evidence to create a comparative visualization."
+      },
+      "observation": "ok: no visual"
     }
   ]
 }

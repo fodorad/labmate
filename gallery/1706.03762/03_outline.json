@@ -1,5 +1,5 @@
 {
-  "hook": "Attention Is All You Need: No Recurrence Required",
+  "hook": "Attention Is All You Need: The End of Recurrence",
   "slides": [
     {
       "title": "The Parallelization Bottleneck",
@@ -10,52 +10,64 @@
       ]
     },
     {
-      "title": "Introducing the Transformer Architecture",
+      "title": "A Pure Attention Architecture",
       "purpose": "idea",
       "claim_ids": [
         "c01",
-        "c07"
+        "c06",
+        "c11"
       ]
     },
     {
-      "title": "How Self-Attention Works",
+      "title": "Encoder-Decoder Structure",
       "purpose": "how_it_works",
       "claim_ids": [
-        "c06",
-        "c11",
+        "c08",
+        "c09",
         "c12"
       ]
     },
     {
-      "title": "Unprecedented Translation Speed",
+      "title": "Multi-Head Self-Attention",
+      "purpose": "how_it_works",
+      "claim_ids": [
+        "c07",
+        "c10",
+        "c13"
+      ]
+    },
+    {
+      "title": "Translation State-of-the-Art",
       "purpose": "result",
       "claim_ids": [
         "c04",
-        "c21"
+        "c23",
+        "c24"
       ]
     },
     {
-      "title": "State-of-the-Art Performance",
+      "title": "Beyond Translation: Parsing",
       "purpose": "comparison",
       "claim_ids": [
         "c25",
-        "c26"
+        "c27",
+        "c28"
       ]
     },
     {
-      "title": "Limitations and Future Directions",
+      "title": "Limitations and Future Work",
       "purpose": "limitation",
       "claim_ids": [
-        "c08",
-        "c34"
+        "c26",
+        "c32"
       ]
     },
     {
-      "title": "Why This Matters for ML Engineers",
+      "title": "The Transformer Takeaway",
       "purpose": "takeaway",
       "claim_ids": [
-        "c17",
-        "c20"
+        "c30",
+        "c31"
       ]
     }
   ]

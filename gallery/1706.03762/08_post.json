@@ -1,65 +1,78 @@
 {
-  "hook": "The Transformer relies entirely on self-attention, eschewing recurrence.",
+  "hook": "Transformers replace recurrence with pure attention mechanisms.",
   "takeaways": [
     {
-      "text": "It allows significantly more parallelization than recurrent models by avoiding sequential processing.",
+      "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
       "claim_ids": [
-        "c02",
         "c03"
       ]
     },
     {
-      "text": "Multi-head attention enables the model to attend to different representation subspaces simultaneously.",
+      "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
       "claim_ids": [
-        "c12"
+        "c01"
       ]
     },
     {
-      "text": "It achieves state-of-the-art BLEU scores at less than one-quarter the training cost of previous models.",
+      "text": "It uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
       "claim_ids": [
-        "c26",
-        "c21"
+        "c08"
+      ]
+    },
+    {
+      "text": "The big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+      "claim_ids": [
+        "c24"
       ]
     }
   ],
-  "question": "How has the shift from recurrence to attention impacted your workflow?",
+  "question": "How has the shift to attention-based architectures impacted your workflow?",
   "report": {
     "rounds": [
       [
         {
           "slide": 1,
           "bullet": 1,
-          "text": "It allows significantly more parallelization than recurrent models by avoiding sequential processing.",
+          "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
           "claim_ids": [
-            "c02",
             "c03"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence states that the Transformer allows for significantly more parallelization compared to sequential models."
+          "reason": "The evidence explicitly states that the sequential nature precludes parallelization within training examples."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "Multi-head attention enables the model to attend to different representation subspaces simultaneously.",
+          "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
           "claim_ids": [
-            "c12"
+            "c01"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states that multi-head attention allows attending to different representation subspaces."
+          "reason": "The evidence confirms the Transformer eschews recurrence and relies entirely on attention mechanisms."
         },
         {
           "slide": 1,
           "bullet": 3,
-          "text": "It achieves state-of-the-art BLEU scores at less than one-quarter the training cost of previous models.",
+          "text": "It uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
           "claim_ids": [
-            "c26",
-            "c21"
+            "c08"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms the model achieves a BLEU score of 41.0 at less than 1/4 the training cost of previous models."
+          "reason": "The evidence directly states that it uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "The big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+          "claim_ids": [
+            "c24"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence directly states that the big model achieves a BLEU score of 41.0 and outperforms all previously published single models."
         }
       ]
     ],
