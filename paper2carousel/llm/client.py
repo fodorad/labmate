@@ -73,10 +73,17 @@ class OllamaClient:
         self.close()
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
-        try:
-            response = self._http.request(method, path, json=payload)
-        except httpx.HTTPError as e:
-            raise OllamaError(f"Cannot reach Ollama at {self._http.base_url}: {e}") from e
+        for attempt in (1, 2):
+            try:
+                response = self._http.request(method, path, json=payload)
+                break
+            except httpx.RemoteProtocolError as e:
+                # the server dropped the connection mid-request (seen when a model is being
+                # swapped in); one immediate retry recovers it
+                if attempt == 2:
+                    raise OllamaError(f"Cannot reach Ollama at {self._http.base_url}: {e}") from e
+            except httpx.HTTPError as e:
+                raise OllamaError(f"Cannot reach Ollama at {self._http.base_url}: {e}") from e
         if response.status_code >= 400:
             try:
                 detail = response.json().get("error", response.text)

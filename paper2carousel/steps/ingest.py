@@ -6,6 +6,7 @@ Without an outline the text is split per page. The references section is dropped
 
 from __future__ import annotations
 
+import html
 import re
 import shutil
 import time
@@ -25,6 +26,9 @@ ARXIV_PDF = "https://arxiv.org/pdf/{id}"
 
 ARXIV_API = "https://export.arxiv.org/api/query?id_list={id}"
 """Metadata (Atom feed) URL template."""
+
+ARXIV_ABS = "https://arxiv.org/abs/{id}"
+"""Abstract page URL template (metadata fallback)."""
 
 USER_AGENT = "paper2carousel (https://github.com/fodorad/paper2carousel)"
 """Sent with every request; arXiv asks API clients to identify themselves."""
@@ -96,7 +100,12 @@ def fetch_metadata(arxiv_id: str, http: httpx.Client) -> ArxivMetadata:
     Raises:
         IngestError: If the API returns no entry for the id.
     """
-    response = _get_with_retry(http, ARXIV_API.format(id=arxiv_id))
+    try:
+        response = _get_with_retry(http, ARXIV_API.format(id=arxiv_id))
+    except httpx.HTTPStatusError:
+        # the export API sometimes refuses single ids (406) for good; the abstract page
+        # carries the same metadata in its citation_* tags
+        return _metadata_from_abs_page(arxiv_id, http)
     entry = ET.fromstring(response.text).find("a:entry", _ATOM)
     title = entry.findtext("a:title", "", _ATOM) if entry is not None else ""
     if entry is None or not title.strip() or title.strip() == "Error":
@@ -111,6 +120,23 @@ def fetch_metadata(arxiv_id: str, http: httpx.Client) -> ArxivMetadata:
         authors=[clean(a.findtext("a:name", "", _ATOM)) for a in authors],
         abstract=clean(entry.findtext("a:summary", "", _ATOM)),
     )
+
+
+def _metadata_from_abs_page(arxiv_id: str, http: httpx.Client) -> ArxivMetadata:
+    """Title, authors and abstract from the ``citation_*`` meta tags of the abstract page."""
+    response = http.get(ARXIV_ABS.format(id=arxiv_id))
+    response.raise_for_status()
+
+    def meta(name: str) -> list[str]:
+        pattern = rf'<meta\s+name="citation_{name}"\s+content="([^"]*)"'
+        return [" ".join(html.unescape(v).split()) for v in re.findall(pattern, response.text)]
+
+    titles = meta("title")
+    if not titles:
+        raise IngestError(f"arXiv has no entry for {arxiv_id}")
+    authors = [" ".join(reversed(a.split(", ", 1))) for a in meta("author")]  # "Last, First"
+    abstract = meta("abstract")
+    return ArxivMetadata(title=titles[0], authors=authors, abstract=abstract[0] if abstract else "")
 
 
 def download_pdf(arxiv_id: str, dest: Path, http: httpx.Client) -> Path:

@@ -78,3 +78,27 @@ def test_unload_wait_times_out_for_stuck_model(fake):
     client.chat(ChatRequest(model="gemma4:26b-mlx", messages=[Message(role="user")]))
     fake.sticky.add("gemma4:26b-mlx")
     assert client.unload("gemma4:26b-mlx", wait_s=0.05, poll_s=0.01) is False
+
+
+def test_a_dropped_connection_is_retried_once():
+    import httpx
+
+    from paper2carousel.llm.client import OllamaClient, OllamaError
+
+    calls = []
+
+    def flaky(request):
+        calls.append(1)
+        if len(calls) == 1:
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+        return httpx.Response(200, json={"version": "0.24.0"})
+
+    assert OllamaClient(transport=httpx.MockTransport(flaky)).version() == "0.24.0"
+
+    def dead(request):
+        raise httpx.RemoteProtocolError("Server disconnected")
+
+    import pytest
+
+    with pytest.raises(OllamaError, match="Cannot reach Ollama"):
+        OllamaClient(transport=httpx.MockTransport(dead)).version()

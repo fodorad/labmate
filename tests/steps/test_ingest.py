@@ -155,3 +155,28 @@ def test_download_url_caches_and_rejects_non_pdfs(tmp_path):
     assert len(hits) == 1
     with pytest.raises(IngestError, match="did not return a PDF"):
         download_url("https://x.org/html.pdf", tmp_path / "dl", http)
+
+
+def test_metadata_falls_back_to_the_abstract_page(monkeypatch):
+    monkeypatch.setattr("paper2carousel.steps.ingest.RETRY_WAIT_S", 0.0)
+    page = (
+        '<meta name="citation_title" content="Survey on Evaluation of LLM-based Agents" />'
+        '<meta name="citation_author" content="Yehudai, Asaf" />'
+        '<meta name="citation_author" content="Eden, Lilach" />'
+        '<meta name="citation_abstract" content="We survey  agents &amp; benchmarks." />'
+    )
+
+    def handle(request):
+        if "export.arxiv.org" in str(request.url):
+            return httpx.Response(406)
+        if "/abs/2503.16416" in str(request.url):
+            return httpx.Response(200, text=page)
+        return httpx.Response(200, text="<html></html>")
+
+    http = httpx.Client(transport=httpx.MockTransport(handle))
+    meta = fetch_metadata("2503.16416", http)
+    assert meta.title == "Survey on Evaluation of LLM-based Agents"
+    assert meta.authors == ["Asaf Yehudai", "Lilach Eden"]
+    assert meta.abstract == "We survey agents & benchmarks."
+    with pytest.raises(IngestError, match="no entry"):
+        fetch_metadata("2503.99999", http)
