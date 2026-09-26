@@ -1,0 +1,22 @@
+[
+  {
+    "page": 1,
+    "alt_text": "LLM agents fail at planning: here is the evaluation landscape. The cover slide introduces the topic of evaluating LLM agents' planning capabilities."
+  },
+  {
+    "page": 2,
+    "alt_text": "This page introduces the landscape of LLM agent evaluation, covering multi-step workflows, planning, tool use, and reviewing benchmarks for various agent types."
+  },
+  {
+    "page": 3,
+    "alt_text": "Evaluating agents is hard because benchmarks conflate LLM capabilities with agent harness design in dynamic environments."
+  },
+  {
+    "page": 4,
+    "alt_text": "Key benchmarks for evaluating LLM agents include WebArena, which provides dynamic environments, and Gaia, which requires reasoning and tool-use on real-world questions."
+  },
+  {
+    "page": 5,
+    "alt_text": "Performance gaps and critical limitations in LLM agents. Models struggle with long-horizon planning, and evaluations overlook cost, creating resource-intensive agents."
+  }
+]

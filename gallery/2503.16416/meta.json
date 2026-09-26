@@ -1,0 +1,18 @@
+{
+  "paper_id": "2503.16416",
+  "title": "Survey on Evaluation of LLM-based Agents",
+  "authors": [
+    "Asaf Yehudai",
+    "Lilach Eden",
+    "Alan Li",
+    "Guy Uziel",
+    "Yilun Zhao",
+    "Roy Bar-Haim",
+    "Arman Cohan",
+    "Michal Shmueli-Scheuer"
+  ],
+  "url": "https://arxiv.org/abs/2503.16416",
+  "abstract": "LLM-based agents represent a paradigm shift in AI, enabling autonomous systems to plan, reason, and use tools while interacting with dynamic environments. This paper provides the first comprehensive survey of evaluation methods for these increasingly capable agents. We analyze the field of agent evaluation across five perspectives: (1) Core LLM capabilities needed for agentic workflows, like planning, and tool use; (2) Application-specific benchmarks such as web and SWE agents; (3) Evaluation of generalist agents; (4) Analysis of agent benchmarks' core dimensions; and (5) Evaluation frameworks and tools for agent developers. Our analysis reveals current trends, including a shift toward more realistic, challenging evaluations with continuously updated benchmarks. We also identify critical gaps that future research must address, particularly in assessing cost-efficiency, safety, and robustness, and in developing fine-grained, scalable evaluation methods.",
+  "source": "arxiv",
+  "published": "2026-09-26"
+}

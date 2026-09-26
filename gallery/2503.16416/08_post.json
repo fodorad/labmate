@@ -1,0 +1,99 @@
+{
+  "hook": "This survey maps the chaotic landscape of LLM agent evaluation.",
+  "takeaways": [
+    {
+      "text": "LLM-based agents integrate models into multi-step workflows with external tools for autonomous planning.",
+      "claim_ids": [
+        "c01"
+      ]
+    },
+    {
+      "text": "This survey presents the first overview of LLM-based agent evaluation by mapping the current landscape.",
+      "claim_ids": [
+        "c03"
+      ]
+    },
+    {
+      "text": "Evaluation must go beyond textual outputs to assess sequential decision-making in dynamic environments.",
+      "claim_ids": [
+        "c02"
+      ]
+    },
+    {
+      "text": "Benchmarks reveal current methods struggle with long-range consistency and dynamic memory handling.",
+      "claim_ids": [
+        "c09"
+      ]
+    },
+    {
+      "text": "Most benchmarks conflate LLM capabilities with agent harness design, obscuring performance attribution.",
+      "claim_ids": [
+        "c37"
+      ]
+    }
+  ],
+  "question": "How do you currently separate model capability from harness design in your evaluations?",
+  "report": {
+    "rounds": [
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "LLM-based agents integrate models into multi-step workflows with external tools for autonomous planning.",
+          "claim_ids": [
+            "c01"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that LLM-based agents integrate models into multi-step workflows with external tools."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "This survey presents the first overview of LLM-based agent evaluation by mapping the current landscape.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms this is the first overview of LLM-based agent evaluation and involves mapping the landscape."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "Evaluation must go beyond textual outputs to assess sequential decision-making in dynamic environments.",
+          "claim_ids": [
+            "c02"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states that evaluation must go beyond textual outputs to assess sequential decision-making in dynamic environments."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Benchmarks reveal current methods struggle with long-range consistency and dynamic memory handling.",
+          "claim_ids": [
+            "c09"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that current methods are limited in maintaining long-range consistency and handling dynamic memory."
+        },
+        {
+          "slide": 2,
+          "bullet": 2,
+          "text": "Most benchmarks conflate LLM capabilities with agent harness design, obscuring performance attribution.",
+          "claim_ids": [
+            "c37"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms that most agent benchmarks conflate the capabilities of the backbone LLM with the design of the agent harness."
+        }
+      ]
+    ],
+    "dropped": [],
+    "dropped_slides": []
+  }
+}
