@@ -21,7 +21,10 @@ from paper2carousel.schemas import AgentStep, Claims, Figure, SlideText, Visual,
 from paper2carousel.steps.charts import bar_chart_svg, check_chart
 from paper2carousel.steps.llm import LLM, load_prompt
 
-MAX_STEPS = 4
+MAX_STEPS = 5
+
+MAX_TOOL_FAILURES = 2
+"""After this many errors from one tool, it is withdrawn for the slide."""
 """Tool calls allowed per slide before the agent is stopped (no visual)."""
 
 DOT_TIMEOUT_S = 20
@@ -379,8 +382,12 @@ def choose_visuals(
         )
         messages = [Message(role="user", content=prompt)]
         visual: Visual | None = None
+        available = list(tools)
+        failures: dict[str, int] = {}
         for _ in range(MAX_STEPS):
-            request = llm.request(prompt).model_copy(update={"messages": messages, "tools": tools})
+            request = llm.request(prompt).model_copy(
+                update={"messages": messages, "tools": available}
+            )
             response = llm.backend.chat(request)
             if not response.tool_calls:
                 result.steps.append(
@@ -391,10 +398,19 @@ def choose_visuals(
                 break
             call = response.tool_calls[0]
             observation, visual, done = box.run(position, call, _slide_text(slide), quotes)
+            name = call.function.name
+            if not done:
+                failures[name] = failures.get(name, 0) + 1
+                if failures[name] >= MAX_TOOL_FAILURES:
+                    # stop the agent from burning its budget on one tool that keeps failing
+                    available = [t for t in available if t["function"]["name"] != name]
+                    observation += (
+                        f"; {name} is no longer available for this slide, choose another tool"
+                    )
             result.steps.append(
                 AgentStep(
                     slide=position,
-                    tool=call.function.name,
+                    tool=name,
                     arguments=call.function.arguments,
                     observation=observation,
                 )
@@ -404,7 +420,7 @@ def choose_visuals(
             messages = [
                 *messages,
                 Message(role="assistant", content=response.content, tool_calls=[call]),
-                Message(role="tool", content=observation, tool_name=call.function.name),
+                Message(role="tool", content=observation, tool_name=name),
             ]
         result.slides.append(visual)
     return result

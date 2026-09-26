@@ -99,12 +99,14 @@ def write_slide(
         title=planned.title,
         claims=format_cards(cards),
     )
-    return structured_chat(
+    slide = structured_chat(
         llm.backend,
         llm.request(prompt),
         SlideText,
         check=lambda s: check_slide(s, set(planned.claim_ids)),
     )
+    # The title was planned (and possibly edited by the human at the gate): keep it.
+    return slide.model_copy(update={"title": planned.title})
 
 
 def write_slides(outline: Outline, claims: Claims, llm: LLM, workers: int = 2) -> WrittenSlides:

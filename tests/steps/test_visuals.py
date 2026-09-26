@@ -76,13 +76,17 @@ def test_errors_are_observed_and_the_agent_can_recover(fake, tmp_path):
     assert result.steps[-1].tool == "(none)"
 
 
-def test_budget_exhaustion_means_no_visual(fake, tmp_path):
+def test_budget_exhaustion_means_no_visual_and_failing_tools_are_withdrawn(fake, tmp_path):
     scripted(
-        fake, *[("use_paper_figure", {"figure_id": "nope"})] * 4, ("no_visual", {"reason": "r"})
+        fake, *[("use_paper_figure", {"figure_id": "nope"})] * 5, ("no_visual", {"reason": "r"})
     )
     result = agent(fake, tmp_path)
     assert result.slides == [None, None]
-    assert [s.slide for s in result.steps] == [1, 1, 1, 1, 2]
+    assert [s.slide for s in result.steps] == [1, 1, 1, 1, 1, 2]
+    assert "no longer available for this slide" in result.steps[1].observation
+    offered = [[t["function"]["name"] for t in body["tools"]] for _, body in fake.requests]
+    assert "use_paper_figure" in offered[1] and "use_paper_figure" not in offered[2]
+    assert "use_paper_figure" in offered[5]  # the next slide starts with every tool again
 
 
 def test_used_figure_and_unknown_tool_are_rejected(fake, tmp_path):

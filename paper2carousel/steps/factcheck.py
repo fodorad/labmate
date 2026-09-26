@@ -139,12 +139,13 @@ def rewrite_slide(
         slide=current, problems=problems, claims=format_cards(cards)
     )
     allowed = {c.id for c in cards}
-    return structured_chat(
+    fixed = structured_chat(
         writer.backend,
         writer.request(prompt),
         SlideText,
         check=lambda s: check_slide(s, allowed),
     )
+    return fixed.model_copy(update={"title": slide.title})  # titles aren't fact-checked
 
 
 class FactCheckLoop(BaseModel):
