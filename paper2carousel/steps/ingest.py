@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
@@ -24,6 +25,15 @@ ARXIV_PDF = "https://arxiv.org/pdf/{id}"
 
 ARXIV_API = "https://export.arxiv.org/api/query?id_list={id}"
 """Metadata (Atom feed) URL template."""
+
+USER_AGENT = "paper2carousel (https://github.com/fodorad/paper2carousel)"
+"""Sent with every request; arXiv asks API clients to identify themselves."""
+
+API_ATTEMPTS = 3
+"""Tries per arXiv API request."""
+
+RETRY_WAIT_S = 3.0
+"""Base wait between tries (multiplied by the attempt number)."""
 
 _ATOM = {"a": "http://www.w3.org/2005/Atom"}
 _ARXIV_ID = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
@@ -53,6 +63,18 @@ def parse_arxiv_id(ref: str) -> str:
     return match.group(1)
 
 
+def _get_with_retry(http: httpx.Client, url: str) -> httpx.Response:
+    """GET with a few retries: the arXiv API answers 406/429/5xx now and then."""
+    for attempt in range(API_ATTEMPTS):
+        response = http.get(url)
+        if response.status_code not in (406, 429) and response.status_code < 500:
+            break
+        if attempt + 1 < API_ATTEMPTS:
+            time.sleep(RETRY_WAIT_S * (attempt + 1))
+    response.raise_for_status()
+    return response
+
+
 class ArxivMetadata(BaseModel):
     """Metadata from the arXiv API."""
 
@@ -74,8 +96,7 @@ def fetch_metadata(arxiv_id: str, http: httpx.Client) -> ArxivMetadata:
     Raises:
         IngestError: If the API returns no entry for the id.
     """
-    response = http.get(ARXIV_API.format(id=arxiv_id))
-    response.raise_for_status()
+    response = _get_with_retry(http, ARXIV_API.format(id=arxiv_id))
     entry = ET.fromstring(response.text).find("a:entry", _ATOM)
     title = entry.findtext("a:title", "", _ATOM) if entry is not None else ""
     if entry is None or not title.strip() or title.strip() == "Error":

@@ -297,7 +297,9 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
         ids = re.findall(r"\[(c\d{2})", prompt)
         content = {
             "hook": "Linear attention without the accuracy tax",
-            "takeaways": [{"text": "A grounded takeaway.", "claim_ids": [cid]} for cid in ids[:3]],
+            "takeaways": [
+                {"text": "A grounded takeaway.", "claim_ids": [ids[i % len(ids)]]} for i in range(3)
+            ],
             "question": "Where would linear attention help your models?",
         }
     elif "legible" in props:

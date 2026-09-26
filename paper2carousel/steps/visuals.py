@@ -17,10 +17,11 @@ from pathlib import Path
 from typing import Any
 
 from paper2carousel.llm.types import Message, ToolCall
-from paper2carousel.schemas import AgentStep, Figure, SlideText, Visual, Visuals
+from paper2carousel.schemas import AgentStep, Claims, Figure, SlideText, Visual, Visuals
+from paper2carousel.steps.charts import bar_chart_svg, check_chart
 from paper2carousel.steps.llm import LLM, load_prompt
 
-MAX_STEPS = 3
+MAX_STEPS = 4
 """Tool calls allowed per slide before the agent is stopped (no visual)."""
 
 DOT_TIMEOUT_S = 20
@@ -58,6 +59,37 @@ MAKE_DIAGRAM = _tool(
     dot=("string", "Complete Graphviz DOT source, e.g. 'digraph { rankdir=LR; a -> b }'."),
     caption=("string", "One-line caption for the diagram."),
 )
+MAKE_CHART: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "make_chart",
+        "description": "Plot a bar chart of numbers from this slide's evidence, e.g. the "
+        "paper's result against baselines or across datasets. Every value and every label "
+        "must come from the evidence.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Short bar labels (2 to 8), named as in the evidence.",
+                },
+                "values": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                    "description": "One value per label, copied from the evidence.",
+                },
+                "unit": {"type": "string", "description": "Metric or unit, e.g. 'BLEU'."},
+                "highlight": {
+                    "type": "string",
+                    "description": "Label of the paper's own method, to emphasise; or ''.",
+                },
+                "caption": {"type": "string", "description": "One-line caption."},
+            },
+            "required": ["labels", "values", "unit", "caption"],
+        },
+    },
+}
 NO_VISUAL = _tool(
     "no_visual", "Leave this slide without a visual.", reason=("string", "Short reason.")
 )
@@ -184,7 +216,7 @@ class _Toolbox:
     used: dict[str, int] = field(default_factory=dict)
 
     def run(
-        self, slide: int, call: ToolCall, slide_text: str = ""
+        self, slide: int, call: ToolCall, slide_text: str = "", evidence: str = ""
     ) -> tuple[str, Visual | None, bool]:
         """Execute a call. Returns (observation, visual, done)."""
         name, args = call.function.name, call.function.arguments
@@ -226,6 +258,29 @@ class _Toolbox:
             return (
                 "ok: diagram rendered",
                 Visual(kind="diagram", source="diagram", path=rel, caption=caption),
+                True,
+            )
+        if name == "make_chart":
+            labels = [str(x) for x in args.get("labels") or []]
+            values = list(args.get("values") or [])
+            problems, shown = check_chart(labels, values, evidence)
+            if problems:
+                return "error: " + "; ".join(problems), None, False
+            path = self.out_dir / "charts" / f"slide{slide}.svg"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                bar_chart_svg(
+                    labels, shown, str(args.get("unit", "")), str(args.get("highlight") or "")
+                )
+            )
+            return (
+                "ok: chart drawn",
+                Visual(
+                    kind="chart",
+                    source="chart",
+                    path=str(path.relative_to(self.out_dir)),
+                    caption=str(args.get("caption", "")).strip(),
+                ),
                 True,
             )
         if name == "no_visual":
@@ -273,6 +328,7 @@ def choose_visuals(
     out_dir: Path,
     llm: LLM,
     paper_title: str = "",
+    claims: Claims | None = None,
 ) -> Visuals:
     """Run the visuals agent over all slides, in order.
 
@@ -283,13 +339,16 @@ def choose_visuals(
             to ``out_dir/diagrams``).
         llm: Model settings (the writer model; tool calling was verified by the probe).
         paper_title: Its words are ignored when matching figure captions to slides.
+        claims: Claim cards; each slide's evidence quotes are shown to the agent and are
+            the only numbers a chart may plot.
 
     Returns:
         One optional visual per slide and the complete tool-call log.
     """
-    tools = [USE_FIGURE, NO_VISUAL]
+    tools = [USE_FIGURE, MAKE_CHART, NO_VISUAL]
     if graphviz_available():
-        tools.insert(1, MAKE_DIAGRAM)
+        tools.insert(2, MAKE_DIAGRAM)
+    by_id = {c.id: c for c in claims.cards} if claims else {}
     title_words = frozenset(content_words(paper_title, split_hyphens=True))
     box = _Toolbox({f.id: f for f in figures}, out_dir, title_words)
     carousel = "\n".join(f"{i}. {s.title}" for i, s in enumerate(slides, start=1))
@@ -298,7 +357,10 @@ def choose_visuals(
     result = Visuals(slides=[])
 
     for position, slide in enumerate(slides, start=1):
+        cited = list(dict.fromkeys(c for b in slide.bullets for c in b.claim_ids if c in by_id))
+        evidence = "\n".join(f'- "{by_id[c].evidence_quote}"' for c in cited)
         prompt = template.format(
+            evidence=evidence or "(none)",
             position=position,
             total=len(slides),
             title=slide.title,
@@ -321,7 +383,7 @@ def choose_visuals(
                 )
                 break
             call = response.tool_calls[0]
-            observation, visual, done = box.run(position, call, _slide_text(slide))
+            observation, visual, done = box.run(position, call, _slide_text(slide), evidence)
             result.steps.append(
                 AgentStep(
                     slide=position,

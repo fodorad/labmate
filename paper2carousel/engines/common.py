@@ -43,7 +43,13 @@ from paper2carousel.steps.cover import make_cover
 from paper2carousel.steps.critic import review_deck
 from paper2carousel.steps.extract import extract_claims
 from paper2carousel.steps.factcheck import fact_check
-from paper2carousel.steps.ingest import ingest_arxiv, ingest_pdf, parse_arxiv_id, slugify
+from paper2carousel.steps.ingest import (
+    USER_AGENT,
+    ingest_arxiv,
+    ingest_pdf,
+    parse_arxiv_id,
+    slugify,
+)
 from paper2carousel.steps.llm import LLM
 from paper2carousel.steps.outline import plan_outline
 from paper2carousel.steps.post import post_markdown, write_post
@@ -289,7 +295,9 @@ def stage_ingest(
     """
     with s.tracer.span("step.ingest") as span:
         own_http = http is None
-        client = http or httpx.Client(timeout=60, follow_redirects=True)
+        client = http or httpx.Client(
+            timeout=60, follow_redirects=True, headers={"User-Agent": USER_AGENT}
+        )
         try:
             paper = s.checkpoint(
                 "00_paper.json",
@@ -512,13 +520,16 @@ def stage_post(s: Session, checked: FactChecked, claims: Claims, paper: Paper) -
     log.info("post: %d takeaways -> post.md", len(post.takeaways))
 
 
-def stage_visuals(s: Session, slides: list[SlideText], paper: Paper) -> Visuals:
+def stage_visuals(
+    s: Session, slides: list[SlideText], paper: Paper, claims: Claims | None = None
+) -> Visuals:
     """Let the visuals agent pick a figure or diagram per slide (tool use).
 
     Args:
         s: Session.
         slides: Final slides.
         paper: The paper (figures).
+        claims: Claim cards (evidence for charts).
 
     Returns:
         One optional visual per slide and the agent's tool calls.
@@ -530,7 +541,9 @@ def stage_visuals(s: Session, slides: list[SlideText], paper: Paper) -> Visuals:
             visuals = s.checkpoint(
                 "06_visuals.json",
                 Visuals,
-                lambda: choose_visuals(slides, paper.figures, s.paper_dir, s.llm, paper.title),
+                lambda: choose_visuals(
+                    slides, paper.figures, s.paper_dir, s.llm, paper.title, claims
+                ),
             )
         else:
             visuals = Visuals(slides=[None] * len(slides))

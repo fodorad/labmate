@@ -14,13 +14,13 @@ def test_long_title_long_bullet_and_foreign_claims_are_flagged():
     problems = check_slide(
         slide(
             "one two three four five six seven eight nine ten eleven",
-            Bullet(text="word " * 30, claim_ids=["c01"]),
+            Bullet(text="word " * 31, claim_ids=["c01"]),
             Bullet(text="fine", claim_ids=["c01", "c07"]),
         ),
         {"c01"},
     )
     assert problems == [
         "the title has more than 10 words",
-        "bullet 1 has more than 25 words",
+        "bullet 1 has more than 30 words",
         "bullet 2 cites claims not on this slide: ['c07']",
     ]

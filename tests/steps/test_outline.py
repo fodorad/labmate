@@ -49,7 +49,7 @@ def test_valid_outline_has_no_problems():
         ),
         (
             [("problem", []), ("result", ["c02"]), ("takeaway", ["c03"])],
-            "needs 1 to 3 claim ids, has 0",
+            "needs 1 to 4 claim ids, has 0",
         ),
         (
             [("problem", ["c01"]), ("result", ["c09"]), ("takeaway", ["c03"])],

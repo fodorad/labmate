@@ -20,8 +20,8 @@ from paper2carousel.schemas import (
 )
 from paper2carousel.steps.llm import LLM, load_prompt
 
-MAX_WORDS = 25
-"""Hard limit per bullet (the prompt asks for 20; a little slack avoids needless retries)."""
+MAX_WORDS = 30
+"""Hard limit per bullet (the prompt asks for 25; a little slack avoids needless retries)."""
 
 
 def check_slide(slide: SlideText, allowed_ids: set[str]) -> list[str]:

@@ -28,7 +28,7 @@ from paper2carousel.evals.metrics import RunMetrics, latest_completed, run_metri
 from paper2carousel.llm.replay import CassetteStore
 from paper2carousel.llm.types import _cache_key
 from paper2carousel.schemas import Claims, FactChecked, Paper, Post, Route, Visuals
-from paper2carousel.steps.ingest import download_url, is_url
+from paper2carousel.steps.ingest import USER_AGENT, download_url, is_url
 from paper2carousel.steps.render import Theme
 from paper2carousel.traceview import environment, render_trace
 from paper2carousel.tracing import read_trace
@@ -231,7 +231,9 @@ def verify(entry: Path, config: Config, http: httpx.Client | None = None) -> Ver
                     shutil.copy2(published, pdf)
                 elif is_url(meta.url):
                     own = http is None
-                    client = http or httpx.Client(timeout=120, follow_redirects=True)
+                    client = http or httpx.Client(
+                        timeout=120, follow_redirects=True, headers={"User-Agent": USER_AGENT}
+                    )
                     try:
                         pdf.write_bytes(
                             download_url(meta.url, Path(tmp) / "dl", client).read_bytes()

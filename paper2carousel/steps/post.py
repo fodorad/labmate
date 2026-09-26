@@ -1,7 +1,8 @@
 """LinkedIn post (extra output): drafted from the final slides, fact-checked like them.
 
-The takeaways are treated as one slide and go through the same evaluator-optimizer loop,
-so the post can't state anything the carousel couldn't.
+The post body (3 to 5 sentences telling the paper's story) goes through the same
+evaluator-optimizer loop as the slides, so the post can't state anything the carousel
+couldn't; a sentence that stays unsupported is dropped.
 """
 
 from __future__ import annotations
@@ -62,11 +63,16 @@ def write_post(
         ]
 
     draft = structured_chat(writer.backend, writer.request(prompt), PostDraft, check=check)
-    as_slide = WrittenSlides(
-        hook=draft.hook, slides=[SlideText(title=draft.hook, bullets=draft.takeaways)]
+    # The fact-check works on slides of at most three bullets, so the sentences are
+    # checked in groups of three and put back together in order.
+    groups = [draft.takeaways[i : i + 3] for i in range(0, len(draft.takeaways), 3)]
+    as_slides = WrittenSlides(
+        hook=draft.hook, slides=[SlideText(title=draft.hook, bullets=g) for g in groups]
     )
-    checked = fact_check(as_slide, [used], claims, writer, judge, switcher, max_rounds)
-    takeaways = checked.slides.slides[0].bullets if checked.slides.slides else []
+    checked = fact_check(
+        as_slides, [used] * len(groups), claims, writer, judge, switcher, max_rounds
+    )
+    takeaways = [b for slide in checked.slides.slides for b in slide.bullets]
     return Post(
         hook=draft.hook, takeaways=takeaways, question=draft.question, report=checked.report
     )
@@ -83,8 +89,9 @@ def post_markdown(post: Post, paper: Paper) -> str:
         Markdown/plain text for LinkedIn.
     """
     lines = [post.hook, ""]
-    lines += [f"→ {t.text}" for t in post.takeaways]
-    lines += ["", post.question, "", f"Paper: {paper.title}"]
+    for sentence in post.takeaways:  # short paragraphs read best in the feed
+        lines += [sentence.text, ""]
+    lines += [post.question, "", f"Paper: {paper.title}"]
     if paper.url:
         lines.append(paper.url)
     lines += [

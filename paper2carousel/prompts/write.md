@@ -2,8 +2,11 @@ You write one slide of a LinkedIn carousel about a research paper.
 
 Slide {position} of {total}. Purpose: {purpose}. Working title: {title}
 
-Write a title (at most 8 words) and 1 to 3 bullets (at most 20 words each).
+Write a title (at most 8 words) and 2 or 3 bullets (at most 25 words each).
 Rules:
+- Be specific: every bullet carries at least one concrete detail from the evidence, such
+  as a number, a dataset, a baseline, a component or a named comparison. No generic
+  statements like "achieves strong results".
 - Use only facts from the claim cards below. Each bullet lists the ids of the claims it uses.
 - Keep every number exactly as it appears in the evidence.
 - Base each bullet on the evidence quote. The claim text is a paraphrase and can say more

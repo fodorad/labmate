@@ -204,7 +204,7 @@ def test_visuals_can_be_disabled(model, arxiv, config):
 def test_all_outputs_are_written(model, arxiv, config):
     result = go(config, model, arxiv, auto_approve=True)
     post = result.artifact("post.md").read_text()
-    assert post.startswith("Linear attention without the accuracy tax\n\n→ A grounded takeaway.")
+    assert post.startswith("Linear attention without the accuracy tax\n\nA grounded takeaway.")
     assert "https://arxiv.org/abs/2401.00001" in post
     summary = result.artifact("summary.md").read_text()
     assert summary.startswith("# Linear attention, same accuracy") and "  - p. " in summary

@@ -161,7 +161,7 @@ def run(
         written = stage_write(s, outline, claims)
         checked = stage_factcheck(s, written, outline, claims)
         stage_post(s, checked, claims, paper)
-        visuals = stage_visuals(s, checked.slides.slides, paper)
+        visuals = stage_visuals(s, checked.slides.slides, paper, claims)
         deck = stage_cover(s, checked.slides.to_deck(visuals.slides), paper)
         stage_render(s, deck, paper)
         stage_critic(s, deck, paper)

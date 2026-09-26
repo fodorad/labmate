@@ -22,6 +22,7 @@ from paper2carousel.llm.replay import CassetteStore, ReplayClient, read_lock, wr
 from paper2carousel.phases import ModelSwitcher
 from paper2carousel.probe import run_probe
 from paper2carousel.steps.ingest import (
+    USER_AGENT,
     IngestError,
     download_url,
     is_url,
@@ -126,7 +127,9 @@ def cmd_run(
     pdf, url = (Path(args.pdf) if args.pdf else None), args.url or ""
     if args.pdf and is_url(args.pdf):
         own = http is None
-        client_http = http or httpx.Client(timeout=120, follow_redirects=True)
+        client_http = http or httpx.Client(
+            timeout=120, follow_redirects=True, headers={"User-Agent": USER_AGENT}
+        )
         try:
             pdf = download_url(args.pdf, config.tracing.runs_dir / ".downloads", client_http)
         finally:

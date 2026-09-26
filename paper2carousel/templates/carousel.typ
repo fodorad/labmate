@@ -68,6 +68,7 @@
         v(5pt)
         align(center, text(size: 9.5pt, fill: muted, cap))
       }
+      v(12pt)  // keep the caption clear of the footer rule
     }
   })
   footer(i + 2)

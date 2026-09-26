@@ -41,8 +41,8 @@ arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline �
 | gate | human-in-the-loop | writes `outline.yaml` and pauses; your edits are validated with the same rules |
 | write | prompt chaining | one call per slide; every bullet cites the claim ids it uses |
 | fact-check | evaluator–optimizer | numbers must match the cited evidence exactly; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
-| visuals | agent (tool use) | per slide the model calls `use_paper_figure`, `make_diagram` (Graphviz) or `no_visual`; tool errors come back as observations, ≤ 3 calls per slide; figures are cropped from the PDF during ingest |
-| post | chaining + evaluator | LinkedIn post drafted from the final slides; its takeaways go through the same fact-check |
+| visuals | agent (tool use) | per slide the model calls `use_paper_figure` (only offered the figures whose caption matches this slide best), `make_chart` (a bar chart whose every value must appear in the slide's evidence quotes, checked in code), `make_diagram` (Graphviz) or `no_visual`; tool errors come back as observations, ≤ 4 calls per slide |
+| post | chaining + evaluator | LinkedIn post drafted from the final slides (hook, 3–5 sentences telling the paper's story, a question); every sentence goes through the same fact-check |
 | cover | plain call | illustration from the local image model in the slide palette; skipped (not fatal) if generation fails |
 | render | plain code | Typst → 4:5 PDF in the adamfodor.com palette, Inter font bundled for identical renders everywhere |
 | critic | vision model | reviews each rendered page at phone size, writes alt texts, removes illegible or off-topic visuals |

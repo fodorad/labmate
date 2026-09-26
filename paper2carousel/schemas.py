@@ -146,7 +146,9 @@ class OutlineSlide(BaseModel):
 
     title: str = Field(description="Working title, at most 8 words.")
     purpose: str = Field(description="One of the allowed purposes.")
-    claim_ids: list[str] = Field(description="Ids of the claim cards this slide is built on.")
+    claim_ids: list[str] = Field(
+        description="Ids of the 2 to 4 claim cards this slide is built on."
+    )
 
 
 class Outline(BaseModel):
@@ -159,7 +161,7 @@ class Outline(BaseModel):
 class Bullet(BaseModel):
     """A slide bullet and the claims that support it."""
 
-    text: str = Field(description="At most 20 words.")
+    text: str = Field(description="At most 25 words.")
     claim_ids: list[str] = Field(min_length=1)
 
 
@@ -285,13 +287,13 @@ class Visual(BaseModel):
     """An image placed on a slide.
 
     Attributes:
-        kind: A figure cropped from the paper, or a diagram drawn by the agent.
-        source: Figure id (``fig2``) or ``diagram``.
-        path: PNG path relative to the paper's run directory.
+        kind: A figure cropped from the paper, a diagram or a chart drawn by the agent.
+        source: Figure id (``fig2``), ``diagram`` or ``chart``.
+        path: Image path (PNG or SVG) relative to the paper's run directory.
         caption: Caption shown under the image.
     """
 
-    kind: Literal["figure", "diagram"]
+    kind: Literal["figure", "diagram", "chart"]
     source: str
     path: str
     caption: str
@@ -335,7 +337,11 @@ class PostDraft(BaseModel):
     """A LinkedIn post drafted from the fact-checked slides."""
 
     hook: str = Field(description="First line, at most 15 words, makes people open the post.")
-    takeaways: list[Bullet] = Field(min_length=2, max_length=3)
+    takeaways: list[Bullet] = Field(
+        description="3 to 5 sentences explaining the paper, each citing its claim ids.",
+        min_length=3,
+        max_length=5,
+    )
     question: str = Field(description="A closing question to readers, with no factual claims.")
 
 

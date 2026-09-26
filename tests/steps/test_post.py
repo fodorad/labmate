@@ -24,6 +24,7 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
                 "takeaways": [
                     {"text": "x", "claim_ids": ["c99"]},
                     {"text": "y", "claim_ids": ["c02"]},
+                    {"text": "z", "claim_ids": ["c02"]},
                 ],
                 "question": "q?",
             },
@@ -32,6 +33,8 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
                 "takeaways": [
                     {"text": "28.4 BLEU.", "claim_ids": ["c02"]},
                     {"text": "WRONG: 99 BLEU.", "claim_ids": ["c02"]},
+                    {"text": "It uses attention.", "claim_ids": ["c02"]},
+                    {"text": "It trains fast.", "claim_ids": ["c02"]},
                 ],
                 "question": "What do you think?",
             },
@@ -56,7 +59,12 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
     )
     retry = fake.requests[1][1]["messages"][-1]["content"]
     assert "takeaway 1 cites unknown claims ['c99']" in retry
-    assert [t.text for t in post.takeaways] == ["28.4 BLEU."]  # the made-up one is dropped
+    # checked in groups of three, order kept, the made-up one dropped
+    assert [t.text for t in post.takeaways] == [
+        "28.4 BLEU.",
+        "It uses attention.",
+        "It trains fast.",
+    ]
     assert post.report.failed_first == 1
 
 
@@ -70,7 +78,7 @@ def test_post_markdown():
         report=FactCheckReport(rounds=[]),
     )
     text = post_markdown(post, PAPER)
-    assert text.splitlines()[:4] == ["H", "", "→ T1", ""]
+    assert text.splitlines()[:4] == ["H", "", "T1", ""]
     assert "https://arxiv.org/abs/1706.03762" in text
     assert (
         "https://"

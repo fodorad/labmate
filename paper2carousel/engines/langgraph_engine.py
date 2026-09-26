@@ -276,7 +276,11 @@ def build_graph(
         return {}
 
     def visuals(state: State) -> State:
-        return {"visuals": stage_visuals(s, state["checked"].slides.slides, state["paper"])}
+        return {
+            "visuals": stage_visuals(
+                s, state["checked"].slides.slides, state["paper"], state["claims"]
+            )
+        }
 
     def cover(state: State) -> State:
         deck = state["checked"].slides.to_deck(state["visuals"].slides)

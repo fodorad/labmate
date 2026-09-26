@@ -25,6 +25,10 @@ MAX_CLAIM_USES = 2
 """A claim may appear on at most this many slides."""
 
 
+MAX_SLIDE_CLAIMS = 4
+"""Claim cards one slide may be built on (enough material for three specific bullets)."""
+
+
 def format_claims(claims: Claims) -> str:
     """One line per claim card, as shown to the planner and in the gate file.
 
@@ -60,8 +64,10 @@ def check_outline(outline: Outline, claims: Claims, paper_type: PaperType) -> li
     for i, slide in enumerate(outline.slides, start=1):
         if slide.purpose not in allowed:
             problems.append(f'slide {i}: purpose "{slide.purpose}" is not one of {allowed}')
-        if not 1 <= len(slide.claim_ids) <= 3:
-            problems.append(f"slide {i}: needs 1 to 3 claim ids, has {len(slide.claim_ids)}")
+        if not 1 <= len(slide.claim_ids) <= MAX_SLIDE_CLAIMS:
+            problems.append(
+                f"slide {i}: needs 1 to {MAX_SLIDE_CLAIMS} claim ids, has {len(slide.claim_ids)}"
+            )
         unknown = [cid for cid in slide.claim_ids if cid not in known]
         if unknown:
             problems.append(f"slide {i}: unknown claim ids {unknown}")

@@ -78,11 +78,11 @@ def test_errors_are_observed_and_the_agent_can_recover(fake, tmp_path):
 
 def test_budget_exhaustion_means_no_visual(fake, tmp_path):
     scripted(
-        fake, *[("use_paper_figure", {"figure_id": "nope"})] * 3, ("no_visual", {"reason": "r"})
+        fake, *[("use_paper_figure", {"figure_id": "nope"})] * 4, ("no_visual", {"reason": "r"})
     )
     result = agent(fake, tmp_path)
     assert result.slides == [None, None]
-    assert [s.slide for s in result.steps] == [1, 1, 1, 2]
+    assert [s.slide for s in result.steps] == [1, 1, 1, 1, 2]
 
 
 def test_used_figure_and_unknown_tool_are_rejected(fake, tmp_path):
@@ -124,7 +124,7 @@ def test_diagram_tool_is_only_offered_with_graphviz(fake, tmp_path, monkeypatch)
     scripted(fake, ("no_visual", {"reason": "r"}), ("no_visual", {"reason": "r"}))
     agent(fake, tmp_path)
     tools = [t["function"]["name"] for t in fake.requests[0][1]["tools"]]
-    assert tools == ["use_paper_figure", "no_visual"]
+    assert tools == ["use_paper_figure", "make_chart", "no_visual"]
 
 
 def test_figure_label_is_stripped_but_not_the_rest_of_the_caption():

@@ -7,6 +7,9 @@ how the method works, a result, or a limitation. For each claim:
   below (at most 30 words). It must support the claim. Do not paraphrase, fix typos or
   merge sentences in the quote.
 - Keep every number exactly as written.
+- For results, prefer quotes that contain the numbers, including the comparison: the
+  paper's result and the baseline or previous best. A row of a results table, copied as
+  it appears in the text below (e.g. "Transformer (big) 28.4 41.8"), is a valid quote.
 
 Return at most {max_claims} claims, the most important first. Return an empty list if the
 section has nothing worth a slide (for example acknowledgements).
