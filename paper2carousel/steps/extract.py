@@ -104,39 +104,58 @@ def chunk_section(section: Section, max_chars: int = CHUNK_CHARS) -> list[Sectio
     return [Section(title=section.title, page=section.page, text=c) for c in chunks]
 
 
-def extract_claims(paper: Paper, llm: LLM, workers: int = 2) -> Claims:
-    """Extract and verify claim cards for the whole paper.
+def extraction_units(paper: Paper) -> list[Section]:
+    """Sections long enough to hold claims, split into prompt-sized chunks.
 
     Args:
         paper: Ingested paper.
-        llm: Model settings.
-        workers: Concurrent extraction calls.
 
     Returns:
-        Verified claim cards (ids ``c01``... in reading order) and the rejected drafts.
+        Units in reading order; one extraction call each.
     """
-    units = [
+    return [
         chunk
         for section in paper.sections
         if len(section.text) >= MIN_SECTION_CHARS
         for chunk in chunk_section(section)
     ]
-    template = load_prompt("extract")
 
-    def extract(unit: Section) -> list[ClaimDraft]:
-        prompt = template.format(
-            max_claims=MAX_CLAIMS,
-            title=paper.title,
-            section=unit.title,
-            page=unit.page,
-            text=unit.text,
-        )
-        return structured_chat(llm.backend, llm.request(prompt), SectionClaims).claims
 
+def extract_unit(title: str, unit: Section, llm: LLM) -> list[ClaimDraft]:
+    """Draft claims for one unit (one model call).
+
+    Args:
+        title: Paper title.
+        unit: Section chunk.
+        llm: Model settings.
+
+    Returns:
+        Claim drafts, not yet verified.
+    """
+    prompt = load_prompt("extract").format(
+        max_claims=MAX_CLAIMS,
+        title=title,
+        section=unit.title,
+        page=unit.page,
+        text=unit.text,
+    )
+    return structured_chat(llm.backend, llm.request(prompt), SectionClaims).claims
+
+
+def assemble_claims(units: list[Section], drafts: list[list[ClaimDraft]]) -> Claims:
+    """Verify every draft's quote against its unit and number the survivors.
+
+    Args:
+        units: Extraction units, in reading order.
+        drafts: Claim drafts per unit, same order.
+
+    Returns:
+        Verified claim cards (ids ``c01``... in reading order) and the rejected drafts.
+    """
     cards: list[ClaimCard] = []
     rejected: list[ClaimDraft] = []
-    for unit, drafts in zip(units, parallel_map(extract, units, workers), strict=True):
-        for draft in drafts:
+    for unit, unit_drafts in zip(units, drafts, strict=True):
+        for draft in unit_drafts:
             score = quote_score(draft.evidence_quote, unit.text)
             if score < QUOTE_MATCH:
                 rejected.append(draft)
@@ -153,3 +172,19 @@ def extract_claims(paper: Paper, llm: LLM, workers: int = 2) -> Claims:
                 )
             )
     return Claims(cards=cards, rejected=rejected)
+
+
+def extract_claims(paper: Paper, llm: LLM, workers: int = 2) -> Claims:
+    """Extract and verify claim cards for the whole paper (parallel over units).
+
+    Args:
+        paper: Ingested paper.
+        llm: Model settings.
+        workers: Concurrent extraction calls.
+
+    Returns:
+        Verified claim cards (ids ``c01``... in reading order) and the rejected drafts.
+    """
+    units = extraction_units(paper)
+    drafts = parallel_map(lambda u: extract_unit(paper.title, u, llm), units, workers)
+    return assemble_claims(units, drafts)

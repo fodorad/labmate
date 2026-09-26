@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import re
 
+from pydantic import BaseModel, Field
+
 from paper2carousel.llm.structured import structured_chat
 from paper2carousel.parallel import parallel_map
 from paper2carousel.phases import ModelSwitcher
@@ -141,6 +143,154 @@ def rewrite_slide(
     )
 
 
+class FactCheckLoop(BaseModel):
+    """State of the evaluator-optimizer loop between rounds.
+
+    Both engines drive the loop through :func:`judge_pending`, :func:`rewrite_pending`
+    and :func:`should_rewrite`: the plain engine in a ``while`` loop, the LangGraph
+    engine as a cycle of two nodes.
+
+    Attributes:
+        hook: Carousel hook (passed through).
+        slides: Current slide texts.
+        latest: Latest checks per slide index.
+        pending: Slide indices that still fail (to rewrite, then re-judge).
+        report: Audit trail so far.
+    """
+
+    hook: str
+    slides: list[SlideText]
+    latest: dict[int, list[BulletCheck]] = Field(default_factory=dict)
+    pending: list[int]
+    report: FactCheckReport = Field(default_factory=lambda: FactCheckReport(rounds=[]))
+
+
+def start_loop(written: WrittenSlides) -> FactCheckLoop:
+    """Initial loop state: every slide is pending judgement.
+
+    Args:
+        written: Slides from the writer.
+
+    Returns:
+        The loop state.
+    """
+    return FactCheckLoop(
+        hook=written.hook, slides=list(written.slides), pending=list(range(len(written.slides)))
+    )
+
+
+def judge_pending(
+    loop: FactCheckLoop, by_id: dict[str, ClaimCard], judge: LLM, workers: int = 2
+) -> FactCheckLoop:
+    """Judge the pending slides and record a round.
+
+    Args:
+        loop: Current state.
+        by_id: Claim cards by id.
+        judge: Critic model settings.
+        workers: Concurrent calls.
+
+    Returns:
+        The new state; ``pending`` holds the slides that still fail.
+    """
+    slides = loop.slides
+    verdicts = parallel_map(lambda i: judge_slide(slides[i], by_id, judge), loop.pending, workers)
+    latest = dict(loop.latest)
+    for i, slide_verdicts in zip(loop.pending, verdicts, strict=True):
+        by_bullet = {v.bullet: v for v in slide_verdicts.verdicts}
+        latest[i] = [
+            BulletCheck(
+                slide=i + 1,
+                bullet=b,
+                text=bullet.text,
+                claim_ids=bullet.claim_ids,
+                problems=deterministic_problems(
+                    bullet.text, [by_id[c] for c in bullet.claim_ids if c in by_id]
+                ),
+                verdict=by_bullet[b].verdict,
+                reason=by_bullet[b].reason,
+            )
+            for b, bullet in enumerate(slides[i].bullets, start=1)
+        ]
+    rounds = [*loop.report.rounds, [c for i in sorted(latest) for c in latest[i]]]
+    return loop.model_copy(
+        update={
+            "latest": latest,
+            "report": FactCheckReport(rounds=rounds),
+            "pending": [i for i in sorted(latest) if any(not c.passed for c in latest[i])],
+        }
+    )
+
+
+def should_rewrite(loop: FactCheckLoop, max_rounds: int) -> bool:
+    """True if some slide still fails and the rewrite budget isn't used up.
+
+    Args:
+        loop: State after a judging round.
+        max_rounds: Rewrite rounds allowed after the first check.
+
+    Returns:
+        Whether to rewrite and judge again.
+    """
+    return bool(loop.pending) and len(loop.report.rounds) <= max_rounds
+
+
+def rewrite_pending(
+    loop: FactCheckLoop,
+    slide_claims: list[list[str]],
+    by_id: dict[str, ClaimCard],
+    writer: LLM,
+    workers: int = 2,
+) -> FactCheckLoop:
+    """Rewrite the failing slides with the judge's findings.
+
+    Args:
+        loop: State after a judging round.
+        slide_claims: Claim ids assigned to each slide by the outline (rewrite scope).
+        by_id: Claim cards by id.
+        writer: Writer model settings.
+        workers: Concurrent calls.
+
+    Returns:
+        The new state with rewritten slides (still pending until judged).
+    """
+    rewritten = parallel_map(
+        lambda i: rewrite_slide(
+            loop.slides[i],
+            [c for c in loop.latest[i] if not c.passed],
+            [by_id[c] for c in slide_claims[i]],
+            writer,
+        ),
+        loop.pending,
+        workers,
+    )
+    slides = list(loop.slides)
+    for i, slide in zip(loop.pending, rewritten, strict=True):
+        slides[i] = slide
+    return loop.model_copy(update={"slides": slides})
+
+
+def finish_loop(loop: FactCheckLoop) -> FactChecked:
+    """Drop bullets that still fail, and slides left without bullets.
+
+    Args:
+        loop: Final state.
+
+    Returns:
+        Corrected slides and the full report.
+    """
+    report = loop.report.model_copy(deep=True)
+    final: list[SlideText] = []
+    for i, slide in enumerate(loop.slides):
+        keep = [b for b, c in zip(slide.bullets, loop.latest[i], strict=True) if c.passed]
+        report.dropped.extend(c for c in loop.latest[i] if not c.passed)
+        if keep:
+            final.append(slide.model_copy(update={"bullets": keep}))
+        else:
+            report.dropped_slides.append(i + 1)
+    return FactChecked(slides=WrittenSlides(hook=loop.hook, slides=final), report=report)
+
+
 def fact_check(
     written: WrittenSlides,
     slide_claims: list[list[str]],
@@ -167,54 +317,11 @@ def fact_check(
         Corrected slides and the per-round report.
     """
     by_id = {c.id: c for c in claims.cards}
-    slides = list(written.slides)
-    report = FactCheckReport(rounds=[])
-    pending = list(range(len(slides)))  # slides still to (re)judge
-    latest: dict[int, list[BulletCheck]] = {}
-
-    for round_no in range(max_rounds + 1):
+    loop = start_loop(written)
+    while True:
         switcher.use(judge.model)
-        verdicts = parallel_map(lambda i: judge_slide(slides[i], by_id, judge), pending, workers)
-        for i, slide_verdicts in zip(pending, verdicts, strict=True):
-            by_bullet = {v.bullet: v for v in slide_verdicts.verdicts}
-            latest[i] = [
-                BulletCheck(
-                    slide=i + 1,
-                    bullet=b,
-                    text=bullet.text,
-                    claim_ids=bullet.claim_ids,
-                    problems=deterministic_problems(
-                        bullet.text, [by_id[c] for c in bullet.claim_ids if c in by_id]
-                    ),
-                    verdict=by_bullet[b].verdict,
-                    reason=by_bullet[b].reason,
-                )
-                for b, bullet in enumerate(slides[i].bullets, start=1)
-            ]
-        report.rounds.append([c for i in sorted(latest) for c in latest[i]])
-        pending = [i for i in sorted(latest) if any(not c.passed for c in latest[i])]
-        if not pending or round_no == max_rounds:
-            break
+        loop = judge_pending(loop, by_id, judge, workers)
+        if not should_rewrite(loop, max_rounds):
+            return finish_loop(loop)
         switcher.use(writer.model)
-        rewritten = parallel_map(
-            lambda i: rewrite_slide(
-                slides[i],
-                [c for c in latest[i] if not c.passed],
-                [by_id[c] for c in slide_claims[i]],
-                writer,
-            ),
-            pending,
-            workers,
-        )
-        for i, slide in zip(pending, rewritten, strict=True):
-            slides[i] = slide
-
-    final: list[SlideText] = []
-    for i, slide in enumerate(slides):
-        keep = [b for b, c in zip(slide.bullets, latest[i], strict=True) if c.passed]
-        report.dropped.extend(c for c in latest[i] if not c.passed)
-        if keep:
-            final.append(slide.model_copy(update={"bullets": keep}))
-        else:
-            report.dropped_slides.append(i + 1)
-    return FactChecked(slides=WrittenSlides(hook=written.hook, slides=final), report=report)
+        loop = rewrite_pending(loop, slide_claims, by_id, writer, workers)

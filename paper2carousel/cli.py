@@ -116,19 +116,26 @@ def cmd_run(
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     mode = ReplayMode(args.mode) if args.mode else None
-    result = run(
-        config,
-        ref=args.ref,
-        pdf=args.pdf,
-        title=args.title,
-        mode=mode,
-        fresh=args.fresh,
-        approve=args.approve,
-        auto_approve=args.auto_approve,
-        baseline=args.baseline,
-        client=client,
-        http=http,
-    )
+    common = {
+        "ref": args.ref,
+        "pdf": args.pdf,
+        "title": args.title,
+        "mode": mode,
+        "fresh": args.fresh,
+        "approve": args.approve,
+        "auto_approve": args.auto_approve,
+        "client": client,
+        "http": http,
+    }
+    if args.engine == "langgraph":
+        if args.baseline:
+            print("error: --baseline is only available with --engine plain", file=sys.stderr)
+            return 1
+        from paper2carousel.engines import langgraph_engine  # optional dependency
+
+        result = langgraph_engine.run(config, **common)
+    else:
+        result = run(config, baseline=args.baseline, **common)
     if result.status == "awaiting_approval":
         print(
             f"Outline ready for review: {result.gate}\n"
@@ -394,6 +401,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--approve", action="store_true", help="accept outline.yaml, continue")
     run_p.add_argument("--auto-approve", action="store_true", help="skip the human gate")
     run_p.add_argument("--baseline", action="store_true", help="M1 one-shot pipeline")
+    run_p.add_argument(
+        "--engine",
+        choices=["plain", "langgraph"],
+        default="plain",
+        help="orchestration engine (langgraph needs the [langgraph] extra)",
+    )
 
     eval_p = sub.add_parser("eval", help="metrics of finished runs -> evals/results.md")
     eval_p.add_argument("runs", nargs="*", type=Path, help="run dirs (default: all)")

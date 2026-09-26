@@ -43,3 +43,7 @@ source_suffix = {
 # attribute entries for pydantic fields (duplicate object description warnings).
 napoleon_use_ivar = True
 suppress_warnings = ["sphinx_autodoc_typehints.forward_reference"]
+
+# LangGraph's dependency langchain-core does not import cleanly under autodoc's type
+# hint processing; mocking it is enough to document the engine module.
+autodoc_mock_imports = ["langgraph", "langchain_core"]

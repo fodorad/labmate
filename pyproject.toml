@@ -44,6 +44,12 @@ dev = [
     "myst-parser>=4.0",
     "sphinx-autodoc-typehints>=2.5",
     "types-pyyaml>=6.0",
+    "paper2carousel[langgraph]",
+]
+# The second orchestration engine (M7): same steps, driven by a LangGraph StateGraph.
+langgraph = [
+    "langgraph>=1.0",
+    "langgraph-checkpoint-sqlite>=2.0",
 ]
 
 [project.scripts]

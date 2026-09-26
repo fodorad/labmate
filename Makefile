@@ -44,18 +44,19 @@ lock:  ## pin installed model digests into models.lock
 	uv run paper2carousel lock
 
 ARXIV ?= 1706.03762
+ENGINE ?= plain
 
 run:  ## paper -> outline.yaml for review (reuses finished steps), e.g. make run ARXIV=1706.03762
-	uv run paper2carousel run $(ARXIV)
+	uv run paper2carousel run $(ARXIV) --engine $(ENGINE)
 
 approve:  ## accept the (edited) outline.yaml and finish the carousel
-	uv run paper2carousel run $(ARXIV) --approve
+	uv run paper2carousel run $(ARXIV) --engine $(ENGINE) --approve
 
 baseline:  ## M1 one-shot pipeline, for comparison
 	uv run paper2carousel run $(ARXIV) --baseline
 
 replay:  ## re-run the LLM steps from cassettes only (no Ollama needed)
-	uv run paper2carousel run $(ARXIV) --mode replay --fresh --approve
+	uv run paper2carousel run $(ARXIV) --engine $(ENGINE) --mode replay --fresh --approve
 
 trace:  ## HTML trace viewer -> runs/$(ARXIV)/trace.html
 	uv run paper2carousel trace $(ARXIV)

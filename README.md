@@ -2,13 +2,14 @@
 
 > Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
 
-**Status: pre-alpha (milestone M6).** The full pipeline runs: routing, parallel claim
-extraction with a quote-verification guard, an orchestrated outline, a human approval gate,
-grounded slide writing, a fact-check loop, a visuals agent (paper figures or Graphviz
-diagrams), a generated cover image and a vision-model slide critic. All traced and
-replayable, with an evaluation suite (run metrics and judge agreement against human
-labels), an HTML trace viewer and a static gallery whose entries anyone can replay from
-cassettes. Next: the first published papers and v0.1.0.
+**Status: pre-alpha, feature-complete for v0.1.** The full pipeline runs: routing,
+parallel claim extraction with a quote-verification guard, an orchestrated outline, a
+human approval gate, grounded slide writing, a fact-check loop, a visuals agent (paper
+figures or Graphviz diagrams), a generated cover image and a vision-model slide critic.
+All traced and replayable, with an evaluation suite (run metrics and judge agreement
+against human labels), an HTML trace viewer, a static gallery whose entries anyone can
+replay from cassettes, and two interchangeable orchestration engines (plain Python and
+LangGraph). Next: the first published papers and v0.1.0.
 
 ## What it will do
 
@@ -62,7 +63,7 @@ image inputs, hence the separate non-MLX vision model.
 ## Quickstart
 
 ```bash
-make install     # uv sync + pre-commit hooks
+make install     # uv sync (incl. the LangGraph extra) + pre-commit hooks
 make check       # lint + type-check + tests + docs (no Ollama needed)
 
 # with Ollama running:
@@ -103,6 +104,37 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
   (`qwen3.6:35b-mlx`), which tests whether a separate judge model is worth the swap.
   Judge calls are recorded to cassettes like everything else, so `--mode replay`
   reproduces the table.
+
+## Same pipeline, two ways
+
+The steps know nothing about orchestration. Two engines drive them:
+
+```bash
+make run ARXIV=1706.03762                   # plain Python (default)
+make run ARXIV=1706.03762 ENGINE=langgraph  # LangGraph StateGraph
+```
+
+| | `engine=plain` | `engine=langgraph` |
+|---|---|---|
+| Code (without docstrings) | ~100 lines | ~290 lines |
+| Parallel extraction / writing | thread pool (`parallel_map`) | `Send` fan-out + `operator.add` reducer |
+| Fact-check loop | `while` loop | `judge ⇄ rewrite` cycle with a conditional edge |
+| Human gate | pause, re-run with `--approve`, reuse file checkpoints | `interrupt()`, resume from a SQLite checkpoint |
+| Resume after a crash | step artifacts on disk | graph checkpoint per super-step |
+
+Both call the same stage functions (`engines/common.py`) and the same per-item step
+functions, so they send identical model requests. **In replay mode they write
+byte-identical artifacts**; a test runs a paper with a rewrite round through both
+engines and compares every file, so CI fails if they drift apart.
+
+What LangGraph gave for free: checkpointing of the whole state after every node, a clean
+interrupt/resume at the gate, and a graph picture of the pipeline. What it cost: about
+3× the orchestration code, state that must be serializable (the checkpointer's
+deserialization is allow-listed to this package's models), fan-out results that arrive
+in any order (they carry their index and are sorted before assembly), and control flow
+that is harder to step through in a debugger than a `for` loop. For a pipeline this
+linear, the plain engine is the one I'd maintain; LangGraph earns its keep once there
+are real branches, long-running interrupts or several agents sharing state.
 
 ## Trace viewer and gallery
 

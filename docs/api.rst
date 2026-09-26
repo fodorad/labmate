@@ -90,7 +90,13 @@ API Reference
 .. automodule:: paper2carousel.gallery
    :members:
 
+.. automodule:: paper2carousel.engines.common
+   :members:
+
 .. automodule:: paper2carousel.engines.plain
+   :members:
+
+.. automodule:: paper2carousel.engines.langgraph_engine
    :members:
 
 .. automodule:: paper2carousel.phases

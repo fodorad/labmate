@@ -60,8 +60,39 @@ def format_cards(cards: list[ClaimCard]) -> str:
     )
 
 
+def write_slide(
+    position: int, planned: OutlineSlide, total: int, by_id: dict[str, ClaimCard], llm: LLM
+) -> SlideText:
+    """Write one slide from its outline entry (one model call, validated).
+
+    Args:
+        position: 1-based slide number.
+        planned: The slide's outline entry.
+        total: Number of slides.
+        by_id: Claim cards by id.
+        llm: Model settings.
+
+    Returns:
+        The written slide.
+    """
+    cards = [by_id[cid] for cid in planned.claim_ids]
+    prompt = load_prompt("write").format(
+        position=position,
+        total=total,
+        purpose=planned.purpose,
+        title=planned.title,
+        claims=format_cards(cards),
+    )
+    return structured_chat(
+        llm.backend,
+        llm.request(prompt),
+        SlideText,
+        check=lambda s: check_slide(s, set(planned.claim_ids)),
+    )
+
+
 def write_slides(outline: Outline, claims: Claims, llm: LLM, workers: int = 2) -> WrittenSlides:
-    """Write all slides of an approved outline.
+    """Write all slides of an approved outline (parallel over slides).
 
     Args:
         outline: Approved outline.
@@ -73,25 +104,10 @@ def write_slides(outline: Outline, claims: Claims, llm: LLM, workers: int = 2) -
         The written slides, in outline order.
     """
     by_id = {c.id: c for c in claims.cards}
-    template = load_prompt("write")
     total = len(outline.slides)
-
-    def write(item: tuple[int, OutlineSlide]) -> SlideText:
-        position, planned = item
-        cards = [by_id[cid] for cid in planned.claim_ids]
-        prompt = template.format(
-            position=position,
-            total=total,
-            purpose=planned.purpose,
-            title=planned.title,
-            claims=format_cards(cards),
-        )
-        return structured_chat(
-            llm.backend,
-            llm.request(prompt),
-            SlideText,
-            check=lambda s: check_slide(s, set(planned.claim_ids)),
-        )
-
-    slides = parallel_map(write, list(enumerate(outline.slides, start=1)), workers)
+    slides = parallel_map(
+        lambda item: write_slide(item[0], item[1], total, by_id, llm),
+        list(enumerate(outline.slides, start=1)),
+        workers,
+    )
     return WrittenSlides(hook=outline.hook, slides=slides)

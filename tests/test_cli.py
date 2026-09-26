@@ -222,3 +222,19 @@ def test_trace_publish_verify_site(fake, arxiv, workdir, capsys):
 def test_verify_empty_gallery(workdir, capsys):
     assert main(["verify"]) == 0
     assert "Nothing to verify" in capsys.readouterr().out
+
+
+# --- M7: engine choice ---------------------------------------------------------------------
+
+
+def test_run_with_the_langgraph_engine(fake, arxiv, workdir, capsys):
+    from tests.conftest import agentic_chat
+
+    fake.chat_handler = agentic_chat
+    argv = ["run", "2401.00001", "--engine", "langgraph"]
+    assert main(argv, client=fake.client(), http=arxiv.client()) == 0
+    assert "Outline ready for review" in capsys.readouterr().out
+    assert main([*argv, "--approve"], client=fake.client(), http=arxiv.client()) == 0
+    assert "carousel.pdf" in capsys.readouterr().out
+    assert main([*argv, "--baseline"], client=fake.client(), http=arxiv.client()) == 1
+    assert "only available with --engine plain" in capsys.readouterr().err
