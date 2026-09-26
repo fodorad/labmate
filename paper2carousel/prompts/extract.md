@@ -8,10 +8,12 @@ A claim card is one self-contained statement a reader should remember. Its "kind
 - result: a measured outcome, ideally with numbers and the comparison.
 - limitation: where the approach falls short.
 For each claim:
-- "claim": one sentence in your own words, understandable without the paper.
-- "evidence_quote": a short passage copied character for character from the SECTION TEXT
-  below (at most 30 words). It must support the claim. Do not paraphrase, fix typos or
-  merge sentences in the quote.
+- "claim": one sentence in your own words, understandable without the paper. It must not
+  say more than the quote: every name, number and cause in the claim is in the quote.
+- "evidence_quote": a passage copied character for character from the SECTION TEXT below
+  (one or two full sentences, at most 45 words). It must support the whole claim on its
+  own, including what a number belongs to: the model, dataset, metric or setting. Do not
+  paraphrase, fix typos or merge sentences in the quote.
 - Keep every number exactly as written.
 - For results, prefer quotes that contain the numbers, including the comparison: the
   paper's result and the baseline or previous best. A row of a results table, copied as
