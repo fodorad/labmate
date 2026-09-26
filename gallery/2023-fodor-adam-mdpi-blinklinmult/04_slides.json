@@ -1,0 +1,131 @@
+{
+  "hook": "Detect blinks faster with linear transformers",
+  "slides": [
+    {
+      "title": "The Blink Detection Challenge",
+      "bullets": [
+        {
+          "text": "Detecting eye blinks is challenging but reveals deep fakes and driver drowsiness.",
+          "claim_ids": [
+            "c01"
+          ]
+        },
+        {
+          "text": "Existing methods struggle with short blinks or noisy data due to frame-wise classification.",
+          "claim_ids": [
+            "c02"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Introducing BlinkLinMulT",
+      "bullets": [
+        {
+          "text": "The authors propose a fast transformer-based framework for eye blink detection.",
+          "claim_ids": [
+            "c05"
+          ]
+        },
+        {
+          "text": "It combines low- and high-level feature sequences including head pose angles.",
+          "claim_ids": [
+            "c05",
+            "c07"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Linear Attention Architecture",
+      "bullets": [
+        {
+          "text": "BlinkLinMulT uses a modified multi-modal transformer with linear attention to process RGB texture, landmarks, and head pose.",
+          "claim_ids": [
+            "c06"
+          ]
+        },
+        {
+          "text": "The model replaces quadratic attention modules with linear versions for easier training while maintaining similar performance.",
+          "claim_ids": [
+            "c09"
+          ]
+        },
+        {
+          "text": "A backbone CNN extracts features from eye patches, which a linear transformer uses to estimate blinks for each eye independently.",
+          "claim_ids": [
+            "c13"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Superior Cross-Dataset Results",
+      "bullets": [
+        {
+          "text": "BlinkLinMulT matches or beats state-of-the-art methods across various datasets.",
+          "claim_ids": [
+            "c31"
+          ]
+        },
+        {
+          "text": "It achieves a perfect 1.0 F1 score for blink detection on the TalkingFace dataset.",
+          "claim_ids": [
+            "c33"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Robustness via Union Training",
+      "bullets": [
+        {
+          "text": "Union training improved F1 scores on CEW, ZJU, and RT-BENEimg benchmarks.",
+          "claim_ids": [
+            "c25"
+          ]
+        },
+        {
+          "text": "Eye state recognition and blink detection outperformed single dataset baselines.",
+          "claim_ids": [
+            "c29"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Handling Extreme Head Poses",
+      "bullets": [
+        {
+          "text": "Model performance drops at higher yaw angles due to self-occlusion.",
+          "claim_ids": [
+            "c35"
+          ]
+        },
+        {
+          "text": "Performance decreases slightly at extreme orientations greater than 25 degrees.",
+          "claim_ids": [
+            "c41"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Unified Training for Generalization",
+      "bullets": [
+        {
+          "text": "The BlinkLinMulT model is trained once on the union of all datasets.",
+          "claim_ids": [
+            "c30"
+          ]
+        },
+        {
+          "text": "This approach improves robustness and results across all individual unseen datasets.",
+          "claim_ids": [
+            "c38"
+          ]
+        }
+      ]
+    }
+  ]
+}

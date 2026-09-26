@@ -1,0 +1,401 @@
+{
+  "cards": [
+    {
+      "id": "c01",
+      "claim": "Detecting eye blinks is a challenging problem with applications in revealing deep fake manipulation, detecting driver drowsiness, and measuring attention levels.",
+      "evidence_quote": "Detecting eye blinks is a challenging problem that can be used to solve a number of facial analysis tasks; it can reveal deep fake manipulation, detect driver drowsiness",
+      "kind": "contribution",
+      "section": "Introduction",
+      "page": 1,
+      "match": 100.0
+    },
+    {
+      "id": "c02",
+      "claim": "Most existing approaches rely on face recognition and frame-wise classification, which struggle with short blinks or noisy data.",
+      "evidence_quote": "Most approaches depend on face recognition and frame-wise eye state classiﬁcation... However, these methods may struggle to handle cases where blinks occur for only a few frames",
+      "kind": "limitation",
+      "section": "Introduction",
+      "page": 1,
+      "match": 100.0
+    },
+    {
+      "id": "c03",
+      "claim": "Feature-based methods use predetermined higher-level features like iris and eye landmark distances to detect blinks.",
+      "evidence_quote": "(i) feature-based methods use predetermined higher-level features like iris and eye landmark distances",
+      "kind": "method",
+      "section": "Introduction",
+      "page": 1,
+      "match": 100.0
+    },
+    {
+      "id": "c04",
+      "claim": "Appearance-based methods utilize low-level eye representations such as RGB texture and learning algorithms to classify eye states.",
+      "evidence_quote": "(ii) appearance-based methods utilize low-level eye representations (e.g., RGB texture) and then adopt learning algorithms to classify eye states",
+      "kind": "method",
+      "section": "Introduction",
+      "page": 1,
+      "match": 100.0
+    },
+    {
+      "id": "c05",
+      "claim": "The authors propose BlinkLinMulT, a fast transformer-based framework that combines low- and high-level feature sequences to detect eye blinks.",
+      "evidence_quote": "In this work, we propose a fast transformer-based framework for eye blink detection that can effectively combine low- and high-level feature sequences",
+      "kind": "contribution",
+      "section": "Introduction",
+      "page": 1,
+      "match": 100.0
+    },
+    {
+      "id": "c06",
+      "claim": "BlinkLinMulT utilizes a modified multi-modal transformer with linear attention to process multiple inputs including RGB texture, landmarks, and head pose angles.",
+      "evidence_quote": "We present a modiﬁed multi- modal transformer with linear attention (LinMulT) [21], which considers multiple inputs, such as RGB texture, iris and eye landmarks",
+      "kind": "method",
+      "section": "Introduction",
+      "page": 1,
+      "match": 98.8
+    },
+    {
+      "id": "c07",
+      "claim": "The proposed model is the first to use transformer architecture for efficient fusion of input features including head pose angles.",
+      "evidence_quote": "To our knowledge, this is the ﬁrst work to use transformer architecture and implement an efﬁcient fusion of input features, including head pose angles.",
+      "kind": "contribution",
+      "section": "Introduction",
+      "page": 1,
+      "match": 100.0
+    },
+    {
+      "id": "c08",
+      "claim": "Cross-dataset evaluations demonstrate that a single network trained on a union of datasets improves results compared to training on separate datasets.",
+      "evidence_quote": "it is found that a single network trained on a union of datasets improves the results obtained on all datasets separately.",
+      "kind": "result",
+      "section": "Introduction",
+      "page": 1,
+      "match": 100.0
+    },
+    {
+      "id": "c09",
+      "claim": "The proposed BlinkLinMulT model replaces quadratic attention modules with linear versions to improve training ease while maintaining performance.",
+      "evidence_quote": "we replaced the quadratic attention modules with linear versions [28], providing similar performance [21] while being easier to train.",
+      "kind": "method",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c10",
+      "claim": "Cross-modal transformers translate information between modalities by learning keys and values from one modality and queries from another.",
+      "evidence_quote": "Cross-modal transformers translate one information source ... to another one ... by learning keys and values of modality β and the queries from the α modality.",
+      "kind": "method",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c11",
+      "claim": "The system uses a linear attention mechanism to increase efficiency by reducing computational resources such as time and memory.",
+      "evidence_quote": "A linear attention mechanism is used within the networks to increase efﬁciency by reducing computational resources, i.e., time and memory.",
+      "kind": "method",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c12",
+      "claim": "The final output uses a fully connected layer with sigmoid applied to logits to determine blink presence and frame-wise eye states.",
+      "evidence_quote": "Finally, we used a fully connected layer on top of the transformers, which is used for two tasks: (i) ... determine whether blinking is present ... (ii) ... determine eye states.",
+      "kind": "method",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c13",
+      "claim": "The proposed BlinkLinMulT model uses a backbone CNN to extract deep features from eye patches, which are then processed by a linear multimodal transformer to estimate blinks for each eye independently.",
+      "evidence_quote": "a backbone CNN extracts deep hidden representations of the RGB eye patches. These sets of features are utilized as inputs to a linear multimodal transformer that estimates blinks for each eye independently.",
+      "kind": "method",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c14",
+      "claim": "The final blink presence score is determined by averaging network logits and applying a sigmoid function to the estimations from both left and right eyes.",
+      "evidence_quote": "The network logits are averaged, and a sigmoid function is applied to make a ﬁnal decision to obtain the ﬁnal blink presence score for the sequence",
+      "kind": "method",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c15",
+      "claim": "The system utilizes specific facial landmarks including eye aspect ratio, iris diameter, and eyelid-pupil distance as inputs for blink calculations.",
+      "evidence_quote": "which are used for EAR, iris diameter, and eyelid–pupil distance calculations.",
+      "kind": "method",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c16",
+      "claim": "The blink estimation pipeline is organized into a structured sequence involving feature generation, head pose processing, and the BlinkLinMulT model.",
+      "evidence_quote": "The components are organized into a pipeline, which can be seen in Figure 2.",
+      "kind": "contribution",
+      "section": "Materials and Methods",
+      "page": 4,
+      "match": 100.0
+    },
+    {
+      "id": "c17",
+      "claim": "The CEW dataset was created by Song et al. using 2423 subjects, with eye patches resized to 64x64 pixels and evaluated via 10-fold cross-validation.",
+      "evidence_quote": "The Closed Eyes in the Wild (CEW) dataset was created by Song et al. [29]. Close face crops are collected from 2423 subjects... resized to 64 × 64 pixels... employed a 10-fold cross-validation (CV) scheme",
+      "kind": "contribution",
+      "section": "Datasets",
+      "page": 6,
+      "match": 100.0
+    },
+    {
+      "id": "c18",
+      "claim": "The MRL Eye dataset contains 84,898 infrared images from thirty-seven participants captured under various lighting and reflection conditions.",
+      "evidence_quote": "The MRL Eye dataset [32] was collected from thirty-seven participants... This dataset contains 84,898 infrared images in low and high resolution",
+      "kind": "contribution",
+      "section": "Datasets",
+      "page": 6,
+      "match": 100.0
+    },
+    {
+      "id": "c19",
+      "claim": "For the RT-GENE dataset, eye patches were extracted from RGB images and annotated as RT-BENE, with specific subjects used for testing.",
+      "evidence_quote": "Eye patches are extracted from the face images and then annotated and published as RT-BENE [8]. ... subjects with IDS 0, 14, 15, and 16 are used as the test set.",
+      "kind": "method",
+      "section": "Datasets",
+      "page": 6,
+      "match": 98.4
+    },
+    {
+      "id": "c20",
+      "claim": "The Researcher's Night dataset includes 107 videos with 223,000 frames of people reading or blinking in cluttered backgrounds.",
+      "evidence_quote": "The authors of the dataset collected 107 videos with 223,000 frames of different people with various head poses and cluttered backgrounds.",
+      "kind": "contribution",
+      "section": "Datasets",
+      "page": 6,
+      "match": 100.0
+    },
+    {
+      "id": "c21",
+      "claim": "The BlinkLinMulT model was trained for 50 epochs using video samples, while CNN backbones required 310 epochs on image datasets.",
+      "evidence_quote": "The CNN backbones were trained for 310 epochs on the image datasets, whilst BlinkLinMulT was trained for 50 epochs using samples extracted from the video datasets.",
+      "kind": "method",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c22",
+      "claim": "ResNet50 achieved the highest F1 score of 0.912 on the unbalanced RT-BENEimg dataset, outperforming other backbones by a considerable margin.",
+      "evidence_quote": "DenseNet121 performed well with 0.883, but ResNet50 outperformed the other models by a considerable margin with a 0.912 F1 score and 0.946 AP.",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c23",
+      "claim": "Increasing image resolution from 64x64 to 224x224 for ResNet50 resulted in lower performance metrics across all evaluated measures.",
+      "evidence_quote": "The CNN trained on the 224 × 224 images achieved lower performance metric scores in every case versus its 64 × 64 counterpart",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c24",
+      "claim": "Models trained on the ZJU dataset showed massive performance degradation when evaluated on unseen datasets, with F1 scores dropping by up to 46%.",
+      "evidence_quote": "the same network can only achieve 0.652 on the CEW and 0.502 on the RT-BENEimg, showing a massive performance degradation, 30%, and 46%, respectively.",
+      "kind": "limitation",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c25",
+      "claim": "Training on the union of multiple datasets improved F1 scores across CEW, ZJU, and RT-BENEimg benchmarks.",
+      "evidence_quote": "Training on the union of the datasets improved on previous results measured in Section 4.2: the F1 scores changed from 0.995 to 0.997 on CEW, from 0.927 to 0.933 on ZJU, and from 0.883 to 0.913 RT-BENEimg.",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c26",
+      "claim": "The BlinkLinMulT model predicts frame-wise eye state scores to determine blink event positions and presence.",
+      "evidence_quote": "The proposed BlinkLinMulT predicts frame-wise eye state scores, which are also used for determining the position of the blink event within the sequence, and then the blink presence is determined",
+      "kind": "method",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c27",
+      "claim": "A 3.8% performance degradation was observed when not fine-tuning the network with MRL images.",
+      "evidence_quote": "We observed a 3.8% degradation if we are not ﬁne-tuning the network using the MRL images",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c28",
+      "claim": "Adding the MRL training set to the union of training databases increased the F1 score by 2%.",
+      "evidence_quote": "and also the F1 score is increased by 2% if the MRL train set is added to the union of the training databases.",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c29",
+      "claim": "Training on a union of diverse datasets improves eye state recognition and blink presence detection performance compared to using single datasets.",
+      "evidence_quote": "Table 6 shows that the eye state recognition and blink presence detection performance are consistently improved compared to those experiments, where only a single dataset is used for training.",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c30",
+      "claim": "The proposed BlinkLinMulT model generalizes well across public benchmark datasets because it is trained once on the union of all datasets.",
+      "evidence_quote": "While, in the literature, the proposed models are retrained for each dataset, our network is trained once and performs well on all the public blink benchmark datasets.",
+      "kind": "contribution",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c31",
+      "claim": "The BlinkLinMulT model achieves superior or comparable performance to state-of-the-art methods across various datasets and tasks.",
+      "evidence_quote": "We show that our method generalizes well to different scenarios, and the performance of our network is comparable to or surpasses the performance of state-of-the-art methods",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c32",
+      "claim": "Combining iris/eye landmark features with RGB texture improves performance over using texture alone.",
+      "evidence_quote": "combining them with the texture further improves the performance on RT-BENEimg compared to texture-only evaluation (0.922 vs. 0.913 F1 scores).",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c33",
+      "claim": "The BlinkLinMulT model achieves a perfect F1 score of 1.0 for blink presence detection on the TalkingFace dataset when using all feature sequences.",
+      "evidence_quote": "the problematic extreme blinks when the person looks down are detected in TalkingFace, achieving a 1.0 F1 score in the blink presence detection task.",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c34",
+      "claim": "Transformer-based sequence modeling outperforms frame-wise estimations for detecting blinking dynamics.",
+      "evidence_quote": "In Table 9, the transformer- based sequence modeling shows superiority over frame-wise estimations.",
+      "kind": "result",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 98.0
+    },
+    {
+      "id": "c35",
+      "claim": "Model performance drops at higher yaw angles due to self-occlusion making prediction harder for the network.",
+      "evidence_quote": "the performance of the model drops at higher yaw angles compared to the frontal faces",
+      "kind": "limitation",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c36",
+      "claim": "Errors primarily originate from extreme head pose cases where participants are looking down, as eyelids move over a shorter distance.",
+      "evidence_quote": "Most of the errors originated from this extreme head pose because the eyelids are more visible, they move over a shorter distance",
+      "kind": "limitation",
+      "section": "Results and Discussion",
+      "page": 7,
+      "match": 100.0
+    },
+    {
+      "id": "c37",
+      "claim": "The proposed BlinkLinMulT model utilizes a modified multimodal transformer with linear attention to efficiently fuse RGB texture, iris/eye landmarks, and head pose features for eye blink detection.",
+      "evidence_quote": "Specifically, we modiﬁed the multimodal transformer with linear attention (LinMulT), which fuses multiple inputs, such as RGB texture, iris and eye landmarks features, and head pose angles.",
+      "kind": "method",
+      "section": "Conclusions",
+      "page": 14,
+      "match": 100.0
+    },
+    {
+      "id": "c38",
+      "claim": "Cross-dataset evaluations demonstrate that training a single network on a union of datasets improves robustness and results across all individual unseen datasets.",
+      "evidence_quote": "We performed cross-dataset evaluations to assess the robustness of BlinkLinMulT on unseen samples, demonstrating that a single network trained on a union of datasets improves results across all datasets indi-vidually.",
+      "kind": "result",
+      "section": "Conclusions",
+      "page": 14,
+      "match": 99.5
+    },
+    {
+      "id": "c39",
+      "claim": "The model achieves comparable or superior performance to state-of-the-art models on blink presence detection and eye state recognition tasks using public benchmark databases.",
+      "evidence_quote": "Our results demonstrate comparable or superior performance compared to state-of-the-art models on blink presence detection and eye state recognition tasks, using public benchmark databases.",
+      "kind": "result",
+      "section": "Conclusions",
+      "page": 14,
+      "match": 100.0
+    },
+    {
+      "id": "c40",
+      "claim": "The study shows that increased eye patch dimensionality of low-resolution patches degrades the performance of current SOTA backbones like CLIP ViT-B/16.",
+      "evidence_quote": "We showed how increased eye patch dimensionality of low-resolution eye patches degrades the performance of current SOTA backbones, e.g., CLIP ViT-B/16 dependence",
+      "kind": "limitation",
+      "section": "Conclusions",
+      "page": 14,
+      "match": 100.0
+    },
+    {
+      "id": "c41",
+      "claim": "The BlinkLinMulT model maintains high accuracy across various yaw angles, with performance slightly decreasing at extreme orientations greater than 25 degrees.",
+      "evidence_quote": "Extreme yaw and pitch angles, when the participant is looking sideways or down, might cause slightly decreased performance.",
+      "kind": "limitation",
+      "section": "Appendix A",
+      "page": 15,
+      "match": 100.0
+    },
+    {
+      "id": "c42",
+      "claim": "The proposed BlinkLinMulT method achieves its highest F1 score of 0.960 on samples with yaw angles less than -25 degrees.",
+      "evidence_quote": "Yaw <−25◦ 0.991 0.990 0.960",
+      "kind": "result",
+      "section": "Appendix A",
+      "page": 15,
+      "match": 100.0
+    },
+    {
+      "id": "c43",
+      "claim": "Performance drops significantly for pitch angles greater than 25 degrees, resulting in an F1 score of only 0.744.",
+      "evidence_quote": ">25◦ 0.951 0.800 0.744",
+      "kind": "result",
+      "section": "Appendix A",
+      "page": 15,
+      "match": 100.0
+    },
+    {
+      "id": "c44",
+      "claim": "The evaluation uses test samples from all five sequence datasets to assess the head pose angle dependence of the proposed model.",
+      "evidence_quote": "Test samples from all 5 sequence datasets are used for the experiment.",
+      "kind": "method",
+      "section": "Appendix A",
+      "page": 15,
+      "match": 100.0
+    }
+  ],
+  "rejected": []
+}

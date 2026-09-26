@@ -1,0 +1,62 @@
+{
+  "hook": "Detect blinks faster with linear transformers",
+  "slides": [
+    {
+      "title": "The Blink Detection Challenge",
+      "purpose": "problem",
+      "claim_ids": [
+        "c01",
+        "c02"
+      ]
+    },
+    {
+      "title": "Introducing BlinkLinMulT",
+      "purpose": "idea",
+      "claim_ids": [
+        "c05",
+        "c07"
+      ]
+    },
+    {
+      "title": "Linear Attention Architecture",
+      "purpose": "how_it_works",
+      "claim_ids": [
+        "c06",
+        "c09",
+        "c13"
+      ]
+    },
+    {
+      "title": "Superior Cross-Dataset Results",
+      "purpose": "result",
+      "claim_ids": [
+        "c31",
+        "c33"
+      ]
+    },
+    {
+      "title": "Robustness via Union Training",
+      "purpose": "comparison",
+      "claim_ids": [
+        "c25",
+        "c29"
+      ]
+    },
+    {
+      "title": "Handling Extreme Head Poses",
+      "purpose": "limitation",
+      "claim_ids": [
+        "c35",
+        "c41"
+      ]
+    },
+    {
+      "title": "Unified Training for Generalization",
+      "purpose": "takeaway",
+      "claim_ids": [
+        "c30",
+        "c38"
+      ]
+    }
+  ]
+}

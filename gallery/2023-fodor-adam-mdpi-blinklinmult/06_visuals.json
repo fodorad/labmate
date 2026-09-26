@@ -1,0 +1,79 @@
+{
+  "slides": [
+    null,
+    null,
+    {
+      "kind": "figure",
+      "source": "fig1",
+      "path": "figures/fig1.png",
+      "caption": "BlinkLinMulT: a multimodal transformer architecture for blink presence detection and frame-wise eye state recognition."
+    },
+    null,
+    null,
+    {
+      "kind": "figure",
+      "source": "fig3",
+      "path": "figures/fig3.png",
+      "caption": "Head pose angle dependence of BlinkLinMulT in the case of blink presence detection task."
+    },
+    null
+  ],
+  "steps": [
+    {
+      "slide": 1,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "No figures are available from the paper, and this introductory slide is better served by text to set the context for the challenge."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 2,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "The slide introduces the BlinkLinMulT framework and its components (low/high-level features, head pose angles). Figure 3 shows performance dependence on head poses, which is more relevant to a later slide about robustness or extreme head poses. The current slide is an introduction without a specific visual that directly illustrates the architecture or feature combination described."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 3,
+      "tool": "use_paper_figure",
+      "arguments": {
+        "figure_id": "fig1"
+      },
+      "observation": "ok: fig1 placed"
+    },
+    {
+      "slide": 4,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "No figures are available from the paper to illustrate the cross-dataset results. The slide focuses on performance metrics which are better presented in a table format (not provided) or as text points."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 5,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "No figures are available from the paper to illustrate the union training results. The slide focuses on performance metrics (F1 scores) which are better presented in a table rather than a figure or diagram."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 6,
+      "tool": "use_paper_figure",
+      "arguments": {
+        "figure_id": "fig3"
+      },
+      "observation": "ok: fig3 placed"
+    },
+    {
+      "slide": 7,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "The slide summarizes the final training strategy (union training) and its generalization benefit. This is a concluding takeaway slide that doesn't require a specific figure or complex diagram to be understood, especially since no relevant figures are available from the paper."
+      },
+      "observation": "ok: no visual"
+    }
+  ]
+}

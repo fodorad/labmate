@@ -1,0 +1,53 @@
+{
+  "pages": [
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Detect blinks faster with linear transformers. The page features a large illustration of an eye, introducing the topic of fast blink detection using linear transformers."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "The Blink Detection Challenge discusses that detecting eye blinks is challenging because it reveals deep fakes and driver drowsiness. Existing methods struggle with short blinks due to frame-wise classification."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Introducing BlinkLinMulT, a fast transformer-based framework for eye blink detection that combines low- and high-level feature sequences including head pose angles."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "BlinkLinMulT is a multimodal transformer architecture for blink presence detection and frame-wise eye state recognition."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "The page shows superior cross-dataset results, stating that BlinkLinMulT matches or beats state-of-the-art methods and achieves a perfect 1.0 F1 score on the TalkingFace dataset."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Robustness via Union Training. Union training improved F1 scores on CEW, ZJU, and RT-BENEimg benchmarks. Eye state recognition and blink detection outperformed single dataset baselines."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "Model performance drops at higher yaw angles. The chart shows head pose angle dependence of BlinkLinMulT for blink presence detection."
+    },
+    {
+      "legible": true,
+      "overflow": false,
+      "visual_relevant": true,
+      "alt_text": "The BlinkLinMulT model is trained once on the union of all datasets, improving robustness and results across all individual unseen datasets."
+    }
+  ],
+  "dropped_visuals": []
+}

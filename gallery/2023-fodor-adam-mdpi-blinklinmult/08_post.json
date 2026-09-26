@@ -1,0 +1,103 @@
+{
+  "hook": "BlinkLinMulT uses linear attention for fast eye blink detection.",
+  "takeaways": [
+    {
+      "text": "It replaces quadratic attention with linear versions for easier training while maintaining performance.",
+      "claim_ids": [
+        "c09"
+      ]
+    },
+    {
+      "text": "The model achieves a perfect F1 score of 1.0 for blink presence detection on the TalkingFace dataset.",
+      "claim_ids": [
+        "c33"
+      ]
+    },
+    {
+      "text": "Training on a union of datasets improves robustness across all individual unseen benchmarks.",
+      "claim_ids": [
+        "c25",
+        "c38"
+      ]
+    }
+  ],
+  "question": "How do you handle performance drops at extreme head orientations in your models?",
+  "report": {
+    "rounds": [
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "It replaces quadratic attention with linear versions for easier training while maintaining performance.",
+          "claim_ids": [
+            "c09"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that quadratic attention was replaced with linear versions for easier training while providing similar performance."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "The model achieves a perfect 1.0 F1 score on the TalkingFace dataset.",
+          "claim_ids": [
+            "c33"
+          ],
+          "problems": [],
+          "verdict": "partial",
+          "reason": "The 1.0 F1 score refers specifically to the blink presence detection task within TalkingFace, not necessarily the entire dataset's performance."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "Training on a union of datasets improves robustness across all individual unseen benchmarks.",
+          "claim_ids": [
+            "c30",
+            "c38"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states that training on a union of datasets improves results across all individual datasets in cross-dataset evaluations."
+        }
+      ],
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "It replaces quadratic attention with linear versions for easier training while maintaining performance.",
+          "claim_ids": [
+            "c09"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that quadratic attention was replaced with linear versions for easier training while providing similar performance."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "The model achieves a perfect F1 score of 1.0 for blink presence detection on the TalkingFace dataset.",
+          "claim_ids": [
+            "c33"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms a 1.0 F1 score for the blink presence detection task on the TalkingFace dataset."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "Training on a union of datasets improves robustness across all individual unseen benchmarks.",
+          "claim_ids": [
+            "c25",
+            "c38"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states that training on a union of datasets improves results across all individual datasets/benchmarks."
+        }
+      ]
+    ],
+    "dropped": [],
+    "dropped_slides": []
+  }
+}
