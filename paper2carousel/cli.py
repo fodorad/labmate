@@ -208,7 +208,9 @@ def cmd_trace(config: Config, ref: str, all_traces: bool) -> int:
     return 0
 
 
-def cmd_publish(config: Config, ref: str, gallery: Path, include_pdf: bool) -> int:
+def cmd_publish(
+    config: Config, ref: str, gallery: Path, include_pdf: bool, http: httpx.Client | None = None
+) -> int:
     """Publish a finished run into the gallery.
 
     Args:
@@ -216,18 +218,17 @@ def cmd_publish(config: Config, ref: str, gallery: Path, include_pdf: bool) -> i
         ref: Run directory or paper id.
         gallery: Gallery root.
         include_pdf: Also publish the paper PDF.
+        http: HTTP client for re-fetching the paper during the replay check (tests).
 
     Returns:
         Exit code: 0 on success, 1 if the run can't be published.
     """
     try:
-        entry, n = publish(resolve_run(config, ref), gallery, config, include_pdf)
+        entry, n = publish(resolve_run(config, ref), gallery, config, include_pdf, http)
     except (PublishError, FileNotFoundError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
-    print(
-        f"Published {entry} with {n} cassette(s). Check it with `make verify PAPER={entry.name}`."
-    )
+    print(f"Published {entry}: replays exactly from its {n} cassette(s).")
     return 0
 
 
@@ -492,7 +493,7 @@ def main(
     if args.command == "trace":
         return cmd_trace(config, args.ref, args.all)
     if args.command == "publish":
-        return cmd_publish(config, args.ref, args.gallery, args.include_pdf)
+        return cmd_publish(config, args.ref, args.gallery, args.include_pdf, http)
     if args.command == "verify":
         return cmd_verify(config, args.gallery, args.papers, http)
     if args.command == "site":

@@ -204,8 +204,8 @@ def test_trace_publish_verify_site(fake, arxiv, workdir, capsys):
     assert main(["trace", "no-such-paper"]) == 1
     assert "no trace.jsonl" in capsys.readouterr().err
 
-    assert main(["publish", "2401.00001"]) == 0
-    assert "Published gallery/2401.00001" in capsys.readouterr().out
+    assert main(["publish", "2401.00001"], http=arxiv.client()) == 0
+    assert "Published gallery/2401.00001: replays exactly" in capsys.readouterr().out
     assert main(["publish", "missing"]) == 1
 
     assert main(["verify"], http=arxiv.client()) == 0
@@ -263,9 +263,9 @@ def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
     assert "https://example.org/pdf/2023_My_Paper.pdf" in (run_dir / "post.md").read_text()
 
     assert main(["trace", url]) == 0
-    assert main(["publish", url]) == 0
+    assert main(["publish", url], http=http) == 0
     capsys.readouterr()
     assert not (workdir / "gallery" / "2023-my-paper" / "2023-my-paper.pdf").exists()
     assert main(["verify"], http=http) == 0  # re-downloads the PDF from its URL
     assert "OK   2023-my-paper" in capsys.readouterr().out
-    assert len(downloads) == 2
+    assert len(downloads) == 3  # run, publish's replay check, verify

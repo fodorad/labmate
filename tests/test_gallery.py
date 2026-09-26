@@ -33,15 +33,17 @@ def finished(fake, arxiv, config):
 
 
 @pytest.fixture
-def entry(finished, config, tmp_path):
-    return publish(finished.run_dir, tmp_path / "gallery", config)[0]
+def entry(finished, config, arxiv, tmp_path):
+    return publish(finished.run_dir, tmp_path / "gallery", config, http=arxiv.client())[0]
 
 
-def test_publish_copies_artifacts_trace_and_only_the_runs_cassettes(finished, config, tmp_path):
+def test_publish_copies_artifacts_trace_and_only_the_runs_cassettes(
+    finished, config, arxiv, tmp_path
+):
     stray = config.replay.dir / "zz" / ("zz" + "0" * 62 + ".json")
     stray.parent.mkdir(parents=True)
     stray.write_text("{}")
-    entry, n = publish(finished.run_dir, tmp_path / "gallery", config)
+    entry, n = publish(finished.run_dir, tmp_path / "gallery", config, http=arxiv.client())
     assert entry == tmp_path / "gallery" / "2401.00001"
     assert n == len(list((entry / "cassettes").glob("*/*.json"))) > 10
     assert not (entry / "cassettes" / "zz").exists()
@@ -53,11 +55,11 @@ def test_publish_copies_artifacts_trace_and_only_the_runs_cassettes(finished, co
     assert {s["status"] for s in roots if s["name"] == "run"} == {"ok", "awaiting_approval"}
     # republishing replaces the entry
     (entry / "old.txt").write_text("x")
-    publish(finished.run_dir, tmp_path / "gallery", config)
+    publish(finished.run_dir, tmp_path / "gallery", config, http=arxiv.client())
     assert not (entry / "old.txt").exists()
 
 
-def test_publish_finds_cassettes_of_traces_without_digest_keys(finished, config, tmp_path):
+def test_publish_finds_cassettes_of_traces_without_digest_keys(finished, config, arxiv, tmp_path):
     from paper2carousel.llm.replay import CassetteStore
 
     config.replay.lock_file.write_text(json.dumps({"gemma4:26b-mlx": "cd" * 32}))
@@ -74,8 +76,8 @@ def test_publish_finds_cassettes_of_traces_without_digest_keys(finished, config,
         else:
             legacy.put(path.stem, record["request"], record["response"])
     config.replay.dir = legacy.root
-    entry, n = publish(finished.run_dir, tmp_path / "gallery", config)
-    assert n == len({s for s in (entry / "trace.jsonl").read_text().split('"key": "')[1:]})
+    entry, n = publish(finished.run_dir, tmp_path / "gallery", config, http=arxiv.client())
+    assert n == len(list((entry / "cassettes").glob("*/*.json"))) > 10
 
 
 def test_publish_refuses_unfinished_or_unrecorded_runs(fake, arxiv, config, tmp_path):
@@ -85,8 +87,8 @@ def test_publish_refuses_unfinished_or_unrecorded_runs(fake, arxiv, config, tmp_
         publish(paused.run_dir, tmp_path / "g", config)
     done = run(config, ref="2401.00001", client=fake.client(), http=arxiv.client(), approve=True)
     shutil.rmtree(config.replay.dir)
-    with pytest.raises(PublishError, match="no cassette"):
-        publish(done.run_dir, tmp_path / "g", config)
+    with pytest.raises(PublishError, match="does not replay.*CassetteMissError"):
+        publish(done.run_dir, tmp_path / "g", config, http=arxiv.client())
     (done.run_dir / "trace.jsonl").write_text("")
     with pytest.raises(PublishError, match="no completed run"):
         publish(done.run_dir, tmp_path / "g", config)
@@ -180,6 +182,19 @@ def test_verify_local_pdf_without_pdf_or_url_reports_it(fake, config, tmp_path):
     fake.chat_handler = agentic_chat
     kw = {"pdf": make_pdf(tmp_path / "mine.pdf"), "title": "Mine", "client": fake.client()}
     run(config, auto_approve=True, **kw)
-    entry, _ = publish(config.tracing.runs_dir / "mine", tmp_path / "gallery", config)
-    report = verify(entry, Config())
-    assert "no PDF published and no URL" in report.error and not report.ok
+    with pytest.raises(PublishError, match="no PDF published and no URL"):
+        publish(config.tracing.runs_dir / "mine", tmp_path / "gallery", config)
+
+
+def test_publish_keeps_only_the_cassettes_replay_needs(finished, config, arxiv, tmp_path):
+    # a discarded call (e.g. before an outline edit) is in the trace but not needed
+    extra = config.replay.dir / "ab" / ("ab" + "1" * 62 + ".json")
+    extra.parent.mkdir(parents=True, exist_ok=True)
+    extra.write_text('{"key": "x", "request": {"messages": []}, "response": {}}')
+    span = {"trace_id": "t", "span_id": "s", "parent_id": None, "name": "llm.chat",
+            "key": extra.stem, "status": "ok", "latency_ms": 1.0,
+            "start_ts": "2026-09-26T10:00:00+00:00"}  # fmt: skip
+    finished.trace.write_text(finished.trace.read_text() + json.dumps(span) + "\n")
+    entry, n = publish(finished.run_dir, tmp_path / "gallery", config, http=arxiv.client())
+    assert not (entry / "cassettes" / "ab").exists()
+    assert n == len(list((entry / "cassettes").glob("*/*.json"))) > 10

@@ -34,12 +34,12 @@ class RunMetrics(BaseModel):
         contribution_coverage: Share of contribution claims used on some slide.
         slides: Slides in the final carousel.
         visuals: Slides with a figure or diagram.
-        llm_calls: Model calls of the run.
-        tokens_in: Prompt tokens.
-        tokens_out: Generated tokens.
+        llm_calls: Distinct model requests the carousel needed.
+        tokens_in: Prompt tokens of those requests.
+        tokens_out: Generated tokens of those requests.
         swaps: Model swaps during the fact-check loop.
-        wall_s: Compute seconds of the run (paused + approved invocations, without the
-            time the outline waited for review).
+        wall_s: Seconds spent in those model calls when they ran live (excludes the time
+            the outline waited for review, and replays).
     """
 
     paper_id: str
@@ -103,6 +103,37 @@ def latest_completed(trace: Path) -> list[Span]:
     return (live or by_chain or [[]])[-1]
 
 
+def distinct_calls(spans: list[Span], cassettes: Path | None = None) -> list[Span]:
+    """One span per distinct model request, preferring the live (uncached) call.
+
+    A run is often several invocations (pause, approve, re-runs); a request answered live
+    once and replayed later counts once, with its live latency. For a published gallery
+    entry only the requests whose cassettes it ships (the ones replay needs) count.
+
+    Args:
+        spans: All spans of a run's trace.
+        cassettes: The entry's cassette directory, if published.
+
+    Returns:
+        The chosen ``llm.chat`` / ``llm.image`` spans.
+    """
+    keep = (
+        {p.stem for p in cassettes.glob("*/*.json")}
+        if cassettes is not None and cassettes.exists()
+        else None
+    )
+    chosen: dict[str, Span] = {}
+    for s in spans:
+        if s["name"] not in ("llm.chat", "llm.image"):
+            continue
+        key = str(s.get("key"))
+        if keep is not None and key not in keep:
+            continue
+        if key not in chosen or (chosen[key].get("cached") and not s.get("cached")):
+            chosen[key] = s
+    return list(chosen.values())
+
+
 def paper_title(run_dir: Path) -> str:
     """Paper title from ``00_paper.json``, or from ``meta.json`` for published gallery runs.
 
@@ -146,9 +177,10 @@ def run_metrics(run_dir: Path) -> RunMetrics:
         if visuals_file.exists()
         else 0
     )
-    spans = latest_completed(run_dir / "trace.jsonl")
-    llm = [s for s in spans if s["name"] in ("llm.chat", "llm.image")]
-    roots = [s for s in spans if s["name"] == "run" and s["parent_id"] is None]
+    trace = run_dir / "trace.jsonl"
+    spans = read_trace(trace) if trace.exists() else []
+    llm = distinct_calls(spans, run_dir / "cassettes")
+    factchecks = [s for s in spans if s["name"] == "step.factcheck" and s.get("rounds")]
     return RunMetrics(
         paper_id=run_dir.name,
         title=paper_title(run_dir),
@@ -165,8 +197,10 @@ def run_metrics(run_dir: Path) -> RunMetrics:
         llm_calls=len(llm),
         tokens_in=sum(int(s.get("tokens_in") or 0) for s in llm),
         tokens_out=sum(int(s.get("tokens_out") or 0) for s in llm),
-        swaps=sum(int(s.get("swaps") or 0) for s in spans if s["name"] == "step.factcheck"),
-        wall_s=round(sum(float(r.get("latency_ms") or 0) for r in roots) / 1000, 1),
+        swaps=max((int(s.get("swaps") or 0) for s in factchecks), default=0),
+        wall_s=round(
+            sum(float(s.get("latency_ms") or 0) for s in llm if not s.get("cached")) / 1000, 1
+        ),
     )
 
 

@@ -31,6 +31,7 @@ from paper2carousel.schemas import Claims, FactChecked, Paper, Post, Route, Visu
 from paper2carousel.steps.ingest import download_url, is_url
 from paper2carousel.steps.render import Theme
 from paper2carousel.traceview import environment, render_trace
+from paper2carousel.tracing import read_trace
 
 ARTIFACTS = [
     "01_route.json",
@@ -91,38 +92,43 @@ def _cassette_index(store: CassetteStore) -> dict[str, Path]:
 
 
 def publish(
-    run_dir: Path, gallery: Path, config: Config, include_pdf: bool = False
+    run_dir: Path,
+    gallery: Path,
+    config: Config,
+    include_pdf: bool = False,
+    http: httpx.Client | None = None,
 ) -> tuple[Path, int]:
-    """Copy a finished run, its trace and its cassettes into the gallery.
+    """Copy a finished run, its trace and its cassettes into the gallery, then prove it replays.
+
+    A real run is often several invocations (pause at the gate, approve, re-runs after an
+    edit or an interruption), so the cassettes of every model call in the run's trace are
+    candidates. The entry is then replayed with :func:`verify`; only the cassettes that
+    replay actually used are kept, and an entry that doesn't reproduce is refused.
 
     Args:
         run_dir: Finished run (``runs/<paper_id>``).
         gallery: Gallery root.
         config: Configuration (cassette directory and lock file).
         include_pdf: Also publish the paper PDF (only for papers you may redistribute).
+        http: HTTP client for re-fetching the paper during the check (tests).
 
     Returns:
-        The entry directory and the number of cassettes copied.
+        The entry directory and the number of cassettes kept.
 
     Raises:
-        PublishError: If the run hasn't finished or a model call has no cassette.
+        PublishError: If the run hasn't finished or the entry does not replay exactly.
     """
     if not (run_dir / "carousel.pdf").exists() or not (run_dir / "05_factcheck.json").exists():
         raise PublishError(f"{run_dir} has not finished (run it with --approve first)")
-    spans = latest_completed(run_dir / "trace.jsonl")
-    if not spans:
+    if not latest_completed(run_dir / "trace.jsonl"):
         raise PublishError(f"{run_dir} has no completed run in trace.jsonl")
+    spans = read_trace(run_dir / "trace.jsonl")
     store = CassetteStore(config.replay.dir)
     keys = sorted({str(s["key"]) for s in spans if str(s["name"]).startswith("llm.")})
     found: dict[str, Path] = {k: store.path(k) for k in keys if store.path(k).exists()}
     if len(found) < len(keys):
         legacy = _cassette_index(store)
         found |= {k: legacy[k] for k in keys if k not in found and k in legacy}
-    missing = [k for k in keys if k not in found]
-    if missing:
-        raise PublishError(
-            f"{len(missing)} model call(s) have no cassette (was the run made in live mode?)"
-        )
 
     paper = Paper.model_validate_json((run_dir / "00_paper.json").read_text())
     entry = gallery / run_dir.name
@@ -155,7 +161,18 @@ def publish(
         published=datetime.now(UTC).date().isoformat(),
     )
     (entry / "meta.json").write_text(meta.model_dump_json(indent=2) + "\n")
-    return entry, len(found)
+
+    report = verify(entry, config, http)
+    if not report.ok:
+        problem = report.error or f"different: {', '.join(report.different)}"
+        raise PublishError(f"{entry} does not replay from its cassettes ({problem})")
+    for path in (entry / "cassettes").glob("*/*.json"):
+        if path.stem not in report.used_keys:
+            path.unlink()
+    for shard in (entry / "cassettes").glob("*"):
+        if shard.is_dir() and not any(shard.iterdir()):
+            shard.rmdir()
+    return entry, len(report.used_keys)
 
 
 class VerifyReport(BaseModel):
@@ -166,12 +183,14 @@ class VerifyReport(BaseModel):
         identical: Artifacts reproduced byte for byte.
         different: Artifacts that differ from the published ones.
         error: Why the replay stopped, if it did (e.g. a missing cassette).
+        used_keys: Cassettes the replay read.
     """
 
     paper_id: str
     identical: list[str] = []
     different: list[str] = []
     error: str = ""
+    used_keys: list[str] = []
 
     @property
     def ok(self) -> bool:
@@ -235,6 +254,11 @@ def verify(entry: Path, config: Config, http: httpx.Client | None = None) -> Ver
             )
         except Exception as e:  # noqa: BLE001 - reported, not raised
             report.error = f"{type(e).__name__}: {e}"
+        replay_trace = run_dir / "trace.jsonl"
+        if replay_trace.exists():
+            report.used_keys = sorted(
+                {str(sp["key"]) for sp in read_trace(replay_trace) if "key" in sp}
+            )
         for name in ARTIFACTS:
             if not (entry / name).exists():
                 continue
