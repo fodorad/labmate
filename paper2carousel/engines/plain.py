@@ -2,7 +2,7 @@
 
 Agentic pipeline (default)::
 
-    ingest ─▶ route ─▶ extract (parallel) ─▶ outline ─▶ ✋ gate ─▶ write (parallel) ─▶ render
+    ingest ─▶ route ─▶ extract ─▶ outline ─▶ ✋ gate ─▶ write ─▶ fact-check loop ─▶ render
 
 Baseline (``--baseline``, the M1 walking skeleton, kept for evaluation)::
 
@@ -30,9 +30,19 @@ from pydantic import BaseModel
 from paper2carousel.config import Config, ReplayMode
 from paper2carousel.llm.client import OllamaClient
 from paper2carousel.llm.replay import CassetteStore, ReplayClient, read_lock
-from paper2carousel.schemas import Claims, Deck, Outline, Paper, Route, WrittenSlides
+from paper2carousel.phases import ModelSwitcher
+from paper2carousel.schemas import (
+    Claims,
+    Deck,
+    FactChecked,
+    Outline,
+    Paper,
+    Route,
+    WrittenSlides,
+)
 from paper2carousel.steps.draft import draft_deck
 from paper2carousel.steps.extract import extract_claims
+from paper2carousel.steps.factcheck import fact_check
 from paper2carousel.steps.gate import read_gate, write_gate
 from paper2carousel.steps.ingest import ingest_arxiv, ingest_pdf, parse_arxiv_id, slugify
 from paper2carousel.steps.llm import LLM
@@ -43,6 +53,11 @@ from paper2carousel.steps.write import write_slides
 from paper2carousel.tracing import TracedClient, Tracer
 
 log = logging.getLogger(__name__)
+
+
+class NothingSupportedError(RuntimeError):
+    """Raised when the fact-check loop drops every slide."""
+
 
 Status = Literal["done", "awaiting_approval"]
 """Outcome of a run: finished, or paused at the human gate."""
@@ -153,6 +168,8 @@ def run(
     )
     gen = config.generation
     llm = LLM(backend, config.models.text, gen.seed, gen.temperature, gen.num_ctx)
+    judge = LLM(backend, config.models.critic, gen.seed, gen.temperature, gen.num_ctx)
+    switcher = ModelSwitcher(live)
     workers = config.pipeline.workers
     paths = {
         name: run_dir / name
@@ -162,6 +179,7 @@ def run(
             "03_outline.draft.json",
             "03_outline.json",
             "04_slides.json",
+            "05_factcheck.json",
             "01_deck.json",
         ]
     }
@@ -196,6 +214,7 @@ def run(
             s.update(sections=len(paper.sections), title=paper.title)
         log.info("ingested: %s (%d sections)", paper.title, len(paper.sections))
 
+        switcher.use(llm.model)
         if baseline:
             with tracer.span("step.draft", model=llm.model) as s:
                 deck = _checkpoint(
@@ -207,7 +226,7 @@ def run(
                     reuse=not fresh,
                 )
                 s.update(slides=len(deck.slides))
-            return _finish(tracer, deck, paper, result("done"), live, config)
+            return _finish(tracer, deck, paper, result("done"), switcher)
 
         with tracer.span("step.route") as s:
             route = _checkpoint(
@@ -263,20 +282,53 @@ def run(
             )
             s.update(slides=len(written.slides))
         log.info("written: %d slides", len(written.slides))
-        return _finish(tracer, written.to_deck(), paper, result("done"), live, config)
+
+        with tracer.span("step.factcheck", judge=judge.model) as s:
+            swaps_before = switcher.swaps
+            checked = _checkpoint(
+                paths["05_factcheck.json"],
+                FactChecked,
+                lambda: fact_check(
+                    written,
+                    [slide.claim_ids for slide in outline.slides],
+                    claims,
+                    llm,
+                    judge,
+                    switcher,
+                    config.pipeline.max_rewrite_rounds,
+                    workers,
+                ),
+                reuse=not fresh,
+            )
+            report = checked.report
+            s.update(
+                rounds=len(report.rounds),
+                failed_first=report.failed_first,
+                total_first=report.total_first,
+                dropped=len(report.dropped),
+                dropped_slides=report.dropped_slides,
+                swaps=switcher.swaps - swaps_before,
+            )
+        log.info(
+            "fact-check: %d/%d bullets failed the first check, %d dropped after %d round(s)",
+            report.failed_first,
+            report.total_first,
+            len(report.dropped),
+            len(report.rounds),
+        )
+        if not checked.slides.slides:
+            switcher.release()
+            raise NothingSupportedError(
+                f"the fact-check dropped every slide; see {paths['05_factcheck.json']}"
+            )
+        return _finish(tracer, checked.slides.to_deck(), paper, result("done"), switcher)
 
 
 def _finish(
-    tracer: Tracer,
-    deck: Deck,
-    paper: Paper,
-    result: RunResult,
-    live: OllamaClient | None,
-    config: Config,
+    tracer: Tracer, deck: Deck, paper: Paper, result: RunResult, switcher: ModelSwitcher
 ) -> RunResult:
     with tracer.span("step.render"):
         render_deck(deck, paper, result.carousel)
     log.info("rendered: %s", result.carousel)
-    if live is not None:
-        live.unload(config.models.text)
+    switcher.release()
     return result

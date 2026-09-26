@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pymupdf
@@ -5,7 +6,7 @@ import pytest
 import yaml
 
 from paper2carousel.config import Config, ReplayMode
-from paper2carousel.engines.plain import run, run_id_for
+from paper2carousel.engines.plain import NothingSupportedError, run, run_id_for
 from paper2carousel.llm.replay import CassetteMissError
 from paper2carousel.schemas import Claims, Deck, Outline, WrittenSlides
 from paper2carousel.steps.gate import GateError
@@ -81,7 +82,7 @@ def test_approve_finishes_and_respects_human_edits(model, arxiv, config):
         if s["name"] == "step.gate" and s.get("status") == "approved"
     )
     assert gate_span["edited"] is True
-    assert "qwen3.6:35b-mlx" not in model.loaded
+    assert not model.loaded
 
 
 def test_invalid_edit_is_rejected_with_the_rule_it_breaks(model, arxiv, config):
@@ -98,14 +99,24 @@ def test_auto_approve_runs_straight_through_and_traces_every_step(model, arxiv, 
     assert result.status == "done" and result.carousel.exists()
     spans = read_trace(result.trace)
     names = {s["name"] for s in spans}
-    assert {"step.route", "step.extract", "step.outline", "step.gate", "step.write"} <= names
+    assert {
+        "step.route",
+        "step.extract",
+        "step.outline",
+        "step.gate",
+        "step.write",
+        "step.factcheck",
+    } <= names
     extract = next(s for s in spans if s["name"] == "step.extract")
     llm_in_extract = [
         s for s in spans if s["name"] == "llm.chat" and s["parent_id"] == extract["span_id"]
     ]
     assert len(llm_in_extract) == 3  # one per section, parent kept across worker threads
-    # route 1 + extract 3 + outline 1 + write 4
-    assert n_chats(model) == 9
+    factcheck = next(s for s in spans if s["name"] == "step.factcheck")
+    assert factcheck["failed_first"] == 0 and factcheck["rounds"] == 1 and factcheck["swaps"] == 1
+    # route 1 + extract 3 + outline 1 + write 4 + judge 4
+    assert n_chats(model) == 13
+    assert not model.loaded  # every model released at the end
 
 
 def test_rerun_after_done_reuses_everything(model, arxiv, config):
@@ -125,7 +136,7 @@ def test_fresh_replay_reproduces_the_agentic_run_without_any_model(model, arxiv,
     assert again.artifact("02_claims.json").read_text() == claims
     spans = [s for s in read_trace(again.trace) if s["trace_id"] == again.trace_id]
     llm = [s for s in spans if s["name"] == "llm.chat"]
-    assert len(llm) == 9 and all(s["cached"] for s in llm)
+    assert len(llm) == 13 and all(s["cached"] for s in llm)
 
 
 def test_replay_without_cassettes_fails_loudly(arxiv, config):
@@ -150,3 +161,20 @@ def test_baseline_runs_in_its_own_directory_and_shares_the_paper(fake, arxiv, co
     assert (result.run_dir.parent / "00_paper.json").exists()
     with pymupdf.open(result.carousel) as doc:
         assert doc.page_count == len(DECK.slides) + 1
+
+
+def test_run_fails_clearly_when_nothing_survives_the_fact_check(fake, arxiv, config):
+    def liar(body):
+        response = agentic_chat(body)
+        props = body["format"]["properties"]
+        if "bullets" in props and "verdicts" not in props:
+            content = json.loads(response["message"]["content"])
+            for b in content["bullets"]:
+                b["text"] = "WRONG " + b["text"]
+            response["message"]["content"] = json.dumps(content)
+        return response
+
+    fake.chat_handler = liar
+    with pytest.raises(NothingSupportedError, match="05_factcheck.json"):
+        run(config, ref=REF, auto_approve=True, client=fake.client(), http=arxiv.client())
+    assert not fake.loaded

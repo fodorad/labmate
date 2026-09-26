@@ -48,6 +48,9 @@ API Reference
 .. automodule:: paper2carousel.steps.write
    :members:
 
+.. automodule:: paper2carousel.steps.factcheck
+   :members:
+
 .. automodule:: paper2carousel.steps.draft
    :members:
 
@@ -55,6 +58,9 @@ API Reference
    :members:
 
 .. automodule:: paper2carousel.engines.plain
+   :members:
+
+.. automodule:: paper2carousel.phases
    :members:
 
 .. automodule:: paper2carousel.parallel

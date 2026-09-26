@@ -54,7 +54,7 @@ class Deck(BaseModel):
     """A carousel: an ordered list of slides."""
 
     title: str = Field(description="Hook headline for the cover slide, at most 10 words.")
-    slides: list[DraftSlide] = Field(min_length=3, max_length=10)
+    slides: list[DraftSlide] = Field(min_length=1, max_length=10)
 
 
 # --- M2: agentic pipeline --------------------------------------------------------------------
@@ -166,3 +166,81 @@ class WrittenSlides(BaseModel):
                 DraftSlide(title=s.title, bullets=[b.text for b in s.bullets]) for s in self.slides
             ],
         )
+
+
+# --- M3: fact-check loop ---------------------------------------------------------------------
+
+VerdictLabel = Literal["supported", "partial", "unsupported"]
+"""Judge verdict for one bullet. Only ``supported`` passes."""
+
+
+class BulletVerdict(BaseModel):
+    """The judge's verdict on one bullet."""
+
+    bullet: int = Field(description="1-based bullet number.")
+    verdict: VerdictLabel
+    reason: str = Field(description="One short sentence naming what is or isn't supported.")
+
+
+class SlideVerdicts(BaseModel):
+    """Judge output for one slide: exactly one verdict per bullet."""
+
+    verdicts: list[BulletVerdict]
+
+
+class BulletCheck(BaseModel):
+    """Everything known about one bullet in one round (the fact-check audit trail).
+
+    Attributes:
+        slide: 1-based slide number.
+        bullet: 1-based bullet number within the slide.
+        text: Bullet text.
+        claim_ids: Cited claims.
+        problems: Deterministic check failures (e.g. a number not in the evidence).
+        verdict: Judge verdict, if the judge ran.
+        reason: Judge reason.
+    """
+
+    slide: int
+    bullet: int
+    text: str
+    claim_ids: list[str]
+    problems: list[str] = Field(default_factory=list)
+    verdict: VerdictLabel | None = None
+    reason: str = ""
+
+    @property
+    def passed(self) -> bool:
+        """True if no deterministic problem and the judge said ``supported``."""
+        return not self.problems and self.verdict == "supported"
+
+
+class FactCheckReport(BaseModel):
+    """Per-round audit of the fact-check loop plus headline numbers.
+
+    Attributes:
+        rounds: Checks of every bullet, per round (round 0 = the writer's first draft).
+        dropped: Bullets still failing after the last round, removed from the deck.
+        dropped_slides: 1-based numbers of slides that lost all their bullets.
+    """
+
+    rounds: list[list[BulletCheck]]
+    dropped: list[BulletCheck] = Field(default_factory=list)
+    dropped_slides: list[int] = Field(default_factory=list)
+
+    @property
+    def failed_first(self) -> int:
+        """Bullets failing in the first draft."""
+        return sum(not c.passed for c in self.rounds[0]) if self.rounds else 0
+
+    @property
+    def total_first(self) -> int:
+        """Bullets in the first draft."""
+        return len(self.rounds[0]) if self.rounds else 0
+
+
+class FactChecked(BaseModel):
+    """Output of the fact-check step: the corrected slides and the audit trail."""
+
+    slides: WrittenSlides
+    report: FactCheckReport

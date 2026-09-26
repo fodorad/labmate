@@ -2,10 +2,11 @@
 
 > Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
 
-**Status: pre-alpha (milestone M2).** The agentic core runs end to end: routing, parallel
+**Status: pre-alpha (milestone M3).** The agentic core runs end to end: routing, parallel
 claim extraction with a quote-verification guard, an orchestrated outline, a human approval
-gate and grounded slide writing, all traced and replayable. Next: the fact-check loop (M3)
-and visuals (M4).
+gate, grounded slide writing and a fact-check loop (a separate judge model plus exact
+number checks, with rewrites), all traced and replayable. Next: visuals (M4) and the
+evaluation suite (M5).
 
 ## What it will do
 
@@ -32,6 +33,7 @@ arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline �
 | outline | orchestrator | picks the slides and assigns claim cards; rules (template order, valid ids, ≤ 2 uses per claim) are checked in code and fed back on violation |
 | gate | human-in-the-loop | writes `outline.yaml` and pauses; your edits are validated with the same rules |
 | write | prompt chaining | one call per slide; every bullet cites the claim ids it uses |
+| fact-check | evaluator–optimizer | numbers must match the cited evidence exactly; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
 | render | plain code | Typst → 4:5 PDF |
 
 ## Models

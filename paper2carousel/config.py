@@ -59,6 +59,7 @@ class PipelineConfig(BaseModel):
     """Orchestration settings."""
 
     workers: int = 2
+    max_rewrite_rounds: int = 2
 
 
 class ReplayConfig(BaseModel):

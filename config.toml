@@ -19,6 +19,7 @@ num_ctx = 16384  # Ollama's default window would silently truncate the paper
 
 [pipeline]
 workers = 2  # concurrent calls for parallel steps; Ollama queues beyond OLLAMA_NUM_PARALLEL
+max_rewrite_rounds = 2  # fact-check loop budget; bullets still unsupported after it are dropped
 
 [replay]
 # live   : always call Ollama, store nothing

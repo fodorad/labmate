@@ -288,11 +288,23 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
                 for i, p in enumerate(purposes)
             ],
         }
+    elif "verdicts" in props:
+        bullets = re.findall(r"^Bullet (\d+): (.*)$", prompt, re.MULTILINE)
+        content = {
+            "verdicts": [
+                {
+                    "bullet": int(n),
+                    "verdict": "unsupported" if "WRONG" in text else "supported",
+                    "reason": "made up" if "WRONG" in text else "stated in the evidence",
+                }
+                for n, text in bullets
+            ]
+        }
     elif "bullets" in props:
         ids = ALL_IDS.findall(conversation)
         content = {
             "title": "A written slide",
-            "bullets": [{"text": f"Grounded in {cid}.", "claim_ids": [cid]} for cid in ids],
+            "bullets": [{"text": "A grounded bullet.", "claim_ids": [cid]} for cid in ids],
         }
     else:
         return default_chat(body)
