@@ -1,103 +1,157 @@
 {
-  "hook": "BlinkLinMulT uses linear attention for fast eye blink detection.",
+  "hook": "Transformer-based eye blink detection improves facial analysis accuracy.",
   "takeaways": [
     {
-      "text": "It replaces quadratic attention with linear versions for easier training while maintaining performance.",
+      "text": "Existing methods struggle with short blinks and noisy data.",
       "claim_ids": [
-        "c09"
+        "c02"
       ]
     },
     {
-      "text": "The model achieves a perfect F1 score of 1.0 for blink presence detection on the TalkingFace dataset.",
+      "text": "Cross-modal transformers translate between landmark features and RGB texture embeddings for better alignment.",
       "claim_ids": [
-        "c33"
+        "c10"
       ]
     },
     {
-      "text": "Training on a union of datasets improves robustness across all individual unseen benchmarks.",
+      "text": "Training on dataset unions improved F1 scores on CEW, ZJU, and RT-BENEimg.",
       "claim_ids": [
-        "c25",
-        "c38"
+        "c24"
       ]
     }
   ],
-  "question": "How do you handle performance drops at extreme head orientations in your models?",
+  "question": "How do you handle noisy data in your current facial analysis pipelines?",
   "report": {
     "rounds": [
       [
         {
           "slide": 1,
           "bullet": 1,
-          "text": "It replaces quadratic attention with linear versions for easier training while maintaining performance.",
+          "text": "Existing methods struggle with short blinks and noisy data in facial analysis tasks.",
           "claim_ids": [
-            "c09"
+            "c02"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states that quadratic attention was replaced with linear versions for easier training while providing similar performance."
+          "reason": "The evidence explicitly states that methods may struggle when blinks occur for a few frames or data are noisy/incomplete."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "The model achieves a perfect 1.0 F1 score on the TalkingFace dataset.",
+          "text": "The paper introduces a modified multi-modal transformer considering RGB texture, landmarks, and head pose.",
           "claim_ids": [
-            "c33"
+            "c06"
           ],
           "problems": [],
           "verdict": "partial",
-          "reason": "The 1.0 F1 score refers specifically to the blink presence detection task within TalkingFace, not necessarily the entire dataset's performance."
+          "reason": "The evidence includes additional inputs like iris, eye landmarks, and ear which are not mentioned in the bullet."
         },
         {
           "slide": 1,
           "bullet": 3,
-          "text": "Training on a union of datasets improves robustness across all individual unseen benchmarks.",
+          "text": "Cross-modal transformers translate between landmark features and RGB texture embeddings for better alignment.",
           "claim_ids": [
-            "c30",
-            "c38"
+            "c10"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence states that training on a union of datasets improves results across all individual datasets in cross-dataset evaluations."
+          "reason": "The evidence confirms that cross-modal transformers translate between landmark features and RGB texture embeddings."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Training on dataset unions improved F1 scores, reaching 0.997 on CEW and 1.0 on TalkingFace.",
+          "claim_ids": [
+            "c24",
+            "c32"
+          ],
+          "problems": [],
+          "verdict": "partial",
+          "reason": "The evidence supports the CEW score but only mentions a 1.0 F1 score for TalkingFace in the context of blink presence detection, not as a general dataset result."
         }
       ],
       [
         {
           "slide": 1,
           "bullet": 1,
-          "text": "It replaces quadratic attention with linear versions for easier training while maintaining performance.",
+          "text": "Existing methods struggle with short blinks and noisy data.",
           "claim_ids": [
-            "c09"
+            "c02"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states that quadratic attention was replaced with linear versions for easier training while providing similar performance."
+          "reason": "The evidence explicitly states that methods may struggle when blinks occur for a few frames or data are noisy/incomplete."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "The model achieves a perfect F1 score of 1.0 for blink presence detection on the TalkingFace dataset.",
+          "text": "The paper introduces a modified multi-modal transformer considering RGB texture, landmarks, and head pose.",
           "claim_ids": [
-            "c33"
+            "c06"
           ],
           "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms a 1.0 F1 score for the blink presence detection task on the TalkingFace dataset."
+          "verdict": "partial",
+          "reason": "The evidence includes iris and ear in addition to the RGB texture, landmarks, and head pose mentioned."
         },
         {
           "slide": 1,
           "bullet": 3,
-          "text": "Training on a union of datasets improves robustness across all individual unseen benchmarks.",
+          "text": "Cross-modal transformers translate between landmark features and RGB texture embeddings for better alignment.",
           "claim_ids": [
-            "c25",
-            "c38"
+            "c10"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence states that training on a union of datasets improves results across all individual datasets/benchmarks."
+          "reason": "The evidence confirms that cross-modal transformers translate between landmark features and RGB texture embeddings."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Training on dataset unions improved F1 scores on CEW, ZJU, and RT-BENEimg.",
+          "claim_ids": [
+            "c24"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that training on the union of datasets improved F1 scores for CEW, ZJU, and RT-BENEimg."
+        },
+        {
+          "slide": 2,
+          "bullet": 2,
+          "text": "BlinkLinMulT achieves a 1.0 F1 score on TalkingFace for blink presence detection.",
+          "claim_ids": [
+            "c32"
+          ],
+          "problems": [],
+          "verdict": "partial",
+          "reason": "While the evidence confirms a 1.0 F1 score for blink presence detection in TalkingFace, it does not explicitly name the model as BlinkLinMulT."
         }
       ]
     ],
-    "dropped": [],
+    "dropped": [
+      {
+        "slide": 1,
+        "bullet": 2,
+        "text": "The paper introduces a modified multi-modal transformer considering RGB texture, landmarks, and head pose.",
+        "claim_ids": [
+          "c06"
+        ],
+        "problems": [],
+        "verdict": "partial",
+        "reason": "The evidence includes iris and ear in addition to the RGB texture, landmarks, and head pose mentioned."
+      },
+      {
+        "slide": 2,
+        "bullet": 2,
+        "text": "BlinkLinMulT achieves a 1.0 F1 score on TalkingFace for blink presence detection.",
+        "claim_ids": [
+          "c32"
+        ],
+        "problems": [],
+        "verdict": "partial",
+        "reason": "While the evidence confirms a 1.0 F1 score for blink presence detection in TalkingFace, it does not explicitly name the model as BlinkLinMulT."
+      }
+    ],
     "dropped_slides": []
   }
 }

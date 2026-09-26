@@ -1,61 +1,40 @@
 {
-  "hook": "Detect blinks faster with linear transformers",
+  "hook": "Detect blinks faster with linear attention transformers",
   "slides": [
     {
-      "title": "The Blink Detection Challenge",
-      "purpose": "problem",
+      "title": "Eye Blink Detection for Safety and Security",
+      "purpose": "task",
       "claim_ids": [
         "c01",
-        "c02"
-      ]
-    },
-    {
-      "title": "Introducing BlinkLinMulT",
-      "purpose": "idea",
-      "claim_ids": [
-        "c05",
+        "c03",
         "c07"
       ]
     },
     {
-      "title": "Linear Attention Architecture",
-      "purpose": "how_it_works",
+      "title": "Challenges in Handling Noisy Data and Short Blinks",
+      "purpose": "challenges",
+      "claim_ids": [
+        "c02",
+        "c17",
+        "c35"
+      ]
+    },
+    {
+      "title": "BlinkLinMulT: Linear Attention for Multi-Modal Input",
+      "purpose": "method",
       "claim_ids": [
         "c06",
-        "c09",
+        "c10",
         "c13"
       ]
     },
     {
-      "title": "Superior Cross-Dataset Results",
-      "purpose": "result",
+      "title": "Superior F1 Scores on RT-BENEimg and TalkingFace",
+      "purpose": "results",
       "claim_ids": [
-        "c31",
-        "c33"
-      ]
-    },
-    {
-      "title": "Robustness via Union Training",
-      "purpose": "comparison",
-      "claim_ids": [
-        "c25",
-        "c29"
-      ]
-    },
-    {
-      "title": "Handling Extreme Head Poses",
-      "purpose": "limitation",
-      "claim_ids": [
-        "c35",
-        "c41"
-      ]
-    },
-    {
-      "title": "Unified Training for Generalization",
-      "purpose": "takeaway",
-      "claim_ids": [
-        "c30",
-        "c38"
+        "c21",
+        "c24",
+        "c32"
       ]
     }
   ]

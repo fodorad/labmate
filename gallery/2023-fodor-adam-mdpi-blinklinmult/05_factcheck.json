@@ -1,59 +1,70 @@
 {
   "slides": {
-    "hook": "Detect blinks faster with linear transformers",
+    "hook": "Detect blinks faster with linear attention transformers",
     "slides": [
       {
-        "title": "The Blink Detection Challenge",
+        "title": "Eye Blink Detection for Safety and Security",
         "bullets": [
           {
-            "text": "Detecting eye blinks is challenging but reveals deep fakes and driver drowsiness.",
+            "text": "Detecting eye blinks solves facial analysis tasks like deep fake detection and driver drowsiness monitoring.",
             "claim_ids": [
               "c01"
             ]
           },
           {
-            "text": "Existing methods struggle with short blinks due to frame-wise classification.",
+            "text": "Methods are categorized into feature-based, appearance-based, and motion-based approaches.",
             "claim_ids": [
-              "c02"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Introducing BlinkLinMulT",
-        "bullets": [
-          {
-            "text": "The authors propose a fast transformer-based framework for eye blink detection.",
-            "claim_ids": [
-              "c05"
+              "c03"
             ]
           },
           {
-            "text": "It combines low- and high-level feature sequences including head pose angles.",
+            "text": "The approach is evaluated on blink presence detection and eye state recognition tasks using multiple public benchmark datasets.",
             "claim_ids": [
-              "c05",
               "c07"
             ]
           }
         ]
       },
       {
-        "title": "Linear Attention Architecture",
+        "title": "Challenges in Handling Noisy Data and Short Blinks",
         "bullets": [
           {
-            "text": "BlinkLinMulT uses a modified multi-modal transformer with linear attention to process RGB texture and landmarks.",
+            "text": "Existing face recognition and frame-wise classification methods struggle with short blinks or noisy data.",
+            "claim_ids": [
+              "c02"
+            ]
+          },
+          {
+            "text": "The CEW dataset lacks pre-defined splits, requiring a 10-fold cross-validation scheme to measure performance.",
+            "claim_ids": [
+              "c17"
+            ]
+          },
+          {
+            "text": "Extreme head pose angles cause most errors due to eyelid visibility and landmark precision issues.",
+            "claim_ids": [
+              "c35"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "BlinkLinMulT: Linear Attention for Multi-Modal Input",
+        "bullets": [
+          {
+            "text": "Modified multi-modal transformer considers RGB texture, iris and eye landmarks, ear, and head pose angles.",
             "claim_ids": [
               "c06"
             ]
           },
           {
-            "text": "The model replaces quadratic attention modules with linear versions for easier training while maintaining similar performance.",
+            "text": "Cross-modal transformers translate between landmark features and RGB texture embeddings.",
             "claim_ids": [
-              "c09"
+              "c10"
             ]
           },
           {
-            "text": "A backbone CNN extracts features from eye patches, which a linear transformer uses to estimate blinks for each eye independently.",
+            "text": "Linear multimodal transformer estimates blinks for each eye independently.",
             "claim_ids": [
               "c13"
             ]
@@ -61,69 +72,24 @@
         ]
       },
       {
-        "title": "Superior Cross-Dataset Results",
+        "title": "Superior F1 Scores on RT-BENEimg and TalkingFace",
         "bullets": [
           {
-            "text": "BlinkLinMulT matches or beats state-of-the-art methods across various datasets.",
+            "text": "ResNet50 achieved a 0.912 F1 score on RT-BENEimg, outperforming DenseNet121's 0.883.",
             "claim_ids": [
-              "c31"
+              "c21"
             ]
           },
           {
-            "text": "It achieves a perfect 1.0 F1 score for blink detection on the TalkingFace dataset.",
+            "text": "Training on the union of datasets improved F1 scores: CEW rose to 0.997, ZJU to 0.933, and RT-BENEimg to 0.913.",
             "claim_ids": [
-              "c33"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Robustness via Union Training",
-        "bullets": [
-          {
-            "text": "Union training improved F1 scores on CEW, ZJU, and RT-BENEimg benchmarks.",
-            "claim_ids": [
-              "c25"
+              "c24"
             ]
           },
           {
-            "text": "Eye state recognition and blink detection outperformed single dataset baselines.",
+            "text": "A model achieved a perfect 1.0 F1 score on the TalkingFace dataset for blink presence detection.",
             "claim_ids": [
-              "c29"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Handling Extreme Head Poses",
-        "bullets": [
-          {
-            "text": "Model performance drops at higher yaw angles.",
-            "claim_ids": [
-              "c35"
-            ]
-          },
-          {
-            "text": "Performance slightly decreases at extreme orientations.",
-            "claim_ids": [
-              "c41"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Unified Training for Generalization",
-        "bullets": [
-          {
-            "text": "The BlinkLinMulT model is trained once on the union of all datasets.",
-            "claim_ids": [
-              "c30"
-            ]
-          },
-          {
-            "text": "This approach improves robustness and results across all individual unseen datasets.",
-            "claim_ids": [
-              "c38"
+              "c32"
             ]
           }
         ]
@@ -136,338 +102,402 @@
         {
           "slide": 1,
           "bullet": 1,
-          "text": "Detecting eye blinks is challenging but reveals deep fakes and driver drowsiness.",
+          "text": "Detecting eye blinks solves facial analysis tasks like deep fake detection and driver drowsiness monitoring.",
           "claim_ids": [
             "c01"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states that detecting eye blinks is challenging and can reveal deep fakes and driver drowsiness."
+          "reason": "The evidence explicitly states that detecting eye blinks can be used to solve deep fake manipulation and driver drowsiness tasks."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "Existing methods struggle with short blinks or noisy data due to frame-wise classification.",
+          "text": "Methods are categorized into feature-based, appearance-based, and motion-based approaches.",
           "claim_ids": [
-            "c02"
-          ],
-          "problems": [],
-          "verdict": "partial",
-          "reason": "While the evidence mentions struggles with short blinks due to frame-wise classification, it does not explicitly mention 'noisy data'."
-        },
-        {
-          "slide": 2,
-          "bullet": 1,
-          "text": "The authors propose a fast transformer-based framework for eye blink detection.",
-          "claim_ids": [
-            "c05"
+            "c03"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states the proposal of a fast transformer-based framework for eye blink detection."
+          "reason": "The evidence lists the three categories exactly as described in the bullet."
         },
         {
-          "slide": 2,
-          "bullet": 2,
-          "text": "It combines low- and high-level feature sequences including head pose angles.",
+          "slide": 1,
+          "bullet": 3,
+          "text": "The approach is evaluated on blink presence detection and eye state recognition tasks using multiple public benchmark datasets.",
           "claim_ids": [
-            "c05",
             "c07"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms the combination of low- and high-level feature sequences including head pose angles."
+          "reason": "The evidence confirms evaluation on blink presence detection, eye state recognition, and multiple public benchmark datasets."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Existing face recognition and frame-wise classification methods struggle with short blinks or noisy data.",
+          "claim_ids": [
+            "c02"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that methods depending on face recognition and frame-wise classification may struggle with short blinks or noisy data."
+        },
+        {
+          "slide": 2,
+          "bullet": 2,
+          "text": "The CEW dataset lacks pre-defined splits, requiring a 10-fold cross-validation scheme to measure performance.",
+          "claim_ids": [
+            "c17"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms the CEW dataset lacks pre-defined training/test images and that a 10-fold CV scheme was used to measure performance."
+        },
+        {
+          "slide": 2,
+          "bullet": 3,
+          "text": "Extreme head pose angles cause most errors due to eyelid visibility and landmark precision issues.",
+          "claim_ids": [
+            "c35"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states most errors originated from extreme head pose due to eyelid visibility and less precise landmark-based features."
         },
         {
           "slide": 3,
           "bullet": 1,
-          "text": "BlinkLinMulT uses a modified multi-modal transformer with linear attention to process RGB texture, landmarks, and head pose.",
+          "text": "Modified multi-modal transformer with linear attention considers RGB texture, landmarks, and head pose angles.",
           "claim_ids": [
             "c06"
           ],
           "problems": [],
           "verdict": "partial",
-          "reason": "The evidence mentions iris and eye landmarks, but does not explicitly mention head pose."
+          "reason": "The evidence includes ear information which is not mentioned in the bullet."
         },
         {
           "slide": 3,
           "bullet": 2,
-          "text": "The model replaces quadratic attention modules with linear versions for easier training while maintaining similar performance.",
+          "text": "Cross-modal transformers translate between landmark features and RGB texture embeddings.",
           "claim_ids": [
-            "c09"
+            "c10"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states that quadratic attention was replaced with linear versions for easier training while providing similar performance."
+          "reason": "The evidence explicitly describes translating between landmark features and RGB texture."
         },
         {
           "slide": 3,
           "bullet": 3,
-          "text": "A backbone CNN extracts features from eye patches, which a linear transformer uses to estimate blinks for each eye independently.",
+          "text": "Linear multimodal transformer estimates blinks for each eye independently using backbone CNN features.",
           "claim_ids": [
             "c13"
           ],
           "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms the CNN extracts features from RGB eye patches which are then used by a linear multimodal transformer to estimate blinks independently for each eye."
+          "verdict": "unsupported",
+          "reason": "The evidence does not mention that the transformer uses backbone CNN features."
         },
         {
           "slide": 4,
           "bullet": 1,
-          "text": "BlinkLinMulT matches or beats state-of-the-art methods across various datasets.",
+          "text": "ResNet50 achieved a 0.912 F1 score on RT-BENEimg, outperforming DenseNet121's 0.883 by a considerable margin.",
           "claim_ids": [
-            "c31"
+            "c21"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence states the performance is comparable to or surpasses state-of-the-art methods."
+          "reason": "The evidence confirms ResNet50's 0.912 F1 score and its considerable margin over DenseNet121's 0.883."
         },
         {
           "slide": 4,
           "bullet": 2,
-          "text": "It achieves a perfect 1.0 F1 score for blink detection on the TalkingFace dataset.",
+          "text": "Training on the union of datasets improved F1 scores: CEW rose to 0.997, ZJU to 0.933, and RT-BENEimg to 0.913.",
           "claim_ids": [
-            "c33"
+            "c24"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly mentions achieving a 1.0 F1 score for blink presence detection in TalkingFace."
+          "reason": "The evidence explicitly lists the improved F1 scores for CEW (0.997), ZJU (0.933), and RT-BENEimg (0.913) when training on the union."
         },
         {
-          "slide": 5,
-          "bullet": 1,
-          "text": "Union training improved F1 scores on CEW, ZJU, and RT-BENEimg benchmarks.",
+          "slide": 4,
+          "bullet": 3,
+          "text": "The BlinkLinMulT model achieved a perfect 1.0 F1 score on the TalkingFace dataset for blink presence detection.",
           "claim_ids": [
-            "c25"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states that training on the union of datasets improved F1 scores for CEW, ZJU, and RT-BENEimg."
-        },
-        {
-          "slide": 5,
-          "bullet": 2,
-          "text": "Eye state recognition and blink detection outperformed single dataset baselines.",
-          "claim_ids": [
-            "c29"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms that performance in eye state recognition and blink presence detection is consistently improved compared to single dataset training."
-        },
-        {
-          "slide": 6,
-          "bullet": 1,
-          "text": "Model performance drops at higher yaw angles due to self-occlusion.",
-          "claim_ids": [
-            "c35"
+            "c32"
           ],
           "problems": [],
           "verdict": "partial",
-          "reason": "The evidence mentions a drop in performance but does not mention self-occlusion as the cause."
-        },
-        {
-          "slide": 6,
-          "bullet": 2,
-          "text": "Performance decreases slightly at extreme orientations greater than 25 degrees.",
-          "claim_ids": [
-            "c41"
-          ],
-          "problems": [
-            "number(s) 25 not in the cited evidence"
-          ],
-          "verdict": "unsupported",
-          "reason": "The evidence does not specify that the decrease occurs at angles greater than 25 degrees."
-        },
-        {
-          "slide": 7,
-          "bullet": 1,
-          "text": "The BlinkLinMulT model is trained once on the union of all datasets.",
-          "claim_ids": [
-            "c30"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states the network is trained once and performs well on all public blink benchmark datasets."
-        },
-        {
-          "slide": 7,
-          "bullet": 2,
-          "text": "This approach improves robustness and results across all individual unseen datasets.",
-          "claim_ids": [
-            "c38"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states that training on a union of datasets improves results across all datasets individually."
+          "reason": "The evidence confirms a 1.0 F1 score for blink presence detection on TalkingFace, but does not explicitly name the model as BlinkLinMulT."
         }
       ],
       [
         {
           "slide": 1,
           "bullet": 1,
-          "text": "Detecting eye blinks is challenging but reveals deep fakes and driver drowsiness.",
+          "text": "Detecting eye blinks solves facial analysis tasks like deep fake detection and driver drowsiness monitoring.",
           "claim_ids": [
             "c01"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states that detecting eye blinks is challenging and can reveal deep fakes and driver drowsiness."
+          "reason": "The evidence explicitly states that detecting eye blinks can be used to solve deep fake manipulation and driver drowsiness tasks."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "Existing methods struggle with short blinks due to frame-wise classification.",
+          "text": "Methods are categorized into feature-based, appearance-based, and motion-based approaches.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence lists the three categories exactly as described in the bullet."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "The approach is evaluated on blink presence detection and eye state recognition tasks using multiple public benchmark datasets.",
+          "claim_ids": [
+            "c07"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms evaluation on blink presence detection, eye state recognition, and multiple public benchmark datasets."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Existing face recognition and frame-wise classification methods struggle with short blinks or noisy data.",
           "claim_ids": [
             "c02"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms that methods using frame-wise classification may struggle with blinks occurring for only a few frames."
-        },
-        {
-          "slide": 2,
-          "bullet": 1,
-          "text": "The authors propose a fast transformer-based framework for eye blink detection.",
-          "claim_ids": [
-            "c05"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states the proposal of a fast transformer-based framework for eye blink detection."
+          "reason": "The evidence explicitly states that methods depending on face recognition and frame-wise classification may struggle with short blinks or noisy data."
         },
         {
           "slide": 2,
           "bullet": 2,
-          "text": "It combines low- and high-level feature sequences including head pose angles.",
+          "text": "The CEW dataset lacks pre-defined splits, requiring a 10-fold cross-validation scheme to measure performance.",
           "claim_ids": [
-            "c05",
-            "c07"
+            "c17"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms the combination of low- and high-level feature sequences including head pose angles."
+          "reason": "The evidence confirms the CEW dataset lacks pre-defined training/test images and that a 10-fold CV scheme was used to measure performance."
         },
         {
-          "slide": 3,
-          "bullet": 1,
-          "text": "BlinkLinMulT uses a modified multi-modal transformer with linear attention to process RGB texture and landmarks.",
-          "claim_ids": [
-            "c06"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms LinMulT is a modified multi-modal transformer with linear attention processing RGB texture and landmarks."
-        },
-        {
-          "slide": 3,
-          "bullet": 2,
-          "text": "The model replaces quadratic attention modules with linear versions for easier training while maintaining similar performance.",
-          "claim_ids": [
-            "c09"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states quadratic attention modules were replaced with linear versions for easier training while providing similar performance."
-        },
-        {
-          "slide": 3,
+          "slide": 2,
           "bullet": 3,
-          "text": "A backbone CNN extracts features from eye patches, which a linear transformer uses to estimate blinks for each eye independently.",
-          "claim_ids": [
-            "c13"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms a backbone CNN extracts features from eye patches which are used by a linear multimodal transformer to estimate blinks independently for each eye."
-        },
-        {
-          "slide": 4,
-          "bullet": 1,
-          "text": "BlinkLinMulT matches or beats state-of-the-art methods across various datasets.",
-          "claim_ids": [
-            "c31"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states the performance is comparable to or surpasses state-of-the-art methods."
-        },
-        {
-          "slide": 4,
-          "bullet": 2,
-          "text": "It achieves a perfect 1.0 F1 score for blink detection on the TalkingFace dataset.",
-          "claim_ids": [
-            "c33"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly mentions achieving a 1.0 F1 score for blink presence detection in TalkingFace."
-        },
-        {
-          "slide": 5,
-          "bullet": 1,
-          "text": "Union training improved F1 scores on CEW, ZJU, and RT-BENEimg benchmarks.",
-          "claim_ids": [
-            "c25"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states that training on the union of datasets improved F1 scores for CEW, ZJU, and RT-BENEimg."
-        },
-        {
-          "slide": 5,
-          "bullet": 2,
-          "text": "Eye state recognition and blink detection outperformed single dataset baselines.",
-          "claim_ids": [
-            "c29"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms that performance in eye state recognition and blink presence detection is consistently improved compared to single dataset training."
-        },
-        {
-          "slide": 6,
-          "bullet": 1,
-          "text": "Model performance drops at higher yaw angles.",
+          "text": "Extreme head pose angles cause most errors due to eyelid visibility and landmark precision issues.",
           "claim_ids": [
             "c35"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states that model performance drops at higher yaw angles compared to frontal faces."
+          "reason": "The evidence states most errors originated from extreme head pose due to eyelid visibility and less precise landmark-based features."
         },
         {
-          "slide": 6,
-          "bullet": 2,
-          "text": "Performance slightly decreases at extreme orientations.",
-          "claim_ids": [
-            "c41"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly mentions that extreme yaw and pitch angles might cause slightly decreased performance."
-        },
-        {
-          "slide": 7,
+          "slide": 3,
           "bullet": 1,
-          "text": "The BlinkLinMulT model is trained once on the union of all datasets.",
+          "text": "Modified multi-modal transformer considers RGB texture, landmarks, ear, and head pose angles.",
           "claim_ids": [
-            "c30"
+            "c06"
           ],
           "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states the network is trained once and performs well on all public blink benchmark datasets."
+          "verdict": "partial",
+          "reason": "The evidence includes iris landmarks, whereas the bullet only mentions eye landmarks."
         },
         {
-          "slide": 7,
+          "slide": 3,
           "bullet": 2,
-          "text": "This approach improves robustness and results across all individual unseen datasets.",
+          "text": "Cross-modal transformers translate between landmark features and RGB texture embeddings.",
           "claim_ids": [
-            "c38"
+            "c10"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states that training on a union of datasets improves results across all datasets individually."
+          "reason": "The evidence explicitly states cross-modal transformers translate between landmark features and RGB texture."
+        },
+        {
+          "slide": 3,
+          "bullet": 3,
+          "text": "Linear multimodal transformer estimates blinks for each eye independently.",
+          "claim_ids": [
+            "c13"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms the linear multimodal transformer estimates blinks for each eye independently."
+        },
+        {
+          "slide": 4,
+          "bullet": 1,
+          "text": "ResNet50 achieved a 0.912 F1 score on RT-BENEimg, outperforming DenseNet121's 0.883.",
+          "claim_ids": [
+            "c21"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms ResNet50's 0.912 F1 score and its outperformance of DenseNet121's 0.883."
+        },
+        {
+          "slide": 4,
+          "bullet": 2,
+          "text": "Training on the union of datasets improved F1 scores: CEW rose to 0.997, ZJU to 0.933, and RT-BENEimg to 0.913.",
+          "claim_ids": [
+            "c24"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly lists the improved F1 scores for CEW, ZJU, and RT-BENEimg as stated."
+        },
+        {
+          "slide": 4,
+          "bullet": 3,
+          "text": "A model achieved a perfect 1.0 F1 score on the TalkingFace dataset for blink presence detection.",
+          "claim_ids": [
+            "c32"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms a 1.0 F1 score for blink presence detection on the TalkingFace dataset."
+        }
+      ],
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "Detecting eye blinks solves facial analysis tasks like deep fake detection and driver drowsiness monitoring.",
+          "claim_ids": [
+            "c01"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that detecting eye blinks can be used to solve deep fake manipulation and driver drowsiness tasks."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "Methods are categorized into feature-based, appearance-based, and motion-based approaches.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence lists the three categories exactly as described in the bullet."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "The approach is evaluated on blink presence detection and eye state recognition tasks using multiple public benchmark datasets.",
+          "claim_ids": [
+            "c07"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms evaluation on blink presence detection, eye state recognition, and multiple public benchmark datasets."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Existing face recognition and frame-wise classification methods struggle with short blinks or noisy data.",
+          "claim_ids": [
+            "c02"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that methods depending on face recognition and frame-wise classification may struggle with short blinks or noisy data."
+        },
+        {
+          "slide": 2,
+          "bullet": 2,
+          "text": "The CEW dataset lacks pre-defined splits, requiring a 10-fold cross-validation scheme to measure performance.",
+          "claim_ids": [
+            "c17"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms the CEW dataset lacks pre-defined training/test images and that a 10-fold CV scheme was used to measure performance."
+        },
+        {
+          "slide": 2,
+          "bullet": 3,
+          "text": "Extreme head pose angles cause most errors due to eyelid visibility and landmark precision issues.",
+          "claim_ids": [
+            "c35"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states most errors originated from extreme head pose due to eyelid visibility and less precise landmark-based features."
+        },
+        {
+          "slide": 3,
+          "bullet": 1,
+          "text": "Modified multi-modal transformer considers RGB texture, iris and eye landmarks, ear, and head pose angles.",
+          "claim_ids": [
+            "c06"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly lists all the components mentioned in the bullet."
+        },
+        {
+          "slide": 3,
+          "bullet": 2,
+          "text": "Cross-modal transformers translate between landmark features and RGB texture embeddings.",
+          "claim_ids": [
+            "c10"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms cross-modal transformers translate between landmark features and RGB texture."
+        },
+        {
+          "slide": 3,
+          "bullet": 3,
+          "text": "Linear multimodal transformer estimates blinks for each eye independently.",
+          "claim_ids": [
+            "c13"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states the linear multimodal transformer estimates blinks for each eye independently."
+        },
+        {
+          "slide": 4,
+          "bullet": 1,
+          "text": "ResNet50 achieved a 0.912 F1 score on RT-BENEimg, outperforming DenseNet121's 0.883.",
+          "claim_ids": [
+            "c21"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms ResNet50's 0.912 F1 score and its outperformance of DenseNet121's 0.883."
+        },
+        {
+          "slide": 4,
+          "bullet": 2,
+          "text": "Training on the union of datasets improved F1 scores: CEW rose to 0.997, ZJU to 0.933, and RT-BENEimg to 0.913.",
+          "claim_ids": [
+            "c24"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly lists the improved F1 scores for CEW, ZJU, and RT-BENEimg as stated."
+        },
+        {
+          "slide": 4,
+          "bullet": 3,
+          "text": "A model achieved a perfect 1.0 F1 score on the TalkingFace dataset for blink presence detection.",
+          "claim_ids": [
+            "c32"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms a 1.0 F1 score for blink presence detection on the TalkingFace dataset."
         }
       ]
     ],

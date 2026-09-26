@@ -1,10 +1,12 @@
-BlinkLinMulT uses linear attention for fast eye blink detection.
+Transformer-based eye blink detection improves facial analysis accuracy.
 
-→ It replaces quadratic attention with linear versions for easier training while maintaining performance.
-→ The model achieves a perfect F1 score of 1.0 for blink presence detection on the TalkingFace dataset.
-→ Training on a union of datasets improves robustness across all individual unseen benchmarks.
+Existing methods struggle with short blinks and noisy data.
 
-How do you handle performance drops at extreme head orientations in your models?
+Cross-modal transformers translate between landmark features and RGB texture embeddings for better alignment.
+
+Training on dataset unions improved F1 scores on CEW, ZJU, and RT-BENEimg.
+
+How do you handle noisy data in your current facial analysis pipelines?
 
 Paper: BlinkLinMulT: Transformer-Based Eye Blink Detection
 https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
