@@ -49,6 +49,7 @@ from paper2carousel.engines.common import (
     slide_labels,
     stage_cover,
     stage_critic,
+    stage_graph,
     stage_ingest,
     stage_outline,
     stage_post,
@@ -66,6 +67,7 @@ from paper2carousel.schemas import (
     Outline,
     OutlineSlide,
     Paper,
+    Post,
     Route,
     Section,
     SlideText,
@@ -104,6 +106,7 @@ class State(TypedDict, total=False):
     loop: FactCheckLoop
     swaps_before: int
     checked: FactChecked
+    post: Post | None
     visuals: Visuals
     deck: Deck
 
@@ -277,8 +280,16 @@ def build_graph(
         return {"checked": record_factcheck(s, checked)}
 
     def post(state: State) -> State:
-        stage_post(s, state["checked"], state["claims"], state["paper"])
+        return {"post": stage_post(s, state["checked"], state["claims"], state["paper"])}
+
+    def graph(state: State) -> State:
+        stage_graph(
+            s, state["outline"], state["checked"], state["claims"], state["paper"], state["post"]
+        )
         return {}
+
+    def after_graph(state: State) -> str:
+        return "visuals" if s.config.outputs.carousel else "summary"
 
     def visuals(state: State) -> State:
         return {
@@ -300,7 +311,10 @@ def build_graph(
         return {"deck": stage_critic(s, state["deck"], state["paper"])}
 
     def summary(state: State) -> State:
-        stage_summary(s, state["checked"], state["claims"], state["paper"], state["deck"])
+        deck = state.get("deck") or state["checked"].slides.to_deck(
+            None, slide_labels(state["outline"], state["checked"])
+        )
+        stage_summary(s, state["checked"], state["claims"], state["paper"], deck)
         return {}
 
     g = StateGraph(State)
@@ -319,6 +333,7 @@ def build_graph(
         ("rewrite", rewrite),
         ("finish_factcheck", finish_factcheck),
         ("post", post),
+        ("graph", graph),
         ("visuals", visuals),
         ("cover", cover),
         ("render", render),
@@ -339,9 +354,10 @@ def build_graph(
     g.add_edge("assemble_slides", "judge")
     g.add_conditional_edges("judge", after_judge, ["rewrite", "finish_factcheck"])
     g.add_edge("rewrite", "judge")
+    g.add_conditional_edges("graph", after_graph, ["visuals", "summary"])
     for a, b in [
         ("finish_factcheck", "post"),
-        ("post", "visuals"),
+        ("post", "graph"),
         ("visuals", "cover"),
         ("cover", "render"),
         ("render", "critic"),

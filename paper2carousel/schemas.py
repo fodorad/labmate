@@ -358,3 +358,33 @@ class Post(BaseModel):
     takeaways: list[Bullet]
     question: str
     report: FactCheckReport
+
+
+# --- method graph (the LinkedIn post image) ---------------------------------------------------
+
+NodeKind = Literal["input", "data", "component", "process", "output"]
+"""Role of a node in the method graph (drives its colour)."""
+
+
+class GraphNode(BaseModel):
+    """A box in the method graph."""
+
+    id: str = Field(description="Short identifier, e.g. 'rgb'.")
+    label: str = Field(description="At most 5 words, named as in the paper.")
+    kind: NodeKind
+
+
+class GraphEdge(BaseModel):
+    """An arrow in the method graph."""
+
+    source: str = Field(description="Node id.")
+    target: str = Field(description="Node id.")
+    label: str = Field(default="", description="Optional, at most 3 words.")
+
+
+class MethodGraph(BaseModel):
+    """The proposed method as a pipeline / semantic graph."""
+
+    nodes: list[GraphNode] = Field(min_length=3, max_length=10)
+    edges: list[GraphEdge] = Field(min_length=2, max_length=14)
+    caption: str = Field(description="One sentence describing the flow, at most 25 words.")

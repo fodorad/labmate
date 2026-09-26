@@ -22,6 +22,7 @@ def config(tmp_path):
     cfg.replay.dir = tmp_path / "cassettes"
     cfg.replay.lock_file = tmp_path / "models.lock"
     cfg.tracing.runs_dir = tmp_path / "runs"
+    cfg.outputs.carousel = True  # the full pipeline; the summary-only default is tested too
     return cfg
 
 
@@ -109,7 +110,7 @@ def test_publish_local_pdf_hides_the_local_path(fake, config, tmp_path):
 def test_verify_reproduces_every_artifact_from_cassettes(entry, config, arxiv):
     report = verify(entry, Config(), http=arxiv.client())
     assert report.ok, report
-    assert "05_factcheck.json" in report.identical and len(report.identical) == 9
+    assert "05_factcheck.json" in report.identical and len(report.identical) == 10
 
 
 def test_verify_reports_differences_and_missing_cassettes(entry, arxiv):

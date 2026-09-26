@@ -1,6 +1,6 @@
 """The public gallery: publish finished runs, verify them by replay, build the static site.
 
-A published entry (``gallery/<paper_id>/``) holds the run's step artifacts, the carousel,
+A published entry (``gallery/<paper_id>/``) holds the run's step artifacts, the summary,
 the post, the trace of the run that produced it and **the cassettes of every model call
 in that trace**. That makes each entry checkable by anyone: :func:`verify` re-runs the
 pipeline from the cassettes alone (no model, no GPU) and compares the artifacts byte for
@@ -43,10 +43,20 @@ ARTIFACTS = [
     "06_visuals.json",
     "07_review.json",
     "08_post.json",
+    "09_graph.json",
 ]
 """Step artifacts that are published and compared by :func:`verify`."""
 
-OUTPUTS = ["carousel.pdf", "summary.pdf", "cover.png", "post.md", "summary.md", "alt_texts.json"]
+OUTPUTS = [
+    "summary.pdf",
+    "post.md",
+    "post.png",
+    "graph.png",
+    "summary.md",
+    "carousel.pdf",
+    "cover.png",
+    "alt_texts.json",
+]
 """Deliverables copied as they are (not compared: PDFs carry timestamps)."""
 
 PAGE_DPI = 110
@@ -69,6 +79,8 @@ class Meta(BaseModel):
         source: ``arxiv`` (re-fetched when verifying) or ``pdf`` (``<paper_id>.pdf`` is
             published alongside, or downloaded again from ``url``).
         published: Date the entry was published (UTC, ISO).
+        carousel: The run made a carousel (replayed with the same outputs).
+        post: The run made a LinkedIn post.
     """
 
     paper_id: str
@@ -78,6 +90,8 @@ class Meta(BaseModel):
     abstract: str = ""
     source: str = "arxiv"
     published: str = ""
+    carousel: bool = False
+    post: bool = True
 
 
 def _cassette_index(store: CassetteStore) -> dict[str, Path]:
@@ -118,7 +132,7 @@ def publish(
     Raises:
         PublishError: If the run hasn't finished or the entry does not replay exactly.
     """
-    if not (run_dir / "carousel.pdf").exists() or not (run_dir / "05_factcheck.json").exists():
+    if not (run_dir / "summary.pdf").exists() or not (run_dir / "05_factcheck.json").exists():
         raise PublishError(f"{run_dir} has not finished (run it with --approve first)")
     if not latest_completed(run_dir / "trace.jsonl"):
         raise PublishError(f"{run_dir} has no completed run in trace.jsonl")
@@ -159,6 +173,8 @@ def publish(
         abstract=paper.abstract,
         source=source,
         published=datetime.now(UTC).date().isoformat(),
+        carousel=(run_dir / "carousel.pdf").exists(),
+        post=(run_dir / "08_post.json").exists(),
     )
     (entry / "meta.json").write_text(meta.model_dump_json(indent=2) + "\n")
 
@@ -219,6 +235,8 @@ def verify(entry: Path, config: Config, http: httpx.Client | None = None) -> Ver
         cfg.replay.dir = entry / "cassettes"
         cfg.replay.lock_file = entry / "models.lock"
         cfg.tracing.runs_dir = Path(tmp) / "runs"
+        cfg.outputs.carousel = meta.carousel
+        cfg.outputs.post = meta.post
         run_dir = cfg.tracing.runs_dir / meta.paper_id
         run_dir.mkdir(parents=True)
         shutil.copy2(entry / "03_outline.json", run_dir / "03_outline.json")
@@ -385,8 +403,10 @@ def build_site(
     for entry in _entries(gallery):
         ctx = paper_context(entry)
         dest = out / entry.name
-        pages = _page_images(entry / "carousel.pdf", dest / "pages")
-        for name in ["carousel.pdf", "summary.pdf", "post.md", "summary.md"]:
+        carousel = entry / "carousel.pdf"
+        pages = _page_images(carousel, dest / "pages") if carousel.exists() else []
+        summary_png = _page_images(entry / "summary.pdf", dest / "summary")[0]
+        for name in ["carousel.pdf", "summary.pdf", "post.md", "post.png", "summary.md"]:
             if (entry / name).exists():
                 shutil.copy2(entry / name, dest / name)
         spans = [json.loads(line) for line in (entry / "trace.jsonl").read_text().splitlines()]
@@ -394,8 +414,9 @@ def build_site(
         page = env.get_template("paper.html.j2").render(
             theme=theme,
             pages=pages,
+            summary_png=f"summary/{summary_png}",
+            has_post_png=(entry / "post.png").exists(),
             repo_url=repo_url,
-            has_summary_pdf=(entry / "summary.pdf").exists(),
             **ctx,
         )
         (dest / "index.html").write_text(page)
@@ -403,7 +424,7 @@ def build_site(
             {
                 "meta": ctx["meta"],
                 "metrics": ctx["metrics"],
-                "thumb": f"{entry.name}/pages/{pages[0]}",
+                "thumb": f"{entry.name}/summary/{summary_png}",
                 "route": ctx["route"],
             }
         )

@@ -11,7 +11,18 @@ def test_cover_is_saved_with_the_theme_palette_prompt(fake, tmp_path):
     assert (name, status) == ("cover.png", "ok")
     body = fake.requests[0][1]
     assert (body["width"], body["height"]) == COVER_SIZE
-    assert "Attention" in body["prompt"] and "No text" in body["prompt"]
+    assert "visual metaphor for Attention" in body["prompt"]
+    assert "contains no writing" in body["prompt"]
+
+
+def test_cover_subject_never_contains_the_title_names():
+    from paper2carousel.steps.cover import cover_subject
+
+    # a real run's cover spelled out a garbled "RRSI: Regularized Receitive ..." title
+    title = "RRSI: Regularized Recursive Self-Improvement of Agent Harnesses"
+    assert cover_subject(title) == "regularized recursive self-improvement of agent harnesses"
+    assert cover_subject(title, "BlinkLinMulT for Noisy Video") == "for noisy video"
+    assert cover_subject("RRSI:") == "machine learning research"
 
 
 def test_server_errors_are_reported_not_raised(tmp_path):

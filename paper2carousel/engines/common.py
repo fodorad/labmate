@@ -30,6 +30,7 @@ from paper2carousel.schemas import (
     Claims,
     Deck,
     FactChecked,
+    MethodGraph,
     Outline,
     Paper,
     Post,
@@ -39,10 +40,11 @@ from paper2carousel.schemas import (
     Visuals,
     WrittenSlides,
 )
-from paper2carousel.steps.cover import make_cover
+from paper2carousel.steps.cover import cover_subject, make_cover
 from paper2carousel.steps.critic import review_deck
 from paper2carousel.steps.extract import extract_claims
 from paper2carousel.steps.factcheck import fact_check
+from paper2carousel.steps.graph import method_cards, plan_graph, render_graph, render_post_image
 from paper2carousel.steps.ingest import (
     USER_AGENT,
     ingest_arxiv,
@@ -53,10 +55,10 @@ from paper2carousel.steps.ingest import (
 from paper2carousel.steps.llm import LLM
 from paper2carousel.steps.outline import LABELS, plan_outline
 from paper2carousel.steps.post import post_markdown, write_post
-from paper2carousel.steps.render import render_deck, render_summary
+from paper2carousel.steps.render import main_image, render_deck, render_summary
 from paper2carousel.steps.route import route_paper
 from paper2carousel.steps.summary import summary_markdown
-from paper2carousel.steps.visuals import choose_visuals
+from paper2carousel.steps.visuals import best_figure, choose_visuals, slide_caption
 from paper2carousel.steps.write import write_slides
 from paper2carousel.tracing import TracedClient, Tracer
 
@@ -80,6 +82,8 @@ class RunResult:
     carousel: Path
     trace: Path
     gate: Path
+    summary: Path | None = None
+    post_image: Path | None = None
 
     def artifact(self, name: str) -> Path:
         """Path of a step artifact inside the run directory.
@@ -177,6 +181,8 @@ class Session:
             carousel=self.path("carousel.pdf"),
             trace=self.path("trace.jsonl"),
             gate=self.path("outline.yaml"),
+            summary=self.path("summary.pdf"),
+            post_image=self.path("post.png"),
         )
 
     def checkpoint[M: BaseModel](
@@ -500,17 +506,20 @@ def stage_factcheck(
     return record_factcheck(s, checked)
 
 
-def stage_post(s: Session, checked: FactChecked, claims: Claims, paper: Paper) -> None:
-    """Draft and fact-check the LinkedIn post (if enabled).
+def stage_post(s: Session, checked: FactChecked, claims: Claims, paper: Paper) -> Post | None:
+    """Draft and fact-check the LinkedIn post text (if enabled).
 
     Args:
         s: Session.
         checked: Fact-checked slides.
         claims: Claims.
         paper: The paper.
+
+    Returns:
+        The post, or ``None`` if posts are disabled.
     """
     if not s.config.outputs.post:
-        return
+        return None
     with s.tracer.span("step.post") as span:
         post = s.checkpoint(
             "08_post.json",
@@ -520,6 +529,53 @@ def stage_post(s: Session, checked: FactChecked, claims: Claims, paper: Paper) -
         s.path("post.md").write_text(post_markdown(post, paper))
         span.update(takeaways=len(post.takeaways), dropped=len(post.report.dropped))
     log.info("post: %d takeaways -> post.md", len(post.takeaways))
+    return post
+
+
+def stage_graph(
+    s: Session,
+    outline: Outline,
+    checked: FactChecked,
+    claims: Claims,
+    paper: Paper,
+    post: Post | None,
+) -> MethodGraph | None:
+    """Draw the proposed method as a pipeline graph and compose the post image.
+
+    Args:
+        s: Session.
+        outline: Approved outline (which claims belong to the task and method blocks).
+        checked: Fact-checked slides (the method slide's bullets).
+        claims: Claims.
+        paper: The paper.
+        post: The post (its hook heads the image); the carousel hook is used without one.
+
+    Returns:
+        The graph, or ``None`` if posts are disabled.
+    """
+    if not s.config.outputs.post:
+        return None
+    labels = slide_labels(outline, checked)
+    method = next(
+        (sl for sl, label in zip(checked.slides.slides, labels, strict=True)
+         if label == LABELS["method"]),
+        None,
+    )  # fmt: skip
+    bullets = [b.text for b in method.bullets] if method else []
+    cards = method_cards(
+        [sl.claim_ids for sl in outline.slides], [sl.purpose for sl in outline.slides], claims.cards
+    )
+    with s.tracer.span("step.graph") as span:
+        s.switcher.use(s.llm.model)
+        graph = s.checkpoint(
+            "09_graph.json", MethodGraph, lambda: plan_graph(paper, bullets, cards, s.llm)
+        )
+        render_graph(graph, s.path("graph.png"))
+        hook = post.hook if post else checked.slides.hook
+        render_post_image(graph, s.path("graph.png"), paper, hook, s.path("post.png"))
+        span.update(nodes=len(graph.nodes), edges=len(graph.edges))
+    log.info("post image: %d nodes -> post.png", len(graph.nodes))
+    return graph
 
 
 def stage_visuals(
@@ -574,8 +630,13 @@ def stage_cover(s: Session, deck: Deck, paper: Paper) -> Deck:
         status = "reused"
         if not s.reuse or not cover.exists():
             s.switcher.use(image_model)
+            task = next((sl.title for sl in deck.slides if sl.label == LABELS["task"]), None)
             _, status = make_cover(
-                paper.title, s.llm.backend, image_model, cover, s.config.generation.seed
+                cover_subject(paper.title, task),
+                s.llm.backend,
+                image_model,
+                cover,
+                s.config.generation.seed,
             )
         if cover.exists():
             deck = deck.model_copy(update={"cover_image": cover.name})
@@ -654,6 +715,34 @@ def slide_labels(outline: Outline, checked: FactChecked) -> list[str]:
     ]
 
 
+def summary_image(s: Session, deck: Deck, paper: Paper) -> tuple[str | None, str]:
+    """The summary's header image, from the best source available.
+
+    A carousel figure first, else the paper figure that matches the method block best,
+    else the generated method graph.
+
+    Args:
+        s: Session.
+        deck: Final deck (labelled; with visuals if the carousel was made).
+        paper: The paper (its figures).
+
+    Returns:
+        ``(path relative to the run directory, caption)``, or ``(None, "")``.
+    """
+    image, caption = main_image(deck)
+    if image and image != deck.cover_image:
+        return image, caption
+    method = next((sl for sl in deck.slides if sl.label == LABELS["method"]), None)
+    if method is not None:
+        text = " ".join([method.title, *method.bullets])
+        figure = best_figure(text, paper.figures, paper.title)
+        if figure is not None:
+            return figure.path, slide_caption(figure.caption)
+    if s.path("graph.png").exists():
+        return "graph.png", ""
+    return image, caption
+
+
 def stage_summary(
     s: Session, checked: FactChecked, claims: Claims, paper: Paper, deck: Deck | None = None
 ) -> RunResult:
@@ -671,8 +760,10 @@ def stage_summary(
     """
     s.path("summary.md").write_text(summary_markdown(checked.slides, claims, paper))
     if deck is not None:
-        with s.tracer.span("step.summary_pdf"):
-            render_summary(deck, paper, s.path("summary.pdf"))
+        with s.tracer.span("step.summary_pdf") as span:
+            image, caption = summary_image(s, deck, paper)
+            render_summary(deck, paper, s.path("summary.pdf"), image=image, caption=caption)
+            span.update(image=image or "")
     log.info("rendered: %s", s.path("carousel.pdf"))
     s.switcher.release()
     return s.result("done")

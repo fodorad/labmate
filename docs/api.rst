@@ -60,6 +60,9 @@ API Reference
 .. automodule:: paper2carousel.steps.charts
    :members:
 
+.. automodule:: paper2carousel.steps.graph
+   :members:
+
 .. automodule:: paper2carousel.steps.cover
    :members:
 

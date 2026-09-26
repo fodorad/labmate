@@ -310,6 +310,21 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
             "visual_relevant": "UNRELATED" not in prompt,
             "alt_text": "A slide with a title and bullet points." if image_seen else "(no image)",
         }
+    elif "nodes" in props:
+        evidence = prompt.split("Evidence quoted from the paper:", 1)[-1]
+        words = [w for w in re.findall(r"[A-Za-z]{5,}", evidence)][:3] or [
+            "input",
+            "model",
+            "output",
+        ]
+        kinds = ["input", "component", "output"]
+        content = {
+            "nodes": [
+                {"id": f"n{i}", "label": w, "kind": kinds[i % 3]} for i, w in enumerate(words)
+            ],
+            "edges": [{"source": f"n{i}", "target": f"n{i + 1}"} for i in range(len(words) - 1)],
+            "caption": "The method in one flow.",
+        }
     elif "paper_type" in props:
         content: Any = {"paper_type": "method", "confidence": 0.9, "reason": "new model"}
     elif "claims" in props:

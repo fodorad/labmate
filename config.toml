@@ -27,7 +27,9 @@ cover_image = true  # generated with models.image; skipped (not fatal) if genera
 critic = true       # vision model reviews rendered pages, writes alt texts, drops bad visuals
 
 [outputs]
-post = true  # post.md for LinkedIn, fact-checked like the slides
+# summary.pdf (the one-page project summary) is always made.
+post = true       # LinkedIn post: post.md + post.png (the proposed method as a pipeline graph)
+carousel = false  # carousel.pdf with visuals agent, cover image and vision critic
 
 [replay]
 # live   : always call Ollama, store nothing

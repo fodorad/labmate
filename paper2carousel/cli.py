@@ -164,7 +164,15 @@ def cmd_run(
         )
         return 0
     viewer = write_trace_html(result.run_dir)
-    print(f"Carousel: {result.carousel}\nTrace:    {viewer}")
+    lines = [
+        ("Summary", result.summary),
+        ("Post", result.post_image),
+        ("Carousel", result.carousel),
+    ]
+    for name, path in lines:
+        if path is not None and path.exists():
+            print(f"{name + ':':10}{path}")
+    print(f"{'Trace:':10}{viewer}")
     return 0
 
 

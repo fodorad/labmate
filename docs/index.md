@@ -18,16 +18,23 @@ LangGraph). Next: the first published papers and v0.1.0.
 ## What it does
 
 ```
-arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline ─▶ ✋ human approval
-        ─▶ write slides ─▶ fact-check loop ─▶ visuals agent ─▶ render ─▶ carousel.pdf
-                                                                      └─▶ summary.pdf
+arXiv id / PDF ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan the 4 blocks ─▶ ✋ human approval
+               ─▶ write ─▶ fact-check loop ─▶ summary.pdf            (main output)
+                                           └─▶ post.md + post.png     (LinkedIn post)
+                                           └─▶ carousel.pdf           (optional)
 ```
 
 Every paper becomes the same four blocks, the structure of a research project page:
-**Task**, **Challenges**, **Proposed method** and **Main results**. They are rendered
-twice: as a LinkedIn carousel (a cover plus one slide per block, each with a paper
-figure, a generated diagram or a chart of the paper's numbers) and as a one-page summary
-PDF (title, authors, main figure, abstract and the four blocks as cards).
+**Task**, **Challenges**, **Proposed method** and **Main results**.
+
+- **`summary.pdf`**, the main output: a one-page project summary (title, authors, main
+  figure, abstract and the four blocks as cards).
+- **LinkedIn post**: `post.md` (hook, 3–5 sentences telling the paper's story, a question)
+  and `post.png`, a 1080×1350 image of the proposed method as a pipeline graph. The model
+  proposes the graph as typed nodes and edges; code checks every label against the
+  evidence and draws it with Graphviz in a fixed house style.
+- **`carousel.pdf`** (`[outputs] carousel = true`): a cover plus one slide per block, each
+  with a paper figure, a generated diagram or a chart of the paper's numbers.
 
 - **Grounded:** every bullet on a slide cites a claim card, and every claim card carries
   a verbatim quote from the paper. A fact-check loop rewrites or drops unsupported bullets.
@@ -50,6 +57,7 @@ PDF (title, authors, main figure, abstract and the four blocks as cards).
 | fact-check | evaluator–optimizer | numbers must match the cited evidence exactly; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
 | visuals | agent (tool use) | per slide the model calls `use_paper_figure` (only offered the figures whose caption matches this slide best), `make_chart` (a bar chart whose every value must appear in the slide's evidence quotes, checked in code), `make_diagram` (Graphviz) or `no_visual`; tool errors come back as observations, ≤ 4 calls per slide |
 | post | chaining + evaluator | LinkedIn post drafted from the final slides (hook, 3–5 sentences telling the paper's story, a question); every sentence goes through the same fact-check |
+| graph | structured output + checks | the proposed method as typed nodes and edges; labels must name something in the evidence (checked in code, fed back on violation); Graphviz layout in the orientation that fills the 4:5 post image best |
 | cover | plain call | illustration from the local image model in the slide palette; skipped (not fatal) if generation fails |
 | render | plain code | Typst → 4:5 PDF in the adamfodor.com palette, Inter font bundled for identical renders everywhere |
 | critic | vision model | reviews each rendered page at phone size, writes alt texts, removes illegible or off-topic visuals |
@@ -86,8 +94,8 @@ make replay ARXIV=1706.03762   # the whole run again from cassettes only, no Oll
 make baseline ARXIV=1706.03762 # the M1 one-shot version, for comparison
 ```
 
-Each run folder contains `carousel.pdf`, `summary.pdf` (the one-page project summary),
-`post.md` (paste-ready LinkedIn text),
+Each run folder contains `summary.pdf` (the one-page project summary), `post.md`
+(paste-ready LinkedIn text) and `post.png` (its image), `carousel.pdf` if enabled,
 `summary.md` (every bullet with its page and quote), `alt_texts.json`, `pages/*.png`, every
 step's JSON artifact and `trace.jsonl`.
 

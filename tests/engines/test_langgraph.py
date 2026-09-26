@@ -23,6 +23,7 @@ COMPARED = [
     "06_visuals.json",
     "07_review.json",
     "08_post.json",
+    "09_graph.json",
     "post.md",
     "summary.md",
     "alt_texts.json",
@@ -46,6 +47,7 @@ def config_for(tmp_path, name):
     cfg.replay.dir = tmp_path / "cassettes"
     cfg.replay.lock_file = tmp_path / "models.lock"
     cfg.tracing.runs_dir = tmp_path / name
+    cfg.outputs.carousel = True
     return cfg
 
 

@@ -116,7 +116,9 @@ def test_run_pauses_then_approve_finishes(fake, arxiv, workdir, capsys):
     assert main(["run", "2401.00001"], client=fake.client(), http=arxiv.client()) == 0
     assert "Outline ready for review: runs/2401.00001/outline.yaml" in capsys.readouterr().out
     assert main(["run", "2401.00001", "--approve"], client=fake.client(), http=arxiv.client()) == 0
-    assert "runs/2401.00001/carousel.pdf" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "runs/2401.00001/summary.pdf" in out and "runs/2401.00001/post.png" in out
+    assert "carousel.pdf" not in out  # off by default
 
 
 def test_run_baseline_flag(fake, arxiv, workdir, capsys):
@@ -209,7 +211,7 @@ def test_trace_publish_verify_site(fake, arxiv, workdir, capsys):
     assert main(["publish", "missing"]) == 1
 
     assert main(["verify"], http=arxiv.client()) == 0
-    assert "OK   2401.00001: 9 identical" in capsys.readouterr().out
+    assert "OK   2401.00001: 8 identical" in capsys.readouterr().out
     (workdir / "gallery" / "2401.00001" / "04_slides.json").write_text("{}")
     assert main(["verify", "2401.00001"], http=arxiv.client()) == 1
     assert "different: 04_slides.json" in capsys.readouterr().out
@@ -235,7 +237,7 @@ def test_run_with_the_langgraph_engine(fake, arxiv, workdir, capsys):
     assert main(argv, client=fake.client(), http=arxiv.client()) == 0
     assert "Outline ready for review" in capsys.readouterr().out
     assert main([*argv, "--approve"], client=fake.client(), http=arxiv.client()) == 0
-    assert "carousel.pdf" in capsys.readouterr().out
+    assert "summary.pdf" in capsys.readouterr().out
     assert main([*argv, "--baseline"], client=fake.client(), http=arxiv.client()) == 1
     assert "only available with --engine plain" in capsys.readouterr().err
 

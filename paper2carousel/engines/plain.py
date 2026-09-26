@@ -37,6 +37,7 @@ from paper2carousel.engines.common import (
     stage_critic,
     stage_extract,
     stage_factcheck,
+    stage_graph,
     stage_ingest,
     stage_outline,
     stage_post,
@@ -161,10 +162,14 @@ def run(
             return s.result("awaiting_approval")
         written = stage_write(s, outline, claims)
         checked = stage_factcheck(s, written, outline, claims, paper)
-        stage_post(s, checked, claims, paper)
-        visuals = stage_visuals(s, checked.slides.slides, paper, claims)
+        post = stage_post(s, checked, claims, paper)
+        stage_graph(s, outline, checked, claims, paper, post)
         labels = slide_labels(outline, checked)
-        deck = stage_cover(s, checked.slides.to_deck(visuals.slides, labels), paper)
-        stage_render(s, deck, paper)
-        deck = stage_critic(s, deck, paper)
+        if s.config.outputs.carousel:
+            visuals = stage_visuals(s, checked.slides.slides, paper, claims)
+            deck = stage_cover(s, checked.slides.to_deck(visuals.slides, labels), paper)
+            stage_render(s, deck, paper)
+            deck = stage_critic(s, deck, paper)
+        else:
+            deck = checked.slides.to_deck(None, labels)
         return stage_summary(s, checked, claims, paper, deck)

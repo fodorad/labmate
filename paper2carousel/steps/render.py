@@ -114,7 +114,14 @@ def main_image(deck: Deck) -> tuple[str | None, str]:
     return deck.cover_image, ""
 
 
-def render_summary(deck: Deck, paper: Paper, out: Path, theme: Theme | None = None) -> Path:
+def render_summary(
+    deck: Deck,
+    paper: Paper,
+    out: Path,
+    theme: Theme | None = None,
+    image: str | None = None,
+    caption: str = "",
+) -> Path:
     """Render the one-page summary (a project page as PDF) from the fact-checked deck.
 
     Args:
@@ -122,11 +129,15 @@ def render_summary(deck: Deck, paper: Paper, out: Path, theme: Theme | None = No
         paper: Source paper (title, authors, abstract, link).
         out: Output PDF path; image paths are relative to its directory.
         theme: Colours and font.
+        image: Header image (relative to the output directory); defaults to
+            :func:`main_image` of the deck.
+        caption: Caption of ``image``.
 
     Returns:
         ``out``.
     """
-    image, caption = main_image(deck)
+    if image is None:
+        image, caption = main_image(deck)
     data = {
         "title": paper.title,
         "authors": ", ".join(paper.authors),

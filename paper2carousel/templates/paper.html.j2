@@ -11,6 +11,8 @@
 {% include "_base.css.j2" %}
 .back { font-size: 14px; }
 .authors { margin: 4px 0 8px; }
+.summary { display: block; width: 100%; max-width: 760px; margin: 0 auto 8px; border: 1px solid var(--border); border-radius: 10px; }
+.post-image { display: block; width: 100%; max-width: 420px; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 10px; }
 .strip { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 2px 12px; }
 .strip figure { margin: 0; flex: 0 0 min(78vw, 340px); scroll-snap-align: start; }
 .strip img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
@@ -42,16 +44,23 @@ dl.meta dd { margin: 0; font-weight: 600; }
   </div>
   {% if meta.url %}<p><a href="{{ meta.url }}">Read the paper</a></p>{% endif %}
 
+  <h2>One-page summary</h2>
+  <a href="summary.pdf"><img class="summary" src="{{ summary_png }}" alt="One-page summary of {{ meta.title }}"></a>
+  <div class="actions"><a href="summary.pdf">Download the summary (PDF)</a><a href="summary.md">Evidence for every bullet</a><a href="trace.html">Trace of the run</a></div>
+
+  {% if pages %}
   <h2>The carousel</h2>
   <div class="strip">
     {% for p in pages %}
     <figure><img src="pages/{{ p }}" alt="{{ alt.get(loop.index, 'Slide ' ~ loop.index) }}" loading="lazy"></figure>
     {% endfor %}
   </div>
-  <div class="actions"><a href="carousel.pdf">Download PDF</a>{% if has_summary_pdf %}<a href="summary.pdf">One-page summary</a>{% endif %}<a href="summary.md">Evidence for every bullet</a><a href="trace.html">Trace of the run</a></div>
+  <div class="actions"><a href="carousel.pdf">Download the carousel (PDF)</a></div>
+  {% endif %}
 
   {% if post_text %}
   <h2>The LinkedIn post</h2>
+  {% if has_post_png %}<img class="post-image" src="post.png" alt="The proposed method as a pipeline graph">{% endif %}
   <div class="card"><button class="copy" type="button" onclick="navigator.clipboard.writeText(document.getElementById('post').innerText); this.textContent='Copied'">Copy</button><pre class="post" id="post">{{ post_text }}</pre></div>
   {% endif %}
 

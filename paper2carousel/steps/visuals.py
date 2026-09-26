@@ -31,6 +31,9 @@ MAX_TOOL_FAILURES = 2
 DOT_TIMEOUT_S = 20
 """Graphviz render timeout."""
 
+MAX_DIAGRAM_NODES = 8
+"""More boxes than this can't be read on a phone."""
+
 
 _FIGURE_LABEL = re.compile(r"^\s*(Figure|Fig\.)\s*\d+\s*[.:]\s*", re.IGNORECASE)
 """The "Figure 3." / "Fig. 3:" prefix, stripped from captions shown on slides."""
@@ -150,6 +153,16 @@ def render_dot(dot: str, out: Path) -> str | None:
     out = out.resolve()  # dot runs with cwd=out.parent, so a relative -o path would nest
     out.parent.mkdir(parents=True, exist_ok=True)
     try:
+        layout = subprocess.run(
+            ["dot", "-Tplain"], input=style_dot(dot), capture_output=True, text=True,
+            timeout=DOT_TIMEOUT_S,
+        )  # fmt: skip
+        nodes = sum(line.startswith("node ") for line in layout.stdout.splitlines())
+        if nodes > MAX_DIAGRAM_NODES:
+            return (
+                f"the diagram has {nodes} boxes; use at most {MAX_DIAGRAM_NODES} so it stays "
+                "readable on a phone"
+            )
         proc = subprocess.run(
             ["dot", "-Tpng", "-Gdpi=200", "-o", str(out)],
             input=style_dot(dot),
@@ -340,6 +353,27 @@ def best_slides(
         top = max(scores, default=0)
         result[fig.id] = {i for i, sc in enumerate(scores, start=1) if top and sc == top}
     return result
+
+
+def best_figure(text: str, figures: list[Figure], paper_title: str = "") -> Figure | None:
+    """The figure whose caption shares the most topic words with ``text``.
+
+    Args:
+        text: E.g. the method slide's title and bullets.
+        figures: Paper figures.
+        paper_title: Its words don't count.
+
+    Returns:
+        The best figure, or ``None`` if no caption shares a topic word.
+    """
+    title_words = frozenset(content_words(paper_title, split_hyphens=True))
+    words = content_words(text, title_words)
+    scored = [
+        (len(content_words(slide_caption(f.caption), title_words) & words), -i, f)
+        for i, f in enumerate(figures)
+    ]
+    best = max(scored, default=None, key=lambda t: (t[0], t[1]))
+    return best[2] if best and best[0] > 0 else None
 
 
 def choose_visuals(

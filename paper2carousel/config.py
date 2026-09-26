@@ -71,9 +71,17 @@ class VisualsConfig(BaseModel):
 
 
 class OutputsConfig(BaseModel):
-    """Extra outputs next to the carousel."""
+    """What to produce besides the one-page summary (always made).
+
+    Attributes:
+        post: LinkedIn post: fact-checked text (``post.md``) and an image of the proposed
+            method as a pipeline graph (``post.png``).
+        carousel: The swipeable carousel (``carousel.pdf``) with its visuals agent, cover
+            image and vision critic.
+    """
 
     post: bool = True
+    carousel: bool = False
 
 
 class ReplayConfig(BaseModel):

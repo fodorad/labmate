@@ -22,6 +22,7 @@ def config(tmp_path):
     cfg.replay.dir = tmp_path / "cassettes"
     cfg.replay.lock_file = tmp_path / "models.lock"
     cfg.tracing.runs_dir = tmp_path / "runs"
+    cfg.outputs.carousel = True  # the full pipeline; the summary-only default is tested too
     return cfg
 
 
@@ -119,8 +120,9 @@ def test_auto_approve_runs_straight_through_and_traces_every_step(model, arxiv, 
     assert len(llm_in_extract) == 3  # one per section, parent kept across worker threads
     factcheck = next(s for s in spans if s["name"] == "step.factcheck")
     assert factcheck["failed_first"] == 0 and factcheck["rounds"] == 1 and factcheck["swaps"] == 1
-    # route 1 + extract 3 + outline 1 + write 4 + judge 4 + post 2 + visuals 4 + critic 5
-    assert n_chats(model) == 24
+    # route 1 + extract 3 + outline 1 + write 4 + judge 4 + post 2 + graph 1 + visuals 4
+    # + critic 5
+    assert n_chats(model) == 25
     assert model.paths().count("/api/generate") >= 1  # the cover image
     assert not model.loaded  # every model released at the end
 
@@ -142,7 +144,7 @@ def test_fresh_replay_reproduces_the_agentic_run_without_any_model(model, arxiv,
     assert again.artifact("02_claims.json").read_text() == claims
     spans = [s for s in read_trace(again.trace) if s["trace_id"] == again.trace_id]
     llm = [s for s in spans if s["name"] == "llm.chat"]
-    assert len(llm) == 24 and all(s["cached"] for s in llm)
+    assert len(llm) == 25 and all(s["cached"] for s in llm)
     images = [s for s in spans if s["name"] == "llm.image"]
     assert len(images) == 1 and images[0]["cached"]
 
@@ -257,3 +259,19 @@ def test_optional_steps_can_be_switched_off(model, arxiv, config):
     for name in ("cover.png", "07_review.json", "alt_texts.json", "08_post.json", "post.md"):
         assert not result.artifact(name).exists(), name
     assert result.artifact("summary.md").exists()
+
+
+def test_default_outputs_are_the_summary_and_the_post(model, arxiv, config):
+    config.outputs.carousel = False  # the default
+    result = go(config, model, arxiv, auto_approve=True)
+    assert result.status == "done"
+    assert result.summary.exists() and result.post_image.exists()
+    assert not result.carousel.exists() and not result.artifact("06_visuals.json").exists()
+    graph = json.loads(result.artifact("09_graph.json").read_text())
+    assert len(graph["nodes"]) >= 3
+    import pymupdf as pdf
+
+    with pdf.open(result.summary) as doc:
+        assert doc.page_count == 1 and "Proposed method" in doc[0].get_text()
+    names = {s["name"] for s in read_trace(result.trace)}
+    assert "step.graph" in names and "step.visuals" not in names and "step.cover" not in names
