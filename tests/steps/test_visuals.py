@@ -163,8 +163,56 @@ def test_figure_on_a_different_topic_is_refused_as_an_observation(fake, tmp_path
     # title words don't count as shared topics; plurals and hyphens are normalised
     assert content_words("Multi-modal angles of Transformers", frozenset({"transformer"})) == {
         "multimodal",
-        "multi",
-        "modal",
         "angle",
     }
-    assert "transformer" in content_words("Transformer-Based Eye Blink Detection")
+    title = content_words("Transformer-Based Eye Blink Detection", split_hyphens=True)
+    assert {"transformer", "transformerbased"} <= title
+
+
+def test_figures_are_offered_to_their_best_matching_slide():
+    from paper2carousel.steps.visuals import best_slides, content_words
+
+    def slide(title, text):
+        return SlideText(title=title, bullets=[Bullet(text=text, claim_ids=["c1"])])
+
+    slides = [
+        slide(
+            "The Blink Detection Challenge", "Existing methods rely on frame-wise classification."
+        ),
+        slide("Linear Attention Architecture", "A multi-modal transformer with linear attention."),
+        slide("Handling Extreme Head Poses", "Performance drops at higher yaw angles."),
+    ]
+    figs = [
+        Figure(
+            id="fig1",
+            number=1,
+            caption="Figure 1. BlinkLinMulT: a multimodal transformer architecture for "
+            "frame-wise eye state recognition.",
+            page=5,
+            path="f1.png",
+        ),
+        Figure(id="fig3", number=3, caption="Figure 3. Head pose angle dependence.", page=14,
+               path="f3.png"),
+        Figure(id="fig9", number=9, caption="Figure 9. Unrelated histogram.", page=20,
+               path="f9.png"),
+    ]  # fmt: skip
+    title = frozenset(
+        content_words("BlinkLinMulT: Transformer-Based Eye Blink Detection", split_hyphens=True)
+    )
+    assert best_slides(slides, figs, title) == {"fig1": {2}, "fig3": {3}, "fig9": set()}
+
+
+def test_slide_caption_keeps_the_first_sentence():
+    from paper2carousel.steps.visuals import slide_caption
+
+    long = "Figure 3. Head pose angle dependence of the model. The head poses are predicted by X."
+    assert slide_caption(long) == "Head pose angle dependence of the model."
+    assert slide_caption("Fig. 2: Overview of the pipeline") == "Overview of the pipeline."
+
+
+@needs_dot
+def test_render_dot_accepts_a_relative_output_path(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "runs" / "p" / "diagrams" / "slide3.png"
+    assert render_dot("digraph { a -> b }", out.relative_to(tmp_path)) is None
+    assert out.exists()

@@ -104,6 +104,7 @@ def render_dot(dot: str, out: Path) -> str | None:
     Returns:
         ``None`` on success, otherwise the error message (fed back to the agent).
     """
+    out = out.resolve()  # dot runs with cwd=out.parent, so a relative -o path would nest
     out.parent.mkdir(parents=True, exist_ok=True)
     try:
         proc = subprocess.run(
@@ -129,22 +130,41 @@ _STOPWORDS = frozenset(
 )
 
 
-def content_words(text: str, ignore: frozenset[str] = frozenset()) -> set[str]:
+def slide_caption(caption: str) -> str:
+    """Caption as shown on a slide: without the "Figure N." label, first sentence only.
+
+    Args:
+        caption: Caption from the paper.
+
+    Returns:
+        A short caption.
+    """
+    text = _FIGURE_LABEL.sub("", caption).strip() or caption
+    first = re.split(r"(?<=[a-z0-9)\]])\.\s+(?=[A-Z])", text, maxsplit=1)[0]
+    return first if first.endswith(".") else first + "."
+
+
+def content_words(
+    text: str, ignore: frozenset[str] = frozenset(), split_hyphens: bool = False
+) -> set[str]:
     """Topic words of a text: lower-cased words of 4+ letters, crude plural stripping.
 
-    Hyphenated words count both joined and as parts ("multi-modal" matches "multimodal",
-    "Transformer-Based" yields "transformer").
+    Hyphenated words are joined ("multi-modal" matches "multimodal"), so a compound counts
+    once. With ``split_hyphens`` their parts are added too, which is how the paper title's
+    words are collected ("Transformer-Based" yields "transformer").
 
     Args:
         text: Any text.
         ignore: Words to leave out (e.g. the paper title's words, which every slide shares).
+        split_hyphens: Also include the parts of hyphenated words.
 
     Returns:
         The set of content words.
     """
     text = text.lower()
-    joined = re.sub(r"(?<=[a-z])-(?=[a-z])", "", text)
-    raw = re.findall(r"[a-z]{4,}", text) + re.findall(r"[a-z]{4,}", joined)
+    raw = re.findall(r"[a-z]{4,}", re.sub(r"(?<=[a-z])-(?=[a-z])", "", text))
+    if split_hyphens:
+        raw += re.findall(r"[a-z]{4,}", text)
     words = {w[:-1] if len(w) > 4 and w.endswith("s") else w for w in raw}
     return words - _STOPWORDS - ignore
 
@@ -179,7 +199,7 @@ class _Toolbox:
             if fid in self.used:
                 return f"error: {fid} is already on slide {self.used[fid]}", None, False
             fig = self.figures[fid]
-            caption = _FIGURE_LABEL.sub("", fig.caption).strip() or fig.caption
+            caption = slide_caption(fig.caption)
             shared = content_words(caption, self.title_words) & content_words(
                 slide_text, self.title_words
             )
@@ -217,6 +237,36 @@ def _format_figures(figures: list[Figure]) -> str:
     return "\n".join(f"{f.id} (page {f.page}): {f.caption}" for f in figures) or "(none)"
 
 
+def _slide_text(slide: SlideText) -> str:
+    return " ".join([slide.title, *(b.text for b in slide.bullets)])
+
+
+def best_slides(
+    slides: list[SlideText], figures: list[Figure], title_words: frozenset[str] = frozenset()
+) -> dict[str, set[int]]:
+    """For each figure, the slide(s) whose text shares the most topic words with its caption.
+
+    The agent is only offered a figure on its best-matching slide(s); a greedy pass in
+    slide order would otherwise spend the architecture diagram on the problem slide.
+
+    Args:
+        slides: Final slides.
+        figures: Paper figures.
+        title_words: Words to ignore (the paper title's).
+
+    Returns:
+        Figure id to 1-based slide numbers (empty if no slide shares a topic word).
+    """
+    words = [content_words(_slide_text(s), title_words) for s in slides]
+    result: dict[str, set[int]] = {}
+    for fig in figures:
+        caption = content_words(slide_caption(fig.caption), title_words)
+        scores = [len(caption & w) for w in words]
+        top = max(scores, default=0)
+        result[fig.id] = {i for i, sc in enumerate(scores, start=1) if top and sc == top}
+    return result
+
+
 def choose_visuals(
     slides: list[SlideText],
     figures: list[Figure],
@@ -240,8 +290,10 @@ def choose_visuals(
     tools = [USE_FIGURE, NO_VISUAL]
     if graphviz_available():
         tools.insert(1, MAKE_DIAGRAM)
-    box = _Toolbox({f.id: f for f in figures}, out_dir, frozenset(content_words(paper_title)))
+    title_words = frozenset(content_words(paper_title, split_hyphens=True))
+    box = _Toolbox({f.id: f for f in figures}, out_dir, title_words)
     carousel = "\n".join(f"{i}. {s.title}" for i, s in enumerate(slides, start=1))
+    offered = best_slides(slides, figures, title_words)
     template = load_prompt("visuals")
     result = Visuals(slides=[])
 
@@ -252,7 +304,9 @@ def choose_visuals(
             title=slide.title,
             bullets="\n".join(f"- {b.text}" for b in slide.bullets),
             carousel=carousel,
-            figures=_format_figures([f for f in figures if f.id not in box.used]),
+            figures=_format_figures(
+                [f for f in figures if f.id not in box.used and position in offered[f.id]]
+            ),
         )
         messages = [Message(role="user", content=prompt)]
         visual: Visual | None = None
@@ -267,8 +321,7 @@ def choose_visuals(
                 )
                 break
             call = response.tool_calls[0]
-            text = " ".join([slide.title, *(b.text for b in slide.bullets)])
-            observation, visual, done = box.run(position, call, text)
+            observation, visual, done = box.run(position, call, _slide_text(slide))
             result.steps.append(
                 AgentStep(
                     slide=position,

@@ -3,6 +3,7 @@ Write a LinkedIn post that goes with a carousel about a research paper.
 Paper: {title}
 
 - "hook": the first line, at most 15 words, concrete and curiosity-raising, not clickbait.
+  It must say what the paper itself does, not what its applications are.
 - "takeaways": 2 or 3 of the most useful points for ML engineers, at most 20 words each,
   each citing the claim ids it uses. Use only the facts below; keep numbers exactly.
 - "question": one question inviting readers to share their experience with this paper's
