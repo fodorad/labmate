@@ -1,14 +1,14 @@
-Transformers replace recurrence with pure attention mechanisms.
+Attention replaces recurrence to capture global dependencies instantly.
 
-Recurrent models preclude parallelization within training examples due to their sequential nature.
+Previous models struggled with distant dependencies and parallelization limits.
 
-The Transformer eschews recurrence entirely, relying solely on attention mechanisms.
+The Transformer uses only attention to draw global dependencies without recurrence.
 
-It uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.
+It employs stacked self-attention and point-wise layers for both encoder and decoder.
 
-The big model achieves a BLEU score of 41.0, outperforming all previously published single models.
+Self-attention connects all positions with constant operations, unlike O(n) recurrent layers.
 
-How has the shift to attention-based architectures impacted your workflow?
+How has this architecture changed your approach to sequence modeling tasks?
 
 Paper: Attention Is All You Need
 https://arxiv.org/abs/1706.03762

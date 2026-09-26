@@ -1,73 +1,40 @@
 {
-  "hook": "Attention Is All You Need: The End of Recurrence",
+  "hook": "Attention Is All You Need: No Recurrence Required",
   "slides": [
     {
-      "title": "The Parallelization Bottleneck",
-      "purpose": "problem",
-      "claim_ids": [
-        "c03",
-        "c02"
-      ]
-    },
-    {
-      "title": "A Pure Attention Architecture",
-      "purpose": "idea",
-      "claim_ids": [
-        "c01",
-        "c06",
-        "c11"
-      ]
-    },
-    {
-      "title": "Encoder-Decoder Structure",
-      "purpose": "how_it_works",
-      "claim_ids": [
-        "c08",
-        "c09",
-        "c12"
-      ]
-    },
-    {
-      "title": "Multi-Head Self-Attention",
-      "purpose": "how_it_works",
-      "claim_ids": [
-        "c07",
-        "c10",
-        "c13"
-      ]
-    },
-    {
-      "title": "Translation State-of-the-Art",
-      "purpose": "result",
+      "title": "Modeling Dependencies Without Recurrence",
+      "purpose": "task",
       "claim_ids": [
         "c04",
-        "c23",
-        "c24"
+        "c01",
+        "c33"
       ]
     },
     {
-      "title": "Beyond Translation: Parsing",
-      "purpose": "comparison",
+      "title": "Sequential Bottlenecks in Previous Models",
+      "purpose": "challenges",
       "claim_ids": [
+        "c03",
+        "c08",
+        "c18"
+      ]
+    },
+    {
+      "title": "Pure Self-Attention Architecture Design",
+      "purpose": "method",
+      "claim_ids": [
+        "c09",
+        "c12",
+        "c16"
+      ]
+    },
+    {
+      "title": "State-of-the-Art Translation and Parsing Results",
+      "purpose": "results",
+      "claim_ids": [
+        "c24",
         "c25",
-        "c27",
-        "c28"
-      ]
-    },
-    {
-      "title": "Limitations and Future Work",
-      "purpose": "limitation",
-      "claim_ids": [
-        "c26",
-        "c32"
-      ]
-    },
-    {
-      "title": "The Transformer Takeaway",
-      "purpose": "takeaway",
-      "claim_ids": [
-        "c30",
-        "c31"
+        "c26"
       ]
     }
   ]

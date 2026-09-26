@@ -1,163 +1,89 @@
 {
   "slides": {
-    "hook": "Attention Is All You Need: The End of Recurrence",
+    "hook": "Attention Is All You Need: No Recurrence Required",
     "slides": [
       {
-        "title": "The Parallelization Bottleneck",
+        "title": "Modeling Dependencies Without Recurrence",
         "bullets": [
           {
-            "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
-            "claim_ids": [
-              "c03"
-            ]
-          },
-          {
-            "text": "Transformers allow significantly more parallelization, reaching state of the art in twelve hours on eight P100 GPUs.",
-            "claim_ids": [
-              "c02"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Transformer Architecture Details",
-        "bullets": [
-          {
-            "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
-            "claim_ids": [
-              "c01"
-            ]
-          },
-          {
-            "text": "It is the first transduction model relying entirely on self-attention.",
-            "claim_ids": [
-              "c06"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Transformer Encoder Structure",
-        "bullets": [
-          {
-            "text": "The Transformer uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
-            "claim_ids": [
-              "c08"
-            ]
-          },
-          {
-            "text": "The encoder stacks N=6 identical layers, each with multi-head self-attention.",
-            "claim_ids": [
-              "c09"
-            ]
-          },
-          {
-            "text": "Self-attention keys, values, and queries originate from the previous layer's output.",
-            "claim_ids": [
-              "c12"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Multi-Head Self-Attention Mechanism",
-        "bullets": [
-          {
-            "text": "Self-attention relates different positions of a single sequence to compute its representation.",
-            "claim_ids": [
-              "c07"
-            ]
-          },
-          {
-            "text": "Multi-head attention allows the model to attend to information from different representation subspaces simultaneously.",
-            "claim_ids": [
-              "c10"
-            ]
-          },
-          {
-            "text": "Decoder self-attention is masked to prevent leftward information flow and preserve the auto-regressive property.",
-            "claim_ids": [
-              "c13"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Transformer Translation Results",
-        "bullets": [
-          {
-            "text": "The Transformer reaches new state-of-the-art translation quality after training for twelve hours on eight P100 GPUs.",
+            "text": "Attention models dependencies regardless of distance in input or output sequences.",
             "claim_ids": [
               "c04"
             ]
           },
           {
-            "text": "The big model achieves a BLEU score of 28.4.",
+            "text": "The Transformer relies entirely on attention, eschewing recurrence to draw global dependencies.",
             "claim_ids": [
-              "c23"
+              "c01"
             ]
           },
           {
-            "text": "The big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+            "text": "Future plans include extending the model to images, audio, and video modalities.",
+            "claim_ids": [
+              "c33"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Sequential Bottlenecks in Previous Models",
+        "bullets": [
+          {
+            "text": "Recurrent models preclude parallelization within training examples.",
+            "claim_ids": [
+              "c03"
+            ]
+          },
+          {
+            "text": "Previous convolutional models make it difficult to learn dependencies between distant positions.",
+            "claim_ids": [
+              "c08"
+            ]
+          },
+          {
+            "text": "A single convolutional layer does not connect all pairs of input and output positions.",
+            "claim_ids": [
+              "c18"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Pure Self-Attention Architecture Design",
+        "bullets": [
+          {
+            "text": "The Transformer uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
+            "claim_ids": [
+              "c09"
+            ]
+          },
+          {
+            "text": "It employs h=8 parallel attention heads, each with dimension dk=dv=64, to attend to different subspaces simultaneously.",
+            "claim_ids": [
+              "c12"
+            ]
+          },
+          {
+            "text": "Self-attention connects all positions with constant sequential operations, unlike recurrent layers requiring O(n) operations.",
+            "claim_ids": [
+              "c16"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "State-of-the-Art Translation and Parsing Results",
+        "bullets": [
+          {
+            "text": "The big Transformer model achieves a state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German translation.",
             "claim_ids": [
               "c24"
             ]
-          }
-        ]
-      },
-      {
-        "title": "Beyond Translation: Parsing",
-        "bullets": [
+          },
           {
-            "text": "Transformer achieves 92.7 F1 in semi-supervised English constituency parsing.",
+            "text": "On WMT 2014 English-to-French, the model reaches a BLEU score of 41.0 at less than one-quarter the training cost.",
             "claim_ids": [
               "c25"
-            ]
-          },
-          {
-            "text": "It outperforms all models except Recurrent Neural Network Grammar.",
-            "claim_ids": [
-              "c27"
-            ]
-          },
-          {
-            "text": "Transformer beats Berkeley-Parser using only 40K training sentences.",
-            "claim_ids": [
-              "c28"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "Limitations and Future Work",
-        "bullets": [
-          {
-            "text": "Reducing key size dk hurts quality, suggesting compatibility is difficult.",
-            "claim_ids": [
-              "c26"
-            ]
-          },
-          {
-            "text": "Future work extends the Transformer to other modalities using local attention mechanisms.",
-            "claim_ids": [
-              "c32"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "The Transformer Takeaway",
-        "bullets": [
-          {
-            "text": "Achieves new state-of-the-art results on WMT 2014 English-to-German and English-to-French tasks.",
-            "claim_ids": [
-              "c30"
-            ]
-          },
-          {
-            "text": "Trains significantly faster than architectures based on recurrent or convolutional layers.",
-            "claim_ids": [
-              "c31"
             ]
           }
         ]
@@ -170,676 +96,428 @@
         {
           "slide": 1,
           "bullet": 1,
-          "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
+          "text": "Attention models dependencies regardless of distance in input or output sequences.",
           "claim_ids": [
-            "c03"
+            "c04"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states that the sequential nature precludes parallelization within training examples."
+          "reason": "The evidence explicitly states that attention allows modeling dependencies without regard to distance in input or output sequences."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "Transformers allow significantly more parallelization, reaching state of the art in twelve hours on eight P100 GPUs.",
-          "claim_ids": [
-            "c02"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms both the increased parallelization and the specific training time/hardware details."
-        },
-        {
-          "slide": 2,
-          "bullet": 1,
-          "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
+          "text": "The Transformer relies entirely on attention, eschewing recurrence to draw global dependencies.",
           "claim_ids": [
             "c01"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states the architecture eschews recurrence and relies entirely on an attention mechanism."
+          "reason": "The evidence confirms the Transformer eschews recurrence and relies entirely on an attention mechanism for global dependencies."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "Future plans include extending the model to images, audio, and video modalities.",
+          "claim_ids": [
+            "c33"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states plans to extend the model to other modalities including images, audio, and video."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Recurrent models preclude parallelization within training examples, limiting batching at longer sequence lengths due to memory constraints.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence directly states that the sequential nature precludes parallelization and that memory constraints limit batching at longer sequence lengths."
         },
         {
           "slide": 2,
           "bullet": 2,
-          "text": "It is the first transduction model using only self-attention without RNNs or convolutions.",
+          "text": "ConvS2S and ByteNet struggle to learn dependencies between distant positions because operation counts grow with distance.",
           "claim_ids": [
-            "c06"
+            "c08"
+          ],
+          "problems": [
+            "name(s) bytenet, convs2s not in the cited evidence"
+          ],
+          "verdict": "partial",
+          "reason": "While the evidence mentions difficulty learning distant dependencies, it does not explicitly state that operation counts grow with distance."
+        },
+        {
+          "slide": 2,
+          "bullet": 3,
+          "text": "Single convolutional layers fail to connect all input-output pairs, requiring O(n/k) or O(logk(n)) layer stacks.",
+          "claim_ids": [
+            "c18"
           ],
           "problems": [],
-          "verdict": "partial",
-          "reason": "While it is the first transduction model relying entirely on self-attention, the evidence does not explicitly mention the exclusion of convolutions."
+          "verdict": "supported",
+          "reason": "The evidence confirms a single layer with kernel width k < n does not connect all pairs and requires a stack of O(n/k) layers."
         },
         {
           "slide": 3,
           "bullet": 1,
           "text": "The Transformer uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
           "claim_ids": [
-            "c08"
+            "c09"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states the architecture uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
+          "reason": "The evidence directly states the architecture uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
         },
         {
           "slide": 3,
           "bullet": 2,
-          "text": "The encoder stacks N=6 identical layers, each with multi-head self-attention and a position-wise feed-forward network.",
-          "claim_ids": [
-            "c09"
-          ],
-          "problems": [],
-          "verdict": "partial",
-          "reason": "While it confirms N=6 and multi-head self-attention, the evidence does not explicitly name the second sub-layer as a 'position-wise feed-forward network'."
-        },
-        {
-          "slide": 3,
-          "bullet": 3,
-          "text": "Self-attention keys, values, and queries originate from the previous layer's output in this architecture.",
+          "text": "It employs h=8 parallel attention heads, each with dimension dk=dv=64, to attend to different subspaces simultaneously.",
           "claim_ids": [
             "c12"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence states that all keys, values, and queries come from the output of the previous layer."
+          "reason": "The evidence confirms h=8 heads with dk=dv=64 used to attend to different subspaces."
+        },
+        {
+          "slide": 3,
+          "bullet": 3,
+          "text": "Self-attention connects all positions with constant sequential operations, unlike recurrent layers requiring O(n) operations.",
+          "claim_ids": [
+            "c16"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly compares the constant number of sequential operations in self-attention to the O(n) required by recurrent layers."
         },
         {
           "slide": 4,
           "bullet": 1,
-          "text": "Self-attention relates different positions of a single sequence to compute its representation.",
-          "claim_ids": [
-            "c07"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly states that self-attention relates different positions of a single sequence."
-        },
-        {
-          "slide": 4,
-          "bullet": 2,
-          "text": "Multi-head attention uses eight parallel layers to attend to information from different subspaces simultaneously.",
-          "claim_ids": [
-            "c10"
-          ],
-          "problems": [],
-          "verdict": "partial",
-          "reason": "While the mechanism is described, the specific number of eight parallel layers is not mentioned in the provided evidence."
-        },
-        {
-          "slide": 4,
-          "bullet": 3,
-          "text": "Decoder self-attention is masked to prevent leftward information flow and preserve the auto-regressive property.",
-          "claim_ids": [
-            "c13"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms that masking is used to prevent leftward information flow and preserve the auto-regressive property."
-        },
-        {
-          "slide": 5,
-          "bullet": 1,
-          "text": "The Transformer reaches new state-of-the-art translation quality after training for twelve hours on eight P100 GPUs.",
-          "claim_ids": [
-            "c04"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly supports the training time and hardware used to reach new state-of-the-art translation quality."
-        },
-        {
-          "slide": 5,
-          "bullet": 2,
-          "text": "On WMT 2014 English-to-German, the big model achieves a BLEU score of 28.4, outperforming previous bests by more than 2.0.",
-          "claim_ids": [
-            "c23"
-          ],
-          "problems": [
-            "number(s) 2.0, 2014 not in the cited evidence"
-          ],
-          "verdict": "partial",
-          "reason": "While the score is correct, the evidence does not explicitly state that it outperforms previous bests by more than 2.0."
-        },
-        {
-          "slide": 5,
-          "bullet": 3,
-          "text": "On WMT 2014 English-to-French, the big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+          "text": "The big Transformer model achieves a new state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German translation.",
           "claim_ids": [
             "c24"
           ],
-          "problems": [
-            "number(s) 2014 not in the cited evidence"
-          ],
+          "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms the BLEU score and that it outperforms all previously published single models."
+          "reason": "The evidence explicitly states the big transformer model achieves a new state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German."
         },
         {
-          "slide": 6,
-          "bullet": 1,
-          "text": "Transformer achieves 92.7 F1 in semi-supervised English constituency parsing.",
+          "slide": 4,
+          "bullet": 2,
+          "text": "On WMT 2014 English-to-French, the model reaches a BLEU score of 41.0 at less than one-quarter the training cost.",
           "claim_ids": [
             "c25"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states Transformer achieves 92.7 in a semi-supervised context."
+          "reason": "The evidence confirms the big model achieves a BLEU score of 41.0 on WMT 2014 English-to-French at less than 1/4 the training cost."
         },
         {
-          "slide": 6,
-          "bullet": 2,
-          "text": "It outperforms all models except Recurrent Neural Network Grammar.",
-          "claim_ids": [
-            "c27"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms it yields better results than all models except the Recurrent Neural Network Grammar."
-        },
-        {
-          "slide": 6,
+          "slide": 4,
           "bullet": 3,
-          "text": "Transformer beats Berkeley-Parser using only 40K training sentences.",
-          "claim_ids": [
-            "c28"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states the Transformer outperforms Berkeley-Parser when training on the 40K sentence WSJ set."
-        },
-        {
-          "slide": 7,
-          "bullet": 1,
-          "text": "Reducing key size dk hurts quality, suggesting dot product is insufficient for compatibility.",
+          "text": "The model generalizes to English constituency parsing with an F1 score of 92.7, surpassing the previous state-of-the-art of 92.1.",
           "claim_ids": [
             "c26"
           ],
-          "problems": [],
-          "verdict": "partial",
-          "reason": "The evidence states compatibility is not easy, but does not explicitly mention dot products."
-        },
-        {
-          "slide": 7,
-          "bullet": 2,
-          "text": "Future work extends the Transformer to images and audio using local attention mechanisms.",
-          "claim_ids": [
-            "c32"
+          "problems": [
+            "number(s) 92.1 not in the cited evidence"
           ],
-          "problems": [],
-          "verdict": "partial",
-          "reason": "The evidence mentions other modalities and local attention, but does not specify images or audio."
-        },
-        {
-          "slide": 8,
-          "bullet": 1,
-          "text": "Achieves new state-of-the-art results on WMT 2014 English-to-German and English-to-French tasks.",
-          "claim_ids": [
-            "c30"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states that a new state of the art was achieved on both specified WMT 2014 tasks."
-        },
-        {
-          "slide": 8,
-          "bullet": 2,
-          "text": "Trains significantly faster than architectures based on recurrent or convolutional layers.",
-          "claim_ids": [
-            "c31"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly supports that the Transformer can be trained significantly faster than recurrent or convolutional architectures for translation tasks."
+          "verdict": "unsupported",
+          "reason": "The evidence provided is insufficient to confirm the task (English constituency parsing) or the previous state-of-the-art score."
         }
       ],
       [
         {
           "slide": 1,
           "bullet": 1,
-          "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
+          "text": "Attention models dependencies regardless of distance in input or output sequences.",
           "claim_ids": [
-            "c03"
+            "c04"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states that the sequential nature precludes parallelization within training examples."
+          "reason": "The evidence explicitly states that attention allows modeling dependencies without regard to distance in input or output sequences."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "Transformers allow significantly more parallelization, reaching state of the art in twelve hours on eight P100 GPUs.",
-          "claim_ids": [
-            "c02"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms both the increased parallelization and the specific training time/hardware details."
-        },
-        {
-          "slide": 2,
-          "bullet": 1,
-          "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
+          "text": "The Transformer relies entirely on attention, eschewing recurrence to draw global dependencies.",
           "claim_ids": [
             "c01"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states the architecture eschews recurrence and relies entirely on an attention mechanism."
+          "reason": "The evidence confirms the Transformer eschews recurrence and relies entirely on an attention mechanism for global dependencies."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "Future plans include extending the model to images, audio, and video modalities.",
+          "claim_ids": [
+            "c33"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states plans to extend the model to other modalities including images, audio, and video."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Recurrent models preclude parallelization within training examples.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that the sequential nature precludes parallelization within training examples."
         },
         {
           "slide": 2,
           "bullet": 2,
-          "text": "It is the first transduction model relying entirely on self-attention.",
+          "text": "Previous convolutional models make it difficult to learn dependencies between distant positions.",
           "claim_ids": [
-            "c06"
+            "c08"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states it is the first transduction model relying entirely on self-attention."
+          "reason": "The evidence directly states that it makes it more difficult to learn dependencies between distant positions."
+        },
+        {
+          "slide": 2,
+          "bullet": 3,
+          "text": "A single convolutional layer does not connect all pairs of input and output positions.",
+          "claim_ids": [
+            "c18"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms a single convolutional layer with kernel width k < n does not connect all pairs of input and output positions."
         },
         {
           "slide": 3,
           "bullet": 1,
           "text": "The Transformer uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
           "claim_ids": [
-            "c08"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states the architecture uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
-        },
-        {
-          "slide": 3,
-          "bullet": 2,
-          "text": "The encoder stacks N=6 identical layers, each with multi-head self-attention.",
-          "claim_ids": [
             "c09"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms the encoder is a stack of N=6 identical layers where the first sub-layer is multi-head self-attention."
+          "reason": "The evidence directly states the architecture uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
         },
         {
           "slide": 3,
-          "bullet": 3,
-          "text": "Self-attention keys, values, and queries originate from the previous layer's output.",
+          "bullet": 2,
+          "text": "It employs h=8 parallel attention heads, each with dimension dk=dv=64, to attend to different subspaces simultaneously.",
           "claim_ids": [
             "c12"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence states that in a self-attention layer, keys, values, and queries come from the output of the previous layer."
+          "reason": "The evidence confirms h=8 heads with dk=dv=64 used to attend to different subspaces."
+        },
+        {
+          "slide": 3,
+          "bullet": 3,
+          "text": "Self-attention connects all positions with constant sequential operations, unlike recurrent layers requiring O(n) operations.",
+          "claim_ids": [
+            "c16"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly compares the constant number of sequential operations in self-attention to the O(n) required by recurrent layers."
         },
         {
           "slide": 4,
           "bullet": 1,
-          "text": "Self-attention relates different positions of a single sequence to compute its representation.",
-          "claim_ids": [
-            "c07"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly states that self-attention relates different positions of a single sequence."
-        },
-        {
-          "slide": 4,
-          "bullet": 2,
-          "text": "Multi-head attention allows the model to attend to information from different representation subspaces simultaneously using eight parallel attention layers.",
-          "claim_ids": [
-            "c10"
-          ],
-          "problems": [],
-          "verdict": "partial",
-          "reason": "While the mechanism is described, the specific number of eight parallel layers is not mentioned in the provided evidence."
-        },
-        {
-          "slide": 4,
-          "bullet": 3,
-          "text": "Decoder self-attention is masked to prevent leftward information flow and preserve the auto-regressive property.",
-          "claim_ids": [
-            "c13"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms that masking is used to prevent leftward information flow and preserve the auto-regressive property."
-        },
-        {
-          "slide": 5,
-          "bullet": 1,
-          "text": "The Transformer reaches new state-of-the-art translation quality after training for twelve hours on eight P100 GPUs.",
-          "claim_ids": [
-            "c04"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly supports the training time and hardware used."
-        },
-        {
-          "slide": 5,
-          "bullet": 2,
-          "text": "The big model achieves a BLEU score of 28.4, outperforming previous bests by more than 2.0.",
-          "claim_ids": [
-            "c23"
-          ],
-          "problems": [
-            "number(s) 2.0 not in the cited evidence"
-          ],
-          "verdict": "partial",
-          "reason": "While the score is correct, the evidence does not state by how much it outperforms previous bests."
-        },
-        {
-          "slide": 5,
-          "bullet": 3,
-          "text": "The big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+          "text": "The big Transformer model achieves a new state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German translation.",
           "claim_ids": [
             "c24"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states the BLEU score and comparison to single models."
+          "reason": "The evidence explicitly states the big transformer model achieves a new state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German."
         },
         {
-          "slide": 6,
-          "bullet": 1,
-          "text": "Transformer achieves 92.7 F1 in semi-supervised English constituency parsing.",
+          "slide": 4,
+          "bullet": 2,
+          "text": "On WMT 2014 English-to-French, the model reaches a BLEU score of 41.0 at less than one-quarter the training cost.",
           "claim_ids": [
             "c25"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states Transformer achieves 92.7 in a semi-supervised context."
+          "reason": "The evidence confirms the big model achieves a BLEU score of 41.0 on WMT 2014 English-to-French at less than 1/4 the training cost."
         },
         {
-          "slide": 6,
-          "bullet": 2,
-          "text": "It outperforms all models except Recurrent Neural Network Grammar.",
-          "claim_ids": [
-            "c27"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms it yields better results than all models except the Recurrent Neural Network Grammar."
-        },
-        {
-          "slide": 6,
+          "slide": 4,
           "bullet": 3,
-          "text": "Transformer beats Berkeley-Parser using only 40K training sentences.",
-          "claim_ids": [
-            "c28"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states the Transformer outperforms Berkeley-Parser when training on the 40K sentence WSJ set."
-        },
-        {
-          "slide": 7,
-          "bullet": 1,
-          "text": "Reducing key size dk hurts quality, suggesting compatibility is difficult.",
+          "text": "The model generalizes to English constituency parsing with an F1 score of 92.7.",
           "claim_ids": [
             "c26"
           ],
           "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly states that reducing dk hurts quality and suggests compatibility is not easy."
-        },
-        {
-          "slide": 7,
-          "bullet": 2,
-          "text": "Future work extends the Transformer to other modalities using local attention mechanisms.",
-          "claim_ids": [
-            "c32"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly mentions plans to extend the Transformer to other modalities and investigate local attention mechanisms."
-        },
-        {
-          "slide": 8,
-          "bullet": 1,
-          "text": "Achieves new state-of-the-art results on WMT 2014 English-to-German and English-to-French tasks.",
-          "claim_ids": [
-            "c30"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states that a new state of the art was achieved on both specified WMT 2014 tasks."
-        },
-        {
-          "slide": 8,
-          "bullet": 2,
-          "text": "Trains significantly faster than architectures based on recurrent or convolutional layers.",
-          "claim_ids": [
-            "c31"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly supports that the Transformer can be trained significantly faster than recurrent or convolutional architectures for translation tasks."
+          "verdict": "partial",
+          "reason": "The evidence provides a score of 92.7 for a 4-layer Transformer but does not explicitly state it is an F1 score for English constituency parsing."
         }
       ],
       [
         {
           "slide": 1,
           "bullet": 1,
-          "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
+          "text": "Attention models dependencies regardless of distance in input or output sequences.",
           "claim_ids": [
-            "c03"
+            "c04"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states that the sequential nature precludes parallelization within training examples."
+          "reason": "The evidence explicitly states that attention allows modeling dependencies without regard to distance in input or output sequences."
         },
         {
           "slide": 1,
           "bullet": 2,
-          "text": "Transformers allow significantly more parallelization, reaching state of the art in twelve hours on eight P100 GPUs.",
-          "claim_ids": [
-            "c02"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms both the increased parallelization and the specific training time/hardware details."
-        },
-        {
-          "slide": 2,
-          "bullet": 1,
-          "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
+          "text": "The Transformer relies entirely on attention, eschewing recurrence to draw global dependencies.",
           "claim_ids": [
             "c01"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states the architecture eschews recurrence and relies entirely on an attention mechanism."
+          "reason": "The evidence confirms the Transformer eschews recurrence and relies entirely on an attention mechanism for global dependencies."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "Future plans include extending the model to images, audio, and video modalities.",
+          "claim_ids": [
+            "c33"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states plans to extend the model to other modalities including images, audio, and video."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Recurrent models preclude parallelization within training examples.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that the sequential nature precludes parallelization within training examples."
         },
         {
           "slide": 2,
           "bullet": 2,
-          "text": "It is the first transduction model relying entirely on self-attention.",
+          "text": "Previous convolutional models make it difficult to learn dependencies between distant positions.",
           "claim_ids": [
-            "c06"
+            "c08"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states it is the first transduction model relying entirely on self-attention."
+          "reason": "The evidence directly states that it makes it more difficult to learn dependencies between distant positions."
+        },
+        {
+          "slide": 2,
+          "bullet": 3,
+          "text": "A single convolutional layer does not connect all pairs of input and output positions.",
+          "claim_ids": [
+            "c18"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms a single convolutional layer with kernel width k < n does not connect all pairs of input and output positions."
         },
         {
           "slide": 3,
           "bullet": 1,
           "text": "The Transformer uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
           "claim_ids": [
-            "c08"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states the architecture uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
-        },
-        {
-          "slide": 3,
-          "bullet": 2,
-          "text": "The encoder stacks N=6 identical layers, each with multi-head self-attention.",
-          "claim_ids": [
             "c09"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms the encoder is a stack of N=6 identical layers where the first sub-layer is multi-head self-attention."
+          "reason": "The evidence directly states the architecture uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
         },
         {
           "slide": 3,
-          "bullet": 3,
-          "text": "Self-attention keys, values, and queries originate from the previous layer's output.",
+          "bullet": 2,
+          "text": "It employs h=8 parallel attention heads, each with dimension dk=dv=64, to attend to different subspaces simultaneously.",
           "claim_ids": [
             "c12"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence states that in a self-attention layer, keys, values, and queries come from the output of the previous layer."
+          "reason": "The evidence confirms h=8 heads with dk=dv=64 used to attend to different subspaces."
+        },
+        {
+          "slide": 3,
+          "bullet": 3,
+          "text": "Self-attention connects all positions with constant sequential operations, unlike recurrent layers requiring O(n) operations.",
+          "claim_ids": [
+            "c16"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly compares the constant number of sequential operations in self-attention to the O(n) required by recurrent layers."
         },
         {
           "slide": 4,
           "bullet": 1,
-          "text": "Self-attention relates different positions of a single sequence to compute its representation.",
-          "claim_ids": [
-            "c07"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly states that self-attention relates different positions of a single sequence."
-        },
-        {
-          "slide": 4,
-          "bullet": 2,
-          "text": "Multi-head attention allows the model to attend to information from different representation subspaces simultaneously.",
-          "claim_ids": [
-            "c10"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms multi-head attention attends to information from different representation subspaces."
-        },
-        {
-          "slide": 4,
-          "bullet": 3,
-          "text": "Decoder self-attention is masked to prevent leftward information flow and preserve the auto-regressive property.",
-          "claim_ids": [
-            "c13"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states that masking is used in the decoder to prevent leftward information flow and preserve auto-regression."
-        },
-        {
-          "slide": 5,
-          "bullet": 1,
-          "text": "The Transformer reaches new state-of-the-art translation quality after training for twelve hours on eight P100 GPUs.",
-          "claim_ids": [
-            "c04"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly supports the training time and hardware used."
-        },
-        {
-          "slide": 5,
-          "bullet": 2,
-          "text": "The big model achieves a BLEU score of 28.4.",
-          "claim_ids": [
-            "c23"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states the BLEU score is 28.4."
-        },
-        {
-          "slide": 5,
-          "bullet": 3,
-          "text": "The big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+          "text": "The big Transformer model achieves a state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German translation.",
           "claim_ids": [
             "c24"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence confirms both the BLEU score of 41.0 and its performance relative to single models."
+          "reason": "The evidence explicitly states the big transformer model achieves a state-of-the-art BLEU score of 28.4 on WMT 2014 English-to-German."
         },
         {
-          "slide": 6,
-          "bullet": 1,
-          "text": "Transformer achieves 92.7 F1 in semi-supervised English constituency parsing.",
+          "slide": 4,
+          "bullet": 2,
+          "text": "On WMT 2014 English-to-French, the model reaches a BLEU score of 41.0 at less than one-quarter the training cost.",
           "claim_ids": [
             "c25"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly states Transformer achieves 92.7 in a semi-supervised context."
+          "reason": "The evidence confirms the big model achieves a BLEU score of 41.0 on WMT 2014 English-to-French at less than 1/4 the training cost."
         },
         {
-          "slide": 6,
-          "bullet": 2,
-          "text": "It outperforms all models except Recurrent Neural Network Grammar.",
-          "claim_ids": [
-            "c27"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms it yields better results than all models except the Recurrent Neural Network Grammar."
-        },
-        {
-          "slide": 6,
+          "slide": 4,
           "bullet": 3,
-          "text": "Transformer beats Berkeley-Parser using only 40K training sentences.",
-          "claim_ids": [
-            "c28"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence states the Transformer outperforms Berkeley-Parser when training on the 40K sentence WSJ set."
-        },
-        {
-          "slide": 7,
-          "bullet": 1,
-          "text": "Reducing key size dk hurts quality, suggesting compatibility is difficult.",
+          "text": "The Transformer model achieves a semi-supervised F1 score of 92.7 on WSJ Section 23.",
           "claim_ids": [
             "c26"
           ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly states that reducing dk hurts quality and suggests compatibility is not easy."
-        },
-        {
-          "slide": 7,
-          "bullet": 2,
-          "text": "Future work extends the Transformer to other modalities using local attention mechanisms.",
-          "claim_ids": [
-            "c32"
+          "problems": [
+            "number(s) 23 not in the cited evidence",
+            "name(s) wsj not in the cited evidence"
           ],
-          "problems": [],
           "verdict": "supported",
-          "reason": "The evidence explicitly mentions plans to extend the Transformer to other modalities and investigate local attention mechanisms."
-        },
-        {
-          "slide": 8,
-          "bullet": 1,
-          "text": "Achieves new state-of-the-art results on WMT 2014 English-to-German and English-to-French tasks.",
-          "claim_ids": [
-            "c30"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states that a new state of the art was achieved on both specified WMT 2014 tasks."
-        },
-        {
-          "slide": 8,
-          "bullet": 2,
-          "text": "Trains significantly faster than architectures based on recurrent or convolutional layers.",
-          "claim_ids": [
-            "c31"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence directly supports that the Transformer can be trained significantly faster than recurrent or convolutional architectures for translation tasks."
+          "reason": "The evidence directly links Transformer (4 layers) to a semi-supervised score of 92.7."
         }
       ]
     ],
-    "dropped": [],
+    "dropped": [
+      {
+        "slide": 4,
+        "bullet": 3,
+        "text": "The Transformer model achieves a semi-supervised F1 score of 92.7 on WSJ Section 23.",
+        "claim_ids": [
+          "c26"
+        ],
+        "problems": [
+          "number(s) 23 not in the cited evidence",
+          "name(s) wsj not in the cited evidence"
+        ],
+        "verdict": "supported",
+        "reason": "The evidence directly links Transformer (4 layers) to a semi-supervised score of 92.7."
+      }
+    ],
     "dropped_slides": []
   }
 }

@@ -1,38 +1,22 @@
 [
   {
     "page": 1,
-    "alt_text": "The main message is Attention Is All You Need: The End of Recurrence. The page features an abstract illustration of interconnected shapes."
+    "alt_text": "The paper, Attention Is All You Need, introduces a novel architecture that eliminates the need for recurrence in sequence modeling."
   },
   {
     "page": 2,
-    "alt_text": "Transformers overcome the sequential bottleneck of recurrent models by enabling parallel processing, as shown in the evolution diagram."
+    "alt_text": "The Transformer model architecture illustrates how attention mechanisms model dependencies without recurrence, allowing for global context understanding."
   },
   {
     "page": 3,
-    "alt_text": "The Transformer architecture relies solely on attention mechanisms. The diagram illustrates the model's structure, showing input and output embeddings through attention layers."
+    "alt_text": "Sequential bottlenecks in previous models. Convolutional models require O(n/k) layers to connect distant positions, creating sequential bottlenecks."
   },
   {
     "page": 4,
-    "alt_text": "Diagram illustrating the Transformer Encoder Structure. It shows Scaled Dot-Product Attention and Multi-Head Attention mechanisms for self-attention layers."
+    "alt_text": "The page explains the Pure Self-Attention Architecture Design. It shows diagrams for Scaled Dot-Product Attention and Multi-Head Attention, illustrating parallel processing."
   },
   {
     "page": 5,
-    "alt_text": "The multi-head self-attention mechanism processes queries, keys, and values through scaled dot-product attention to produce the output representation."
-  },
-  {
-    "page": 6,
-    "alt_text": "Transformer Translation Results show the model achieved state-of-the-art translation quality, with a BLEU score of 41.0, outperforming previous models."
-  },
-  {
-    "page": 7,
-    "alt_text": "The Transformer model achieves 92.7 F1 in semi-supervised English constituency parsing, outperforming most models."
-  },
-  {
-    "page": 8,
-    "alt_text": "Limitations and Future Work. Reducing key size hurts quality, and future work will extend the Transformer to other modalities using local attention mechanisms."
-  },
-  {
-    "page": 9,
-    "alt_text": "The Transformer achieves state-of-the-art results on WMT 2014 tasks and trains significantly faster than recurrent or convolutional architectures."
+    "alt_text": "The Transformer model achieved a BLEU score of 28.4 on English-to-German and 41.0 on English-to-French for WMT 2014 tasks."
   }
 ]

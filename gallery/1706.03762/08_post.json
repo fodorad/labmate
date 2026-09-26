@@ -1,82 +1,171 @@
 {
-  "hook": "Transformers replace recurrence with pure attention mechanisms.",
+  "hook": "Attention replaces recurrence to capture global dependencies instantly.",
   "takeaways": [
     {
-      "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
+      "text": "Previous models struggled with distant dependencies and parallelization limits.",
       "claim_ids": [
-        "c03"
-      ]
-    },
-    {
-      "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
-      "claim_ids": [
-        "c01"
-      ]
-    },
-    {
-      "text": "It uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
-      "claim_ids": [
+        "c03",
         "c08"
       ]
     },
     {
-      "text": "The big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+      "text": "The Transformer uses only attention to draw global dependencies without recurrence.",
       "claim_ids": [
-        "c24"
+        "c01",
+        "c04"
+      ]
+    },
+    {
+      "text": "It employs stacked self-attention and point-wise layers for both encoder and decoder.",
+      "claim_ids": [
+        "c09"
+      ]
+    },
+    {
+      "text": "Self-attention connects all positions with constant operations, unlike O(n) recurrent layers.",
+      "claim_ids": [
+        "c16"
       ]
     }
   ],
-  "question": "How has the shift to attention-based architectures impacted your workflow?",
+  "question": "How has this architecture changed your approach to sequence modeling tasks?",
   "report": {
     "rounds": [
       [
         {
           "slide": 1,
           "bullet": 1,
-          "text": "Recurrent models preclude parallelization within training examples due to their sequential nature.",
+          "text": "Previous models struggled with distant dependencies and parallelization limits.",
           "claim_ids": [
-            "c03"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence explicitly states that the sequential nature precludes parallelization within training examples."
-        },
-        {
-          "slide": 1,
-          "bullet": 2,
-          "text": "The Transformer eschews recurrence entirely, relying solely on attention mechanisms.",
-          "claim_ids": [
-            "c01"
-          ],
-          "problems": [],
-          "verdict": "supported",
-          "reason": "The evidence confirms the Transformer eschews recurrence and relies entirely on attention mechanisms."
-        },
-        {
-          "slide": 1,
-          "bullet": 3,
-          "text": "It uses stacked self-attention and point-wise fully connected layers for both encoder and decoder.",
-          "claim_ids": [
+            "c03",
             "c08"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states that it uses stacked self-attention and point-wise fully connected layers for both encoder and decoder."
+          "reason": "The evidence explicitly mentions that sequential nature precludes parallelization and makes it difficult to learn distant dependencies."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "The Transformer uses only attention to draw global dependencies without recurrence.",
+          "claim_ids": [
+            "c01",
+            "c04"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states the model eschews recurrence and relies entirely on attention for global dependencies."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "It employs stacked self-attention and point-wise layers for both encoder and decoder.",
+          "claim_ids": [
+            "c09"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms the architecture uses stacked self-attention and point-wise, fully connected layers for both encoder and decoder."
         },
         {
           "slide": 2,
           "bullet": 1,
-          "text": "The big model achieves a BLEU score of 41.0, outperforming all previously published single models.",
+          "text": "Self-attention connects all positions with constant operations, unlike O(n) recurrent layers.",
           "claim_ids": [
-            "c24"
+            "c16"
           ],
           "problems": [],
           "verdict": "supported",
-          "reason": "The evidence directly states that the big model achieves a BLEU score of 41.0 and outperforms all previously published single models."
+          "reason": "The evidence explicitly states that self-attention connects all positions with a constant number of operations compared to O(n) for recurrent layers."
+        },
+        {
+          "slide": 2,
+          "bullet": 2,
+          "text": "The model achieves 28.4 BLEU on German and 41.0 on French at less than one-quarter the cost.",
+          "claim_ids": [
+            "c24",
+            "c25"
+          ],
+          "problems": [],
+          "verdict": "partial",
+          "reason": "While the BLEU scores and cost comparison are supported, the evidence only links the 'less than 1/4 training cost' specifically to the French translation task rather than both."
+        }
+      ],
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "Previous models struggled with distant dependencies and parallelization limits.",
+          "claim_ids": [
+            "c03",
+            "c08"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly mentions that sequential nature precludes parallelization and makes it difficult to learn distant dependencies."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "The Transformer uses only attention to draw global dependencies without recurrence.",
+          "claim_ids": [
+            "c01",
+            "c04"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states the model eschews recurrence and relies entirely on attention for global dependencies."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "It employs stacked self-attention and point-wise layers for both encoder and decoder.",
+          "claim_ids": [
+            "c09"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms the architecture uses stacked self-attention and point-wise, fully connected layers for both encoder and decoder."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "Self-attention connects all positions with constant operations, unlike O(n) recurrent layers.",
+          "claim_ids": [
+            "c16"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that self-attention connects all positions with a constant number of operations compared to O(n) for recurrent layers."
+        },
+        {
+          "slide": 2,
+          "bullet": 2,
+          "text": "The model achieves 28.4 BLEU on German and 41.0 on French at less than one-quarter the training cost for French.",
+          "claim_ids": [
+            "c24",
+            "c25"
+          ],
+          "problems": [],
+          "verdict": "partial",
+          "reason": "While the BLEU scores and French training cost are supported, the evidence does not state that the 1/4 training cost comparison applies to German."
         }
       ]
     ],
-    "dropped": [],
+    "dropped": [
+      {
+        "slide": 2,
+        "bullet": 2,
+        "text": "The model achieves 28.4 BLEU on German and 41.0 on French at less than one-quarter the training cost for French.",
+        "claim_ids": [
+          "c24",
+          "c25"
+        ],
+        "problems": [],
+        "verdict": "partial",
+        "reason": "While the BLEU scores and French training cost are supported, the evidence does not state that the 1/4 training cost comparison applies to German."
+      }
+    ],
     "dropped_slides": []
   }
 }
