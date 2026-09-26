@@ -1,0 +1,5 @@
+{
+  "paper_type": "method",
+  "confidence": 0.95,
+  "reason": "The paper introduces a new technique called Regularized Recursive Self-Improvement (RRSI) and demonstrates its effectiveness through experiments on multiple benchmarks."
+}

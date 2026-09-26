@@ -1,0 +1,136 @@
+{
+  "hook": "RRSI fixes agent harness overfitting via regularized self-improvement.",
+  "takeaways": [
+    {
+      "text": "Agent harnesses optimize for benchmark scores, causing adaptive overfitting that fails on unseen tasks.",
+      "claim_ids": [
+        "c01"
+      ]
+    },
+    {
+      "text": "RRSI treats the harness as the variable while keeping the backbone policy fixed.",
+      "claim_ids": [
+        "c07"
+      ]
+    },
+    {
+      "text": "RRSI improves six held-out splits by up to 4.7 points using fewer tokens than unregularized evolution.",
+      "claim_ids": [
+        "c03"
+      ]
+    }
+  ],
+  "question": "How do you currently prevent your agent systems from overfitting to specific evaluation benchmarks?",
+  "report": {
+    "rounds": [
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "Agent harnesses optimize for benchmark scores, causing adaptive overfitting that fails on unseen tasks.",
+          "claim_ids": [
+            "c01"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that harness evolution creates an adaptive overfitting risk where performance improves without gains on unseen tasks."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "RRSI treats the harness as the variable while keeping the backbone policy fixed to improve generalization.",
+          "claim_ids": [
+            "c07"
+          ],
+          "problems": [],
+          "verdict": "partial",
+          "reason": "While the evidence confirms the harness is the optimization variable and the policy is fixed, it does not explicitly state that this is done to improve generalization."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "The method uses annealed updates, leakage screening, and stability-aware acceptance to ensure robust evolution.",
+          "claim_ids": [
+            "c09"
+          ],
+          "problems": [],
+          "verdict": "unsupported",
+          "reason": "The evidence describes annealing update capacity and structuring capacity spending, but does not mention leakage screening or stability-aware acceptance."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "RRSI improves six held-out splits by up to 4.7 points using fewer tokens than unregularized evolution.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms RRSI improves all six held-out splits by up to 4.7 points using fewer tokens than unregularized evolution."
+        }
+      ],
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "Agent harnesses optimize for benchmark scores, causing adaptive overfitting that fails on unseen tasks.",
+          "claim_ids": [
+            "c01"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that harness evolution creates an adaptive overfitting risk where performance improves without gains on unseen tasks."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "RRSI treats the harness as the variable while keeping the backbone policy fixed.",
+          "claim_ids": [
+            "c07"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms that harness evolution treats the harness as the optimization variable while keeping the backbone policy fixed."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "The method uses annealed updates, leakage screening, and structuring capacity spending.",
+          "claim_ids": [
+            "c09",
+            "c10"
+          ],
+          "problems": [],
+          "verdict": "partial",
+          "reason": "While annealing and structuring capacity spending are mentioned, 'leakage screening' is an inference from the critic's rejection process rather than a stated term in the evidence."
+        },
+        {
+          "slide": 2,
+          "bullet": 1,
+          "text": "RRSI improves six held-out splits by up to 4.7 points using fewer tokens than unregularized evolution.",
+          "claim_ids": [
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms RRSI improves all six held-out splits by up to 4.7 points using fewer tokens than unregularized evolution."
+        }
+      ]
+    ],
+    "dropped": [
+      {
+        "slide": 1,
+        "bullet": 3,
+        "text": "The method uses annealed updates, leakage screening, and structuring capacity spending.",
+        "claim_ids": [
+          "c09",
+          "c10"
+        ],
+        "problems": [],
+        "verdict": "partial",
+        "reason": "While annealing and structuring capacity spending are mentioned, 'leakage screening' is an inference from the critic's rejection process rather than a stated term in the evidence."
+      }
+    ],
+    "dropped_slides": []
+  }
+}

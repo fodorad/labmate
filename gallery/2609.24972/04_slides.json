@@ -1,0 +1,97 @@
+{
+  "hook": "Stop overfitting your agent harness to benchmarks",
+  "slides": [
+    {
+      "title": "Agent Harness Evolution Problem",
+      "bullets": [
+        {
+          "text": "The paper defines an agent as a backbone policy and a harness managing prompts, control flow, tools, and memory.",
+          "claim_ids": [
+            "c05"
+          ]
+        },
+        {
+          "text": "Task performance is the expected score on a task set, while token cost is the expected number of tokens consumed.",
+          "claim_ids": [
+            "c06"
+          ]
+        },
+        {
+          "text": "Harness evolution treats the harness as the optimization variable while keeping the backbone policy fixed.",
+          "claim_ids": [
+            "c07"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Overfitting Risks in Iterative Evolution",
+      "bullets": [
+        {
+          "text": "Iterative harness evolution uses finite feedback, creating adaptive overfitting where evolve-set performance fails to generalize to unseen tasks.",
+          "claim_ids": [
+            "c01"
+          ]
+        },
+        {
+          "text": "Search encodes benchmark-specific patterns and promotes candidates favored by evaluation noise, accumulating complexity without improving the agent mechanism.",
+          "claim_ids": [
+            "c04"
+          ]
+        },
+        {
+          "text": "Existing approaches rely on benchmark scores without generalization terms, so reported gains often do not survive changes in the evaluation suite.",
+          "claim_ids": [
+            "c25"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "RRSI Regularization Framework Details",
+      "bullets": [
+        {
+          "text": "RRSI anneals update capacity per round, uses evidence-aware credit assignment, and structures exploration.",
+          "claim_ids": [
+            "c09"
+          ]
+        },
+        {
+          "text": "Leakage screening rejects candidates encoding task names or specific answers before full evaluation.",
+          "claim_ids": [
+            "c10"
+          ]
+        },
+        {
+          "text": "Stability-aware acceptance uses a noise-adjusted floor to prevent selecting candidates due to stochastic variation.",
+          "claim_ids": [
+            "c11"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Results, Gains, and Limitations",
+      "bullets": [
+        {
+          "text": "RRSI improves six held-out splits by up to 4.7 points out of distribution using fewer policy tokens than unregularized evolution.",
+          "claim_ids": [
+            "c03"
+          ]
+        },
+        {
+          "text": "The method gains 2.3 points on Harvey LAB and 1.8 points on SWE-bench Verified for in-distribution held-out tasks.",
+          "claim_ids": [
+            "c16"
+          ]
+        },
+        {
+          "text": "Removing acceptance constraints raises the evolve-set score to 91.5 but drops out-of-distribution transfer from 43.6 to 41.0 and increases token cost.",
+          "claim_ids": [
+            "c19"
+          ]
+        }
+      ]
+    }
+  ]
+}

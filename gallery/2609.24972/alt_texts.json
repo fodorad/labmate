@@ -1,0 +1,22 @@
+[
+  {
+    "page": 1,
+    "alt_text": "Stop overfitting your agent harness to benchmarks. The slide features a large 'RSI' graphic and the title text."
+  },
+  {
+    "page": 2,
+    "alt_text": "Agent Harness Evolution Problem: The architecture shows a fixed backbone policy optimized by harness components including prompts, control flow, tools, and memory."
+  },
+  {
+    "page": 3,
+    "alt_text": "The page discusses overfitting risks in iterative evolution. Figure 1 shows that evolution overfits on the test split, while RRSI generalizes improvements on the agentic workspace benchmark."
+  },
+  {
+    "page": 4,
+    "alt_text": "The RRSI regularization framework details the process: screening for leakage, evaluation with a noise-adjusted stability floor, and acceptance criteria."
+  },
+  {
+    "page": 5,
+    "alt_text": "Results show RRSI improves held-out splits by up to 4.7 points. The method gains 2.3 points on Harvey LAB and 1.8 points on SWE-bench Verified."
+  }
+]
