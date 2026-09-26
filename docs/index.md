@@ -15,12 +15,19 @@ against human labels), an HTML trace viewer, a static gallery whose entries anyo
 replay from cassettes, and two interchangeable orchestration engines (plain Python and
 LangGraph). Next: the first published papers and v0.1.0.
 
-## What it will do
+## What it does
 
 ```
 arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline ─▶ ✋ human approval
         ─▶ write slides ─▶ fact-check loop ─▶ visuals agent ─▶ render ─▶ carousel.pdf
+                                                                      └─▶ summary.pdf
 ```
+
+Every paper becomes the same four blocks, the structure of a research project page:
+**Task**, **Challenges**, **Proposed method** and **Main results**. They are rendered
+twice: as a LinkedIn carousel (a cover plus one slide per block, each with a paper
+figure, a generated diagram or a chart of the paper's numbers) and as a one-page summary
+PDF (title, authors, main figure, abstract and the four blocks as cards).
 
 - **Grounded:** every bullet on a slide cites a claim card, and every claim card carries
   a verbatim quote from the paper. A fact-check loop rewrites or drops unsupported bullets.
@@ -37,7 +44,7 @@ arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline �
 | ingest | plain code | arXiv PDF → sections via the PDF outline, references dropped |
 | route | routing | title + abstract → method / benchmark / survey / position template |
 | extract | parallelisation | per section: claim cards with verbatim evidence quotes; quotes that aren't in the paper, or whose numbers differ, are dropped in code |
-| outline | orchestrator | picks the slides and assigns claim cards; rules (template order, valid ids, ≤ 2 uses per claim) are checked in code and fed back on violation |
+| outline | orchestrator | assigns claim cards to the four blocks (task, challenges, method, results) and titles them; rules (the four blocks in order, valid ids, ≤ 2 uses per claim) are checked in code and fed back on violation |
 | gate | human-in-the-loop | writes `outline.yaml` and pauses; your edits are validated with the same rules |
 | write | prompt chaining | one call per slide; every bullet cites the claim ids it uses |
 | fact-check | evaluator–optimizer | numbers must match the cited evidence exactly; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
@@ -79,7 +86,8 @@ make replay ARXIV=1706.03762   # the whole run again from cassettes only, no Oll
 make baseline ARXIV=1706.03762 # the M1 one-shot version, for comparison
 ```
 
-Each run folder contains `carousel.pdf`, `post.md` (paste-ready LinkedIn text),
+Each run folder contains `carousel.pdf`, `summary.pdf` (the one-page project summary),
+`post.md` (paste-ready LinkedIn text),
 `summary.md` (every bullet with its page and quote), `alt_texts.json`, `pages/*.png`, every
 step's JSON artifact and `trace.jsonl`.
 

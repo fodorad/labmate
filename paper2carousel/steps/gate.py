@@ -23,8 +23,8 @@ class GateError(ValueError):
 
 HEADER = """\
 # paper2carousel outline for review.
-# Edit freely: reorder or delete slides, change titles, hook or claim ids (1-3 per slide).
-# Allowed purposes: {purposes}. First slide: {first}. Last slide: takeaway.
+# Edit freely: change the titles, the hook or the claim ids (1-5 per slide).
+# The four slides stay: {purposes}, in this order.
 # Then continue with:  make approve ARXIV={paper_id}
 """
 
@@ -47,7 +47,7 @@ def write_gate(
     body = yaml.safe_dump(outline.model_dump(), sort_keys=False, allow_unicode=True, width=100)
     reference = "\n".join(f"#   {line}" for line in format_claims(claims).splitlines())
     path.write_text(
-        HEADER.format(purposes=", ".join(allowed), first=allowed[0], paper_id=paper_id)
+        HEADER.format(purposes=", ".join(allowed), paper_id=paper_id)
         + "\n"
         + body
         + "\n# Available claim cards:\n"

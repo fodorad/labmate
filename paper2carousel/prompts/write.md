@@ -1,8 +1,11 @@
 You write one slide of a LinkedIn carousel about a research paper.
 
-Slide {position} of {total}. Purpose: {purpose}. Working title: {title}
+Slide {position} of {total}. Working title: {title}
 
-Write a title (at most 8 words) and 2 or 3 bullets (at most 25 words each).
+This slide is the "{purpose}" block of a four-slide carousel (task, challenges, proposed
+method, main results): {purpose_hint}
+
+Write a title (at most 8 words) and 3 or 4 bullets (at most 25 words each).
 Rules:
 - Be specific: every bullet carries at least one concrete detail from the evidence, such
   as a number, a dataset, a baseline, a component or a named comparison. No generic

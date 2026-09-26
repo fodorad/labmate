@@ -1,14 +1,12 @@
 import pytest
 
 from paper2carousel.steps.gate import GateError, read_gate, write_gate
-from tests.steps.test_outline import CLAIMS, outline
+from tests.steps.test_outline import CLAIMS, FOUR, blocks
 
 
 def test_roundtrip(tmp_path):
-    o = outline(("problem", ["c01"]), ("result", ["c02"]), ("takeaway", ["c03"]))
-    path = write_gate(
-        tmp_path / "outline.yaml", o, CLAIMS, "1706.03762", ["problem", "result", "takeaway"]
-    )
+    o = blocks(["c01"], ["c02"], ["c03"], ["c04"])
+    path = write_gate(tmp_path / "outline.yaml", o, CLAIMS, "1706.03762", FOUR)
     text = path.read_text()
     assert text.startswith("# paper2carousel outline for review.")
     assert "#   c04 [result] claim 4 (S, p. 4)" in text

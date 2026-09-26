@@ -46,7 +46,7 @@ ARTIFACTS = [
 ]
 """Step artifacts that are published and compared by :func:`verify`."""
 
-OUTPUTS = ["carousel.pdf", "cover.png", "post.md", "summary.md", "alt_texts.json"]
+OUTPUTS = ["carousel.pdf", "summary.pdf", "cover.png", "post.md", "summary.md", "alt_texts.json"]
 """Deliverables copied as they are (not compared: PDFs carry timestamps)."""
 
 PAGE_DPI = 110
@@ -386,13 +386,17 @@ def build_site(
         ctx = paper_context(entry)
         dest = out / entry.name
         pages = _page_images(entry / "carousel.pdf", dest / "pages")
-        for name in ["carousel.pdf", "post.md", "summary.md"]:
+        for name in ["carousel.pdf", "summary.pdf", "post.md", "summary.md"]:
             if (entry / name).exists():
                 shutil.copy2(entry / name, dest / name)
         spans = [json.loads(line) for line in (entry / "trace.jsonl").read_text().splitlines()]
         (dest / "trace.html").write_text(render_trace(spans, f"Trace · {ctx['meta'].title}", theme))
         page = env.get_template("paper.html.j2").render(
-            theme=theme, pages=pages, repo_url=repo_url, **ctx
+            theme=theme,
+            pages=pages,
+            repo_url=repo_url,
+            has_summary_pdf=(entry / "summary.pdf").exists(),
+            **ctx,
         )
         (dest / "index.html").write_text(page)
         papers.append(

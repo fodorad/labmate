@@ -48,7 +48,7 @@ dl.meta dd { margin: 0; font-weight: 600; }
     <figure><img src="pages/{{ p }}" alt="{{ alt.get(loop.index, 'Slide ' ~ loop.index) }}" loading="lazy"></figure>
     {% endfor %}
   </div>
-  <div class="actions"><a href="carousel.pdf">Download PDF</a><a href="summary.md">Summary with quotes</a><a href="trace.html">Trace of the run</a></div>
+  <div class="actions"><a href="carousel.pdf">Download PDF</a>{% if has_summary_pdf %}<a href="summary.pdf">One-page summary</a>{% endif %}<a href="summary.md">Evidence for every bullet</a><a href="trace.html">Trace of the run</a></div>
 
   {% if post_text %}
   <h2>The LinkedIn post</h2>

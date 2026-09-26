@@ -56,7 +56,7 @@ def test_first_run_pauses_at_the_gate_with_an_editable_outline(model, arxiv, con
     text = result.gate.read_text()
     assert "make approve ARXIV=2401.00001" in text and "# Available claim cards:" in text
     outline = Outline.model_validate(yaml.safe_load(text))
-    assert outline.slides[-1].purpose == "takeaway"
+    assert [s.purpose for s in outline.slides] == ["task", "challenges", "method", "results"]
     claims = Claims.model_validate_json(result.artifact("02_claims.json").read_text())
     assert len(claims.cards) == 6 and all(c.match >= 90 for c in claims.cards)
     assert "qwen3.6:35b-mlx" in model.loaded  # not unloaded: the run is paused
@@ -66,16 +66,21 @@ def test_approve_finishes_and_respects_human_edits(model, arxiv, config):
     first = go(config, model, arxiv)
     edited = yaml.safe_load(first.gate.read_text())
     edited["hook"] = "Edited by a human"
-    del edited["slides"][1]
+    edited["slides"][1]["title"] = "Why it is hard"
     first.gate.write_text(yaml.safe_dump(edited))
 
     result = go(config, model, arxiv, approve=True)
     assert result.status == "done"
     written = WrittenSlides.model_validate_json(result.artifact("04_slides.json").read_text())
-    assert written.hook == "Edited by a human" and len(written.slides) == 3
+    assert written.hook == "Edited by a human" and len(written.slides) == 4
     with pymupdf.open(result.carousel) as doc:
-        assert doc.page_count == 4
+        assert doc.page_count == 5
         assert "Edited by a human" in " ".join(doc[0].get_text().split())
+        assert "CHALLENGES" in doc[2].get_text()  # the block label is the slide badge
+    with pymupdf.open(result.artifact("summary.pdf")) as doc:
+        text = " ".join(doc[0].get_text().split())
+        assert doc.page_count == 1
+        assert all(k in text for k in ["Task", "Challenges", "Proposed method", "Main results"])
     gate_span = next(
         s
         for s in read_trace(result.trace)

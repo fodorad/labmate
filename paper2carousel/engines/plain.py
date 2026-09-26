@@ -32,6 +32,7 @@ from paper2carousel.engines.common import (
     log,
     open_session,
     run_id_for,
+    slide_labels,
     stage_cover,
     stage_critic,
     stage_extract,
@@ -162,7 +163,8 @@ def run(
         checked = stage_factcheck(s, written, outline, claims)
         stage_post(s, checked, claims, paper)
         visuals = stage_visuals(s, checked.slides.slides, paper, claims)
-        deck = stage_cover(s, checked.slides.to_deck(visuals.slides), paper)
+        labels = slide_labels(outline, checked)
+        deck = stage_cover(s, checked.slides.to_deck(visuals.slides, labels), paper)
         stage_render(s, deck, paper)
-        stage_critic(s, deck, paper)
-        return stage_summary(s, checked, claims, paper)
+        deck = stage_critic(s, deck, paper)
+        return stage_summary(s, checked, claims, paper, deck)

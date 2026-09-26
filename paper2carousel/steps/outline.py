@@ -1,8 +1,9 @@
 """Step 3 (ORCHESTRATOR): plan the slides and assign claim cards to them.
 
-Which slides exist depends on the paper, so this can't be a fixed chain. The narrative
-template comes from the router; hard rules are enforced in code by :func:`check_outline`
-and fed back to the model on violation.
+The slides are always the four blocks of a project page (task, challenges, proposed
+method, main results); what goes into each depends on the paper, so the planner assigns
+the claim cards and titles. Hard rules are enforced in code by :func:`check_outline` and
+fed back to the model on violation.
 """
 
 from __future__ import annotations
@@ -13,20 +14,29 @@ from paper2carousel.llm.structured import structured_chat
 from paper2carousel.schemas import Claims, Outline, PaperType, Route
 from paper2carousel.steps.llm import LLM, load_prompt
 
-TEMPLATES: dict[PaperType, list[str]] = {
-    "method": ["problem", "idea", "how_it_works", "result", "comparison", "limitation", "takeaway"],
-    "benchmark": ["problem", "setup", "finding", "surprise", "limitation", "takeaway"],
-    "survey": ["scope", "landscape", "trend", "open_problem", "takeaway"],
-    "position": ["claim", "argument", "evidence", "counterpoint", "takeaway"],
+SECTIONS = ["task", "challenges", "method", "results"]
+"""The four blocks every carousel has, in order (the structure of a project page)."""
+
+LABELS = {
+    "task": "Task",
+    "challenges": "Challenges",
+    "method": "Proposed method",
+    "results": "Main results",
 }
-"""Allowed slide purposes per paper type, in recommended order. Purposes may repeat."""
+"""Display names of the blocks (slide badge, summary card title)."""
+
+TEMPLATES: dict[PaperType, list[str]] = {
+    t: SECTIONS for t in ("method", "benchmark", "survey", "position")
+}
+"""Slide purposes per paper type. All types share the four blocks; the paper type only
+changes how the planner reads them (a benchmark's "method" is its design)."""
 
 MAX_CLAIM_USES = 2
 """A claim may appear on at most this many slides."""
 
 
-MAX_SLIDE_CLAIMS = 4
-"""Claim cards one slide may be built on (enough material for three specific bullets)."""
+MAX_SLIDE_CLAIMS = 5
+"""Claim cards one slide may be built on (enough material for four specific bullets)."""
 
 
 def format_claims(claims: Claims) -> str:
@@ -57,13 +67,10 @@ def check_outline(outline: Outline, claims: Claims, paper_type: PaperType) -> li
     allowed = TEMPLATES[paper_type]
     known = {c.id for c in claims.cards}
     problems = []
-    if outline.slides[0].purpose != allowed[0]:
-        problems.append(f'the first slide\'s purpose must be "{allowed[0]}"')
-    if outline.slides[-1].purpose != "takeaway":
-        problems.append('the last slide\'s purpose must be "takeaway"')
+    purposes = [slide.purpose for slide in outline.slides]
+    if purposes != allowed:
+        problems.append(f"the slides must be exactly {allowed}, in this order; got {purposes}")
     for i, slide in enumerate(outline.slides, start=1):
-        if slide.purpose not in allowed:
-            problems.append(f'slide {i}: purpose "{slide.purpose}" is not one of {allowed}')
         if not 1 <= len(slide.claim_ids) <= MAX_SLIDE_CLAIMS:
             problems.append(
                 f"slide {i}: needs 1 to {MAX_SLIDE_CLAIMS} claim ids, has {len(slide.claim_ids)}"

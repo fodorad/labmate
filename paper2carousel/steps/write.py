@@ -25,6 +25,14 @@ from paper2carousel.steps.llm import LLM, load_prompt
 INLINE_ID = re.compile(r"\[?\bc\d{2,}\b\]?")
 """A claim id written into the text ("[c03]"), which belongs in ``claim_ids``."""
 
+PURPOSE_HINTS = {
+    "task": "what the paper sets out to do, its inputs, outputs and setting.",
+    "challenges": "what makes the problem hard and where earlier approaches fall short.",
+    "method": "what the authors propose and how it works, component by component.",
+    "results": "the main results with numbers and comparisons, ablations or limitations.",
+}
+"""What each block should say (the writer sees the one for its slide)."""
+
 MAX_WORDS = 30
 """Hard limit per bullet (the prompt asks for 25; a little slack avoids needless retries)."""
 
@@ -87,6 +95,7 @@ def write_slide(
         position=position,
         total=total,
         purpose=planned.purpose,
+        purpose_hint=PURPOSE_HINTS.get(planned.purpose, ""),
         title=planned.title,
         claims=format_cards(cards),
     )

@@ -322,7 +322,7 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
         }
     elif "hook" in props:
         ids = ALL_IDS.findall(conversation)
-        purposes = ["problem", "idea", "result", "takeaway"]
+        purposes = ["task", "challenges", "method", "results"]
         content = {
             "hook": "Linear attention, same accuracy",
             "slides": [

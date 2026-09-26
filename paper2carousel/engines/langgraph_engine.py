@@ -46,6 +46,7 @@ from paper2carousel.engines.common import (
     record_claims,
     record_factcheck,
     save,
+    slide_labels,
     stage_cover,
     stage_critic,
     stage_ingest,
@@ -283,7 +284,8 @@ def build_graph(
         }
 
     def cover(state: State) -> State:
-        deck = state["checked"].slides.to_deck(state["visuals"].slides)
+        labels = slide_labels(state["outline"], state["checked"])
+        deck = state["checked"].slides.to_deck(state["visuals"].slides, labels)
         return {"deck": stage_cover(s, deck, state["paper"])}
 
     def render(state: State) -> State:
@@ -294,7 +296,7 @@ def build_graph(
         return {"deck": stage_critic(s, state["deck"], state["paper"])}
 
     def summary(state: State) -> State:
-        stage_summary(s, state["checked"], state["claims"], state["paper"])
+        stage_summary(s, state["checked"], state["claims"], state["paper"], state["deck"])
         return {}
 
     g = StateGraph(State)

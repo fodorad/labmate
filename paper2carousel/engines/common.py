@@ -51,9 +51,9 @@ from paper2carousel.steps.ingest import (
     slugify,
 )
 from paper2carousel.steps.llm import LLM
-from paper2carousel.steps.outline import plan_outline
+from paper2carousel.steps.outline import LABELS, plan_outline
 from paper2carousel.steps.post import post_markdown, write_post
-from paper2carousel.steps.render import render_deck
+from paper2carousel.steps.render import render_deck, render_summary
 from paper2carousel.steps.route import route_paper
 from paper2carousel.steps.summary import summary_markdown
 from paper2carousel.steps.visuals import choose_visuals
@@ -634,19 +634,43 @@ def stage_critic(s: Session, deck: Deck, paper: Paper) -> Deck:
     return deck
 
 
-def stage_summary(s: Session, checked: FactChecked, claims: Claims, paper: Paper) -> RunResult:
-    """Write ``summary.md``, release the models and report the result.
+def slide_labels(outline: Outline, checked: FactChecked) -> list[str]:
+    """Block labels ("Task", ...) of the slides that survived the fact-check.
+
+    Args:
+        outline: Approved outline (one purpose per planned slide).
+        checked: Fact-check output (knows which slides were dropped).
+
+    Returns:
+        One label per final slide.
+    """
+    dropped = set(checked.report.dropped_slides)
+    return [
+        LABELS.get(slide.purpose, slide.purpose.replace("_", " ").capitalize())
+        for i, slide in enumerate(outline.slides, start=1)
+        if i not in dropped
+    ]
+
+
+def stage_summary(
+    s: Session, checked: FactChecked, claims: Claims, paper: Paper, deck: Deck | None = None
+) -> RunResult:
+    """Write ``summary.md`` and the one-page ``summary.pdf``, release the models.
 
     Args:
         s: Session.
         checked: Fact-checked slides.
         claims: Claims.
         paper: The paper.
+        deck: The final deck (its labelled slides become the summary's cards).
 
     Returns:
         The finished run.
     """
     s.path("summary.md").write_text(summary_markdown(checked.slides, claims, paper))
+    if deck is not None:
+        with s.tracer.span("step.summary_pdf"):
+            render_summary(deck, paper, s.path("summary.pdf"))
     log.info("rendered: %s", s.path("carousel.pdf"))
     s.switcher.release()
     return s.result("done")

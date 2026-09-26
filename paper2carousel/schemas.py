@@ -65,8 +65,9 @@ class DraftSlide(BaseModel):
 
     title: str = Field(description="Short slide title, at most 8 words.")
     bullets: list[str] = Field(
-        description="1 to 3 bullets, each at most 20 words.", min_length=1, max_length=3
+        description="1 to 3 bullets, each at most 20 words.", min_length=1, max_length=4
     )
+    label: str | None = Field(default=None, exclude_if=lambda v: v is None)
     image: str | None = Field(default=None, exclude_if=lambda v: v is None)
     image_caption: str | None = Field(default=None, exclude_if=lambda v: v is None)
 
@@ -169,7 +170,7 @@ class SlideText(BaseModel):
     """Written slide content, every bullet grounded in claim cards."""
 
     title: str = Field(description="At most 8 words.")
-    bullets: list[Bullet] = Field(min_length=1, max_length=3)
+    bullets: list[Bullet] = Field(min_length=1, max_length=4)
 
 
 class WrittenSlides(BaseModel):
@@ -178,26 +179,31 @@ class WrittenSlides(BaseModel):
     hook: str
     slides: list[SlideText]
 
-    def to_deck(self, visuals: list[Visual | None] | None = None) -> Deck:
-        """Drop the citations and attach visuals for rendering.
+    def to_deck(
+        self, visuals: list[Visual | None] | None = None, labels: list[str] | None = None
+    ) -> Deck:
+        """Drop the citations and attach visuals and block labels for rendering.
 
         Args:
             visuals: One optional visual per slide.
+            labels: One block label per slide ("Task", ...), shown as the slide badge.
 
         Returns:
             A render-ready deck.
         """
         visuals = visuals or [None] * len(self.slides)
+        names: list[str | None] = list(labels) if labels else [None] * len(self.slides)
         return Deck(
             title=self.hook,
             slides=[
                 DraftSlide(
                     title=s.title,
                     bullets=[b.text for b in s.bullets],
+                    label=label,
                     image=v.path if v else None,
                     image_caption=v.caption if v else None,
                 )
-                for s, v in zip(self.slides, visuals, strict=True)
+                for s, v, label in zip(self.slides, visuals, names, strict=True)
             ],
         )
 

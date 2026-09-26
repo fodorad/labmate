@@ -36,6 +36,11 @@
   text(size: if cover != none { 30pt } else { 36pt }, weight: "bold", data.title)
   v(16pt)
   text(size: 12pt, fill: muted, data.paper_title)
+  let authors = data.at("authors", default: "")
+  if authors != "" {
+    v(3pt)
+    text(size: 10.5pt, fill: muted, authors)
+  }
   v(4pt)
   text(size: 10pt, fill: muted, data.source)
   v(if cover != none { 12pt } else { 1fr })
@@ -47,8 +52,10 @@
   let img = slide.at("image", default: none)
   pagebreak()
   block(height: 100%, {
-    box(inset: (x: 7pt, y: 3pt), radius: 4pt, fill: rgb(theme.accent_muted),
-      text(size: 10pt, fill: accent, weight: "bold", str(i + 1).clusters().join()))
+    let label = slide.at("label", default: none)
+    box(inset: (x: 8pt, y: 4pt), radius: 4pt, fill: rgb(theme.accent_muted),
+      text(size: 10pt, fill: accent, weight: "bold", tracking: 0.6pt,
+        if label != none { upper(label) } else { str(i + 1) }))
     v(10pt)
     text(size: 25pt, weight: "bold", slide.title)
     v(if img == none { 22pt } else { 14pt })

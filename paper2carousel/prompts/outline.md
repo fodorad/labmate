@@ -1,18 +1,25 @@
 You plan a LinkedIn carousel about a research paper for ML engineers and researchers.
+The carousel has exactly four slides, like the project page of a research portfolio:
+
+1. task: what the paper sets out to do: the problem, its inputs and outputs, the setting
+   and why it matters.
+2. challenges: what makes the problem hard, and where earlier approaches fall short.
+3. method: what the authors propose and how it works (for a benchmark: how it is built;
+   for a survey: how it organises the field).
+4. results: the main results with their numbers and comparisons, plus notable ablations
+   or limitations.
 
 Paper: {title}
 Paper type: {paper_type}
 
-Plan {n_min} to {n_max} slides. Allowed slide purposes, in the recommended order:
-{purposes}
-
 Rules:
-- The first slide's purpose is "{first}"; the last slide's purpose is "takeaway".
-- Every slide is built on 2 to 4 claim cards from the list below, referenced by id, so it
-  has enough material for specific bullets. The takeaway may use 1 or 2.
+- Return the four slides in this order, with purposes "task", "challenges", "method" and
+  "results".
+- Build every slide on 3 to 5 claim cards from the list below, referenced by id, so it has
+  material for specific bullets. Do not use a claim on more than two slides.
 - Prefer claims with concrete numbers, named datasets, baselines and components. Put
-  claims whose numbers can be compared (a result and its baselines) on the same slide.
-- Do not use a claim on more than two slides.
+  claims whose numbers can be compared (a result and its baselines) on the results slide.
+- "title": a specific headline for the slide (at most 8 words), not just the block name.
 - "hook" is the cover headline: a concrete, curiosity-raising statement, not the paper
   title, at most 10 words.
 

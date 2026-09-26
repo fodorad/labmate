@@ -1,5 +1,5 @@
 You choose the visual for one slide of a LinkedIn carousel about a research paper.
-Most slides should have a visual: people stop scrolling for pictures, not for text.
+Every slide should have a visual: people stop scrolling for pictures, not for text.
 
 The whole carousel:
 {carousel}
@@ -22,6 +22,6 @@ Call exactly one tool:
   and every name from the evidence above; nothing else is accepted.
 - make_diagram: if the slide explains a process, pipeline, architecture or mechanism and
   no figure shows it: draw it as a small diagram (at most 8 boxes, short labels).
-- no_visual: only for the takeaway slide, or when none of the above fits.
+- no_visual: only when none of the above fits at all.
 
 If a tool reports an error, fix the problem and try again, or choose another tool.

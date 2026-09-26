@@ -27,36 +27,40 @@ def outline(*slides):
     )
 
 
+FOUR = ["task", "challenges", "method", "results"]
+
+
+def blocks(*ids):
+    return outline(*zip(FOUR, ids, strict=True))
+
+
 def test_valid_outline_has_no_problems():
-    o = outline(("problem", ["c01"]), ("result", ["c02", "c03"]), ("takeaway", ["c04"]))
+    o = blocks(["c01"], ["c02", "c03"], ["c03", "c04"], ["c04"])
     assert check_outline(o, CLAIMS, "method") == []
+    assert check_outline(o, CLAIMS, "survey") == []  # every paper type uses the four blocks
 
 
 @pytest.mark.parametrize(
     ("slides", "problem"),
     [
         (
-            [("idea", ["c01"]), ("result", ["c02"]), ("takeaway", ["c03"])],
-            'first slide\'s purpose must be "problem"',
+            [("task", ["c01"]), ("method", ["c02"]), ("results", ["c03"])],
+            "the slides must be exactly ['task', 'challenges', 'method', 'results']",
         ),
         (
-            [("problem", ["c01"]), ("result", ["c02"]), ("idea", ["c03"])],
-            'last slide\'s purpose must be "takeaway"',
+            [("challenges", ["c01"]), ("task", ["c02"]), ("method", ["c03"]), ("results", ["c04"])],
+            "in this order",
         ),
         (
-            [("problem", ["c01"]), ("finding", ["c02"]), ("takeaway", ["c03"])],
-            'purpose "finding" is not one of',
+            list(zip(FOUR, [[], ["c02"], ["c03"], ["c04"]], strict=True)),
+            "needs 1 to 5 claim ids, has 0",
         ),
         (
-            [("problem", []), ("result", ["c02"]), ("takeaway", ["c03"])],
-            "needs 1 to 4 claim ids, has 0",
-        ),
-        (
-            [("problem", ["c01"]), ("result", ["c09"]), ("takeaway", ["c03"])],
+            list(zip(FOUR, [["c01"], ["c09"], ["c03"], ["c04"]], strict=True)),
             "unknown claim ids ['c09']",
         ),
         (
-            [("problem", ["c01"]), ("result", ["c01"]), ("takeaway", ["c01"])],
+            list(zip(FOUR, [["c01"], ["c01"], ["c01"], ["c04"]], strict=True)),
             "more than 2 slides: ['c01']",
         ),
     ],
@@ -66,8 +70,8 @@ def test_each_rule_is_enforced(slides, problem):
     assert any(problem in p for p in problems), problems
 
 
-def test_every_template_starts_somewhere_and_ends_with_takeaway():
-    assert all(t[-1] == "takeaway" for t in TEMPLATES.values())
+def test_every_paper_type_gets_the_four_blocks():
+    assert all(t == FOUR for t in TEMPLATES.values())
 
 
 def test_format_claims_lists_ids_kinds_and_pages():
@@ -77,9 +81,9 @@ def test_format_claims_lists_ids_kinds_and_pages():
 def test_planner_gets_rule_violations_fed_back(fake):
     replies = iter(
         [
-            '{"hook": "h", "slides": [{"title": "t", "purpose": "problem", "claim_ids": ["c01"]},'
-            ' {"title": "t", "purpose": "result", "claim_ids": ["c02"]},'
-            ' {"title": "t", "purpose": "result", "claim_ids": ["c03"]}]}',
+            '{"hook": "h", "slides": [{"title": "t", "purpose": "task", "claim_ids": ["c01"]},'
+            ' {"title": "t", "purpose": "method", "claim_ids": ["c02"]},'
+            ' {"title": "t", "purpose": "results", "claim_ids": ["c03"]}]}',
         ]
     )
 
@@ -92,9 +96,9 @@ def test_planner_gets_rule_violations_fed_back(fake):
     fake.chat_handler = model
     route = Route(paper_type="method", confidence=0.9, reason="r")
     result = plan_outline("T", route, CLAIMS, LLM(fake.client(), "qwen3.6:35b-mlx"))
-    assert result.slides[-1].purpose == "takeaway"
+    assert [s.purpose for s in result.slides] == FOUR
     retry = fake.requests[1][1]["messages"][-1]["content"]
-    assert 'last slide\'s purpose must be "takeaway"' in retry
+    assert "the slides must be exactly" in retry
 
 
 def test_planning_without_claims_is_an_error(fake):
