@@ -113,8 +113,14 @@ DOT_STYLE = (
 """House style prepended to every diagram; the model's own attributes still override it."""
 
 
+_STYLE_ATTR = re.compile(
+    r"\b(fillcolor|color|fontcolor|fontname|fontsize|style|bgcolor|shape)\s*=\s*"
+    r"(\"[^\"]*\"|[^\s,\];]+)\s*[,;]?",
+)
+
+
 def style_dot(dot: str) -> str:
-    """Insert the house style right after the graph's opening brace.
+    """Apply the house style: drop the model's own colours/fonts/shapes, then insert ours.
 
     Args:
         dot: Graphviz source from the model.
@@ -122,6 +128,7 @@ def style_dot(dot: str) -> str:
     Returns:
         Styled source (unchanged if there is no opening brace).
     """
+    dot = _STYLE_ATTR.sub("", dot)
     brace = dot.find("{")
     return dot if brace < 0 else dot[: brace + 1] + " " + DOT_STYLE + dot[brace + 1 :]
 
@@ -216,7 +223,7 @@ class _Toolbox:
     used: dict[str, int] = field(default_factory=dict)
 
     def run(
-        self, slide: int, call: ToolCall, slide_text: str = "", evidence: str = ""
+        self, slide: int, call: ToolCall, slide_text: str = "", evidence: list[str] | None = None
     ) -> tuple[str, Visual | None, bool]:
         """Execute a call. Returns (observation, visual, done)."""
         name, args = call.function.name, call.function.arguments
@@ -263,7 +270,7 @@ class _Toolbox:
         if name == "make_chart":
             labels = [str(x) for x in args.get("labels") or []]
             values = list(args.get("values") or [])
-            problems, shown = check_chart(labels, values, evidence)
+            problems, shown = check_chart(labels, values, evidence or [])
             if problems:
                 return "error: " + "; ".join(problems), None, False
             path = self.out_dir / "charts" / f"slide{slide}.svg"
@@ -358,9 +365,9 @@ def choose_visuals(
 
     for position, slide in enumerate(slides, start=1):
         cited = list(dict.fromkeys(c for b in slide.bullets for c in b.claim_ids if c in by_id))
-        evidence = "\n".join(f'- "{by_id[c].evidence_quote}"' for c in cited)
+        quotes = [by_id[c].evidence_quote for c in cited]
         prompt = template.format(
-            evidence=evidence or "(none)",
+            evidence="\n".join(f'- "{q}"' for q in quotes) or "(none)",
             position=position,
             total=len(slides),
             title=slide.title,
@@ -383,7 +390,7 @@ def choose_visuals(
                 )
                 break
             call = response.tool_calls[0]
-            observation, visual, done = box.run(position, call, _slide_text(slide), evidence)
+            observation, visual, done = box.run(position, call, _slide_text(slide), quotes)
             result.steps.append(
                 AgentStep(
                     slide=position,

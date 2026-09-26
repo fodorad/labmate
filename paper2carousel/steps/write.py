@@ -8,6 +8,8 @@ loop verifies.
 
 from __future__ import annotations
 
+import re
+
 from paper2carousel.llm.structured import structured_chat
 from paper2carousel.parallel import parallel_map
 from paper2carousel.schemas import (
@@ -19,6 +21,9 @@ from paper2carousel.schemas import (
     WrittenSlides,
 )
 from paper2carousel.steps.llm import LLM, load_prompt
+
+INLINE_ID = re.compile(r"\[?\bc\d{2,}\b\]?")
+"""A claim id written into the text ("[c03]"), which belongs in ``claim_ids``."""
 
 MAX_WORDS = 30
 """Hard limit per bullet (the prompt asks for 25; a little slack avoids needless retries)."""
@@ -40,6 +45,8 @@ def check_slide(slide: SlideText, allowed_ids: set[str]) -> list[str]:
     for i, bullet in enumerate(slide.bullets, start=1):
         if len(bullet.text.split()) > MAX_WORDS:
             problems.append(f"bullet {i} has more than {MAX_WORDS} words")
+        if INLINE_ID.search(bullet.text):
+            problems.append(f"bullet {i} has claim ids in its text; list them in claim_ids only")
         foreign = sorted(set(bullet.claim_ids) - allowed_ids)
         if foreign:
             problems.append(f"bullet {i} cites claims not on this slide: {foreign}")

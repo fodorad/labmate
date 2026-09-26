@@ -24,3 +24,10 @@ def test_long_title_long_bullet_and_foreign_claims_are_flagged():
         "bullet 1 has more than 30 words",
         "bullet 2 cites claims not on this slide: ['c07']",
     ]
+
+
+def test_claim_ids_in_the_text_are_flagged():
+    problems = check_slide(
+        slide("t", Bullet(text="Faster training [c03].", claim_ids=["c01"])), {"c01"}
+    )
+    assert problems == ["bullet 1 has claim ids in its text; list them in claim_ids only"]

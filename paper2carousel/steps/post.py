@@ -19,6 +19,7 @@ from paper2carousel.schemas import (
 )
 from paper2carousel.steps.factcheck import fact_check
 from paper2carousel.steps.llm import LLM, load_prompt
+from paper2carousel.steps.write import INLINE_ID
 
 
 def _format_slides(slides: WrittenSlides) -> str:
@@ -56,10 +57,15 @@ def write_post(
     known = set(used)
 
     def check(d: PostDraft) -> list[str]:
-        return [
+        problems = [
             f"takeaway {i} cites unknown claims {sorted(set(t.claim_ids) - known)}"
             for i, t in enumerate(d.takeaways, start=1)
             if set(t.claim_ids) - known
+        ]
+        return problems + [
+            f"takeaway {i} has claim ids in its text; list them in claim_ids only"
+            for i, t in enumerate(d.takeaways, start=1)
+            if INLINE_ID.search(t.text)
         ]
 
     draft = structured_chat(writer.backend, writer.request(prompt), PostDraft, check=check)

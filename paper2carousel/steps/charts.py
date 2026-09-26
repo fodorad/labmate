@@ -26,6 +26,15 @@ WIDTH = 1000
 ROW = 76
 """Height of one bar row."""
 
+MAX_LABEL = 24
+"""Longest bar label that fits the label column."""
+
+_GENERIC = frozenset(
+    "the and for with from model models method methods score scores result results new all "
+    "our their this that previous previously best state art".split()
+)
+"""Words that don't identify what a number belongs to."""
+
 
 def _tokens(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]{2,}", text.lower()))
@@ -39,14 +48,18 @@ def _number(value: object) -> float | None:
 
 
 def check_chart(
-    labels: list[str], values: list[object], evidence: str
+    labels: list[str], values: list[object], quotes: list[str]
 ) -> tuple[list[str], list[str]]:
-    """Validate a chart request against the slide's evidence.
+    """Validate a chart request against the slide's evidence quotes.
+
+    Each bar must be backed by one quote that contains both its value and a word of its
+    label, so a number can't be attached to the wrong thing (e.g. an English-French score
+    labelled as a previous model's English-German score).
 
     Args:
         labels: Bar labels.
         values: Bar values (numbers or numeric strings).
-        evidence: The slide's evidence quotes, joined.
+        quotes: The slide's evidence quotes.
 
     Returns:
         ``(problems, shown)``: problems (empty if the chart is valid) and each value
@@ -57,18 +70,28 @@ def check_chart(
         problems.append(f"use {MIN_BARS} to {MAX_BARS} bars, not {len(labels)}")
     if len(labels) != len(values):
         problems.append(f"{len(labels)} labels but {len(values)} values")
-    available = {n: _number(n) for n in numbers_in(evidence)}
-    words = _tokens(evidence)
+    parsed = [(q, _tokens(q) - _GENERIC, {n: _number(n) for n in numbers_in(q)}) for q in quotes]
     shown: list[str] = []
     for label, value in zip(labels, values, strict=False):
+        if len(label) > MAX_LABEL:
+            problems.append(f"label {label!r} is longer than {MAX_LABEL} characters")
         number = _number(value)
-        match = next((s for s, v in available.items() if number is not None and v == number), None)
-        if match is None:
+        with_value = [
+            (words, next(s for s, v in nums.items() if v == number))
+            for _, words, nums in parsed
+            if number is not None and number in nums.values()
+        ]
+        if not with_value:
             problems.append(f"value {value} for {label!r} is not in the evidence")
-        else:
-            shown.append(match)
-        if not _tokens(label) & words:
-            problems.append(f"label {label!r} does not name anything in the evidence")
+            continue
+        backed = [text for words, text in with_value if _tokens(label) - _GENERIC & words]
+        if not backed:
+            problems.append(
+                f"no evidence quote gives {value} for {label!r}; pair each value with the "
+                "name it belongs to in the same quote"
+            )
+            continue
+        shown.append(backed[0])
     return problems, shown
 
 

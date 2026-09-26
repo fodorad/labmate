@@ -216,3 +216,12 @@ def test_render_dot_accepts_a_relative_output_path(tmp_path, monkeypatch):
     out = tmp_path / "runs" / "p" / "diagrams" / "slide3.png"
     assert render_dot("digraph { a -> b }", out.relative_to(tmp_path)) is None
     assert out.exists()
+
+
+def test_style_dot_replaces_the_models_styling_with_the_house_style():
+    from paper2carousel.steps.visuals import DOT_STYLE, style_dot
+
+    dot = 'digraph { a [shape=ellipse, fillcolor="lightblue", label="A"]; b [color=red]; a -> b }'
+    styled = style_dot(dot)
+    assert "lightblue" not in styled and "red" not in styled and "ellipse" not in styled
+    assert 'label="A"' in styled and styled.startswith("digraph { " + DOT_STYLE)
