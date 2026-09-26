@@ -121,15 +121,50 @@ def render_dot(dot: str, out: Path) -> str | None:
     return None
 
 
+_STOPWORDS = frozenset(
+    "about above after also among another based because been being between both could does "
+    "each from have into its more most other over same show shows shown such than that the "
+    "their them then there these they this those through under using used uses very were "
+    "what when where which while with within without would case".split()
+)
+
+
+def content_words(text: str, ignore: frozenset[str] = frozenset()) -> set[str]:
+    """Topic words of a text: lower-cased words of 4+ letters, crude plural stripping.
+
+    Hyphens inside words are dropped ("multi-modal" == "multimodal").
+
+    Args:
+        text: Any text.
+        ignore: Words to leave out (e.g. the paper title's words, which every slide shares).
+
+    Returns:
+        The set of content words.
+    """
+    text = re.sub(r"(?<=[a-z])-(?=[a-z])", "", text.lower())
+    words = {
+        w[:-1] if len(w) > 4 and w.endswith("s") else w for w in re.findall(r"[a-z]{4,}", text)
+    }
+    return words - _STOPWORDS - ignore
+
+
 @dataclass
 class _Toolbox:
-    """Executes the agent's tool calls for one run."""
+    """Executes the agent's tool calls for one run.
+
+    ``use_paper_figure`` refuses a figure whose caption shares no topic word with the slide
+    (ignoring the paper title's words): a cheap check against placing, say, a head-pose
+    plot on an architecture slide. The refusal is returned to the model as an observation.
+    """
 
     figures: dict[str, Figure]
     out_dir: Path
+    title_words: frozenset[str] = frozenset()
     used: dict[str, int] = field(default_factory=dict)
 
-    def run(self, slide: int, call: ToolCall) -> tuple[str, Visual | None, bool]:
+    def run(
+        self, slide: int, call: ToolCall, slide_text: str = ""
+    ) -> tuple[str, Visual | None, bool]:
         """Execute a call. Returns (observation, visual, done)."""
         name, args = call.function.name, call.function.arguments
         if name == "use_paper_figure":
@@ -142,9 +177,19 @@ class _Toolbox:
                 )
             if fid in self.used:
                 return f"error: {fid} is already on slide {self.used[fid]}", None, False
-            self.used[fid] = slide
             fig = self.figures[fid]
             caption = _FIGURE_LABEL.sub("", fig.caption).strip() or fig.caption
+            shared = content_words(caption, self.title_words) & content_words(
+                slide_text, self.title_words
+            )
+            if not shared:
+                return (
+                    f"error: {fid} ({caption[:80]}) shows a different topic than this slide; "
+                    "choose a figure about this slide's content, make_diagram, or no_visual",
+                    None,
+                    False,
+                )
+            self.used[fid] = slide
             return (
                 f"ok: {fid} placed",
                 Visual(kind="figure", source=fid, path=fig.path, caption=caption),
@@ -172,7 +217,11 @@ def _format_figures(figures: list[Figure]) -> str:
 
 
 def choose_visuals(
-    slides: list[SlideText], figures: list[Figure], out_dir: Path, llm: LLM
+    slides: list[SlideText],
+    figures: list[Figure],
+    out_dir: Path,
+    llm: LLM,
+    paper_title: str = "",
 ) -> Visuals:
     """Run the visuals agent over all slides, in order.
 
@@ -182,6 +231,7 @@ def choose_visuals(
         out_dir: The paper's run directory (figure paths are relative to it; diagrams go
             to ``out_dir/diagrams``).
         llm: Model settings (the writer model; tool calling was verified by the probe).
+        paper_title: Its words are ignored when matching figure captions to slides.
 
     Returns:
         One optional visual per slide and the complete tool-call log.
@@ -189,7 +239,8 @@ def choose_visuals(
     tools = [USE_FIGURE, NO_VISUAL]
     if graphviz_available():
         tools.insert(1, MAKE_DIAGRAM)
-    box = _Toolbox({f.id: f for f in figures}, out_dir)
+    box = _Toolbox({f.id: f for f in figures}, out_dir, frozenset(content_words(paper_title)))
+    carousel = "\n".join(f"{i}. {s.title}" for i, s in enumerate(slides, start=1))
     template = load_prompt("visuals")
     result = Visuals(slides=[])
 
@@ -199,6 +250,7 @@ def choose_visuals(
             total=len(slides),
             title=slide.title,
             bullets="\n".join(f"- {b.text}" for b in slide.bullets),
+            carousel=carousel,
             figures=_format_figures([f for f in figures if f.id not in box.used]),
         )
         messages = [Message(role="user", content=prompt)]
@@ -214,7 +266,8 @@ def choose_visuals(
                 )
                 break
             call = response.tool_calls[0]
-            observation, visual, done = box.run(position, call)
+            text = " ".join([slide.title, *(b.text for b in slide.bullets)])
+            observation, visual, done = box.run(position, call, text)
             result.steps.append(
                 AgentStep(
                     slide=position,

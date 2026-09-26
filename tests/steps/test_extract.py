@@ -29,6 +29,17 @@ def test_quote_score_exact_fuzzy_and_rejected():
     assert quote_score("P100 GPUs", TEXT) == 0  # too short to be evidence
 
 
+def test_ligatures_and_ellipsis_shortened_quotes_are_accepted():
+    text = "Most approaches depend on face recognition and frame-wise eye state classiﬁcation."
+    assert quote_score("frame-wise eye state classification", text) == 100  # "ﬁ" ligature
+    shortened = "Most approaches depend on ... frame-wise eye state classiﬁcation"
+    assert quote_score(shortened, text) == 100
+    assert quote_score("Most approaches depend on [...] eye state classification", text) == 100
+    # every piece has to match: a made-up second half fails
+    assert quote_score("Most approaches depend on … perfect accuracy everywhere", text) < 90
+    assert quote_score("Most … state", text) == 0  # no piece long enough to be evidence
+
+
 def test_numeric_tokens():
     assert numeric_tokens("reaches 84.6% (up from 82.1%), n=6 on p100.") == [
         "84.6%",

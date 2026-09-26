@@ -36,12 +36,12 @@ def slide(*bullets):
 
 
 def test_numbers_in_normalises_separators():
-    assert numbers_in("300,000 steps, 3.5 days, 28.4 BLEU, P100") == {
-        "300000",
-        "3.5",
-        "28.4",
-        "100",
-    }
+    assert numbers_in("300,000 steps, 3.5 days, 28.4 BLEU, P100") == {"300000", "3.5", "28.4"}
+
+
+def test_digits_inside_names_are_not_numbers():
+    # a real run dropped "F1 score of 0.744" because "F1" counted as the number 1
+    assert numbers_in("F1 score of 0.744 for ResNet50 on 64x64 patches") == {"0.744", "64"}
 
 
 def test_deterministic_check_catches_number_drift_but_not_rewording():

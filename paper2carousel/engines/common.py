@@ -530,7 +530,7 @@ def stage_visuals(s: Session, slides: list[SlideText], paper: Paper) -> Visuals:
             visuals = s.checkpoint(
                 "06_visuals.json",
                 Visuals,
-                lambda: choose_visuals(slides, paper.figures, s.paper_dir, s.llm),
+                lambda: choose_visuals(slides, paper.figures, s.paper_dir, s.llm, paper.title),
             )
         else:
             visuals = Visuals(slides=[None] * len(slides))

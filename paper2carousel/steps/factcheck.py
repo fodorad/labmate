@@ -34,11 +34,15 @@ from paper2carousel.steps.extract import normalize
 from paper2carousel.steps.llm import LLM, load_prompt
 from paper2carousel.steps.write import check_slide, format_cards
 
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+_NUMBER = re.compile(r"(?<![a-z\d.,])\d+(?:[.,]\d+)*")
+"""A number not glued to a preceding letter: "0.744" counts, the 1 in "F1" does not."""
 
 
 def numbers_in(text: str) -> set[str]:
     """Numbers appearing in ``text`` (``28.4``, ``3.5``, ``8``), thousands separators removed.
+
+    Digits that are part of a name (``F1``, ``ResNet50``, ``GPT-4o``'s letters aside) are
+    not numbers here; names are the judge's job, amounts are this check's.
 
     Args:
         text: Any text.

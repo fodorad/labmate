@@ -12,7 +12,10 @@ FIGS = [
     )
 ]
 SLIDES = [
-    SlideText(title=f"Slide {i}", bullets=[Bullet(text=f"Point {i}.", claim_ids=["c01"])])
+    SlideText(
+        title=f"Slide {i}",
+        bullets=[Bullet(text=f"Point {i} about the architecture.", claim_ids=["c01"])],
+    )
     for i in range(1, 3)
 ]
 
@@ -130,3 +133,35 @@ def test_figure_label_is_stripped_but_not_the_rest_of_the_caption():
     caption = "Figure 1. BlinkLinMulT: a multimodal transformer."
     assert _FIGURE_LABEL.sub("", caption) == "BlinkLinMulT: a multimodal transformer."
     assert _FIGURE_LABEL.sub("", "Fig. 3: Results.") == "Results."
+
+
+def test_figure_on_a_different_topic_is_refused_as_an_observation(fake, tmp_path):
+    from paper2carousel.steps.visuals import content_words
+
+    plot = Figure(
+        id="fig3",
+        number=3,
+        caption="Figure 3. Head pose angle dependence of BlinkLinMulT.",
+        page=14,
+        path="figures/fig3.png",
+    )
+    slide = SlideText(
+        title="BlinkLinMulT linear attention",
+        bullets=[Bullet(text="A multi-modal transformer with linear attention.", claim_ids=["c1"])],
+    )
+    scripted(fake, ("use_paper_figure", {"figure_id": "fig3"}), ("no_visual", {"reason": "r"}))
+    result = choose_visuals(
+        [slide],
+        [plot],
+        tmp_path,
+        LLM(fake.client(), "qwen3.6:35b-mlx"),
+        paper_title="BlinkLinMulT: Transformer-Based Eye Blink Detection",
+    )
+    assert result.slides == [None]
+    assert "shows a different topic" in result.steps[0].observation
+    assert "1. BlinkLinMulT linear attention" in fake.requests[0][1]["messages"][0]["content"]
+    # title words don't count as shared topics; plurals and hyphens are normalised
+    assert content_words("Multi-modal angles of Transformers", frozenset({"transformer"})) == {
+        "multimodal",
+        "angle",
+    }

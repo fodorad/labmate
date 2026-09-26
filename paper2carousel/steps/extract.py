@@ -9,6 +9,7 @@ any LLM judge.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from rapidfuzz import fuzz
 
@@ -31,7 +32,7 @@ QUOTE_MATCH = 90.0
 
 
 def normalize(text: str) -> str:
-    """Normalise PDF text for matching: join hyphenated line breaks, collapse whitespace.
+    """Normalise PDF text for matching: unfold ligatures, join broken words, squash spaces.
 
     Args:
         text: Raw text.
@@ -39,11 +40,13 @@ def normalize(text: str) -> str:
     Returns:
         Lower-cased, whitespace-normalised text.
     """
+    text = unicodedata.normalize("NFKC", text)  # ligatures: "ﬁ" -> "fi"
     text = re.sub(r"-\s*\n\s*", "", text)
     return " ".join(text.split()).lower()
 
 
 _NUMERIC = re.compile(r"\S*\d\S*")
+_ELLIPSIS = re.compile(r"\[?(?:\.\s*){3}\]?|…")
 
 
 def numeric_tokens(text: str) -> list[str]:
@@ -64,6 +67,8 @@ def quote_score(quote: str, text: str) -> float:
     Fuzzy matching tolerates PDF extraction noise in the wording, but facts must not
     drift: every token containing a digit has to appear exactly in the text, otherwise
     the score is 0. Without this, "eight V100 GPUs" matches "eight P100 GPUs" at ~97.
+    Quotes shortened with an ellipsis are checked piece by piece (each piece of at least
+    three words must match; the worst piece decides).
 
     Args:
         quote: Claimed verbatim quote.
@@ -72,9 +77,14 @@ def quote_score(quote: str, text: str) -> float:
     Returns:
         Fuzzy partial-match score; 100 means an exact (normalised) substring.
     """
-    q, t = normalize(quote), normalize(text)
-    if len(q.split()) < 3:
+    t = normalize(text)
+    fragments = [f for f in _ELLIPSIS.split(normalize(quote)) if len(f.split()) >= 3]
+    if not fragments:
         return 0.0
+    return min(_fragment_score(f.strip(), t) for f in fragments)
+
+
+def _fragment_score(q: str, t: str) -> float:
     if q in t:
         return 100.0
     if any(tok not in t for tok in numeric_tokens(q)):

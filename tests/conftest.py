@@ -355,7 +355,10 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
         ids = ALL_IDS.findall(conversation)
         content = {
             "title": "A written slide",
-            "bullets": [{"text": "A grounded bullet.", "claim_ids": [cid]} for cid in ids],
+            "bullets": [
+                {"text": "A grounded bullet on the architecture drawing.", "claim_ids": [cid]}
+                for cid in ids
+            ],
         }
     else:
         return default_chat(body)
