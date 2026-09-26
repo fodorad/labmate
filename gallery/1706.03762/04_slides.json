@@ -1,0 +1,130 @@
+{
+  "hook": "Attention Is All You Need: No Recurrence Required",
+  "slides": [
+    {
+      "title": "The Parallelization Bottleneck",
+      "bullets": [
+        {
+          "text": "Recurrent models preclude parallelization due to their sequential nature.",
+          "claim_ids": [
+            "c03"
+          ]
+        },
+        {
+          "text": "Transformers allow significantly more parallelization than recurrent models.",
+          "claim_ids": [
+            "c02"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Introducing the Transformer Architecture",
+      "bullets": [
+        {
+          "text": "The authors propose the Transformer, a model architecture that relies entirely on attention mechanisms.",
+          "claim_ids": [
+            "c01"
+          ]
+        },
+        {
+          "text": "It eschews recurrence and is the first transduction model relying entirely on self-attention.",
+          "claim_ids": [
+            "c07"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How Self-Attention Works",
+      "bullets": [
+        {
+          "text": "Self-attention relates different positions within a single sequence.",
+          "claim_ids": [
+            "c06"
+          ]
+        },
+        {
+          "text": "Scaled Dot-Product Attention uses dot products, scaling, and softmax to compute weights.",
+          "claim_ids": [
+            "c11"
+          ]
+        },
+        {
+          "text": "Multi-head attention allows the model to attend to different representation subspaces simultaneously.",
+          "claim_ids": [
+            "c12"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Unprecedented Translation Speed",
+      "bullets": [
+        {
+          "text": "Reaches state-of-the-art translation quality after just twelve hours on eight P100 GPUs.",
+          "claim_ids": [
+            "c04"
+          ]
+        },
+        {
+          "text": "Achieves a BLEU score of 27.3 on English-to-German with significantly lower training cost.",
+          "claim_ids": [
+            "c21"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "State-of-the-Art Performance",
+      "bullets": [
+        {
+          "text": "The big Transformer achieves a BLEU score of 28.4 on WMT 2014 English-to-German.",
+          "claim_ids": [
+            "c25"
+          ]
+        },
+        {
+          "text": "It scores 41.0 BLEU on English-to-French at less than one-quarter the training cost.",
+          "claim_ids": [
+            "c26"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Limitations and Future Directions",
+      "bullets": [
+        {
+          "text": "Reduced effective resolution occurs due to averaging attention-weighted positions.",
+          "claim_ids": [
+            "c08"
+          ]
+        },
+        {
+          "text": "Future work extends the Transformer to other modalities and investigates local attention mechanisms.",
+          "claim_ids": [
+            "c34"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Why This Matters for ML Engineers",
+      "bullets": [
+        {
+          "text": "Self-attention enables greater parallelization than recurrent layers.",
+          "claim_ids": [
+            "c17"
+          ]
+        },
+        {
+          "text": "Attention heads often learn syntactic and semantic structures.",
+          "claim_ids": [
+            "c20"
+          ]
+        }
+      ]
+    }
+  ]
+}

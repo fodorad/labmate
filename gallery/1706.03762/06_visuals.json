@@ -1,0 +1,84 @@
+{
+  "slides": [
+    null,
+    {
+      "kind": "figure",
+      "source": "fig1",
+      "path": "figures/fig1.png",
+      "caption": "The Transformer - model architecture."
+    },
+    {
+      "kind": "figure",
+      "source": "fig2",
+      "path": "figures/fig2.png",
+      "caption": "(left) Scaled Dot-Product Attention. (right) Multi-Head Attention consists of several attention layers running in parallel."
+    },
+    null,
+    null,
+    null,
+    {
+      "kind": "figure",
+      "source": "fig5",
+      "path": "figures/fig5.png",
+      "caption": "Many of the attention heads exhibit behaviour that seems related to the structure of the sentence."
+    }
+  ],
+  "steps": [
+    {
+      "slide": 1,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "No figures are available from the paper, and the slide's concept of parallelization bottleneck is abstract enough to be understood through text alone without a diagram."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 2,
+      "tool": "use_paper_figure",
+      "arguments": {
+        "figure_id": "fig1"
+      },
+      "observation": "ok: fig1 placed"
+    },
+    {
+      "slide": 3,
+      "tool": "use_paper_figure",
+      "arguments": {
+        "figure_id": "fig2"
+      },
+      "observation": "ok: fig2 placed"
+    },
+    {
+      "slide": 4,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "No figures are available from the paper to illustrate the translation results. The slide focuses on performance metrics (BLEU scores) and training cost, which are better explained with text and tables rather than a diagram or figure."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 5,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "The slide presents specific numerical results (BLEU scores) without an accompanying figure in the paper that directly visualizes these exact metrics. A diagram would not effectively represent comparative performance statistics."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 6,
+      "tool": "no_visual",
+      "arguments": {
+        "reason": "The slide discusses limitations (reduced resolution) and future directions (other modalities, local attention), which are conceptual points not illustrated by any figures in the paper. No visual is needed as this is a concluding/forward-looking slide."
+      },
+      "observation": "ok: no visual"
+    },
+    {
+      "slide": 7,
+      "tool": "use_paper_figure",
+      "arguments": {
+        "figure_id": "fig5"
+      },
+      "observation": "ok: fig5 placed"
+    }
+  ]
+}

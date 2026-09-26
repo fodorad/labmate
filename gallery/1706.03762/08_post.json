@@ -1,0 +1,69 @@
+{
+  "hook": "The Transformer relies entirely on self-attention, eschewing recurrence.",
+  "takeaways": [
+    {
+      "text": "It allows significantly more parallelization than recurrent models by avoiding sequential processing.",
+      "claim_ids": [
+        "c02",
+        "c03"
+      ]
+    },
+    {
+      "text": "Multi-head attention enables the model to attend to different representation subspaces simultaneously.",
+      "claim_ids": [
+        "c12"
+      ]
+    },
+    {
+      "text": "It achieves state-of-the-art BLEU scores at less than one-quarter the training cost of previous models.",
+      "claim_ids": [
+        "c26",
+        "c21"
+      ]
+    }
+  ],
+  "question": "How has the shift from recurrence to attention impacted your workflow?",
+  "report": {
+    "rounds": [
+      [
+        {
+          "slide": 1,
+          "bullet": 1,
+          "text": "It allows significantly more parallelization than recurrent models by avoiding sequential processing.",
+          "claim_ids": [
+            "c02",
+            "c03"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence states that the Transformer allows for significantly more parallelization compared to sequential models."
+        },
+        {
+          "slide": 1,
+          "bullet": 2,
+          "text": "Multi-head attention enables the model to attend to different representation subspaces simultaneously.",
+          "claim_ids": [
+            "c12"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence explicitly states that multi-head attention allows attending to different representation subspaces."
+        },
+        {
+          "slide": 1,
+          "bullet": 3,
+          "text": "It achieves state-of-the-art BLEU scores at less than one-quarter the training cost of previous models.",
+          "claim_ids": [
+            "c26",
+            "c21"
+          ],
+          "problems": [],
+          "verdict": "supported",
+          "reason": "The evidence confirms the model achieves a BLEU score of 41.0 at less than 1/4 the training cost of previous models."
+        }
+      ]
+    ],
+    "dropped": [],
+    "dropped_slides": []
+  }
+}

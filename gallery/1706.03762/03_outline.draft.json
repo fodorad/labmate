@@ -1,0 +1,62 @@
+{
+  "hook": "Attention Is All You Need: No Recurrence Required",
+  "slides": [
+    {
+      "title": "The Parallelization Bottleneck",
+      "purpose": "problem",
+      "claim_ids": [
+        "c03",
+        "c02"
+      ]
+    },
+    {
+      "title": "Introducing the Transformer Architecture",
+      "purpose": "idea",
+      "claim_ids": [
+        "c01",
+        "c07"
+      ]
+    },
+    {
+      "title": "How Self-Attention Works",
+      "purpose": "how_it_works",
+      "claim_ids": [
+        "c06",
+        "c11",
+        "c12"
+      ]
+    },
+    {
+      "title": "Unprecedented Translation Speed",
+      "purpose": "result",
+      "claim_ids": [
+        "c04",
+        "c21"
+      ]
+    },
+    {
+      "title": "State-of-the-Art Performance",
+      "purpose": "comparison",
+      "claim_ids": [
+        "c25",
+        "c26"
+      ]
+    },
+    {
+      "title": "Limitations and Future Directions",
+      "purpose": "limitation",
+      "claim_ids": [
+        "c08",
+        "c34"
+      ]
+    },
+    {
+      "title": "Why This Matters for ML Engineers",
+      "purpose": "takeaway",
+      "claim_ids": [
+        "c17",
+        "c20"
+      ]
+    }
+  ]
+}
