@@ -1,0 +1,30 @@
+# paper2carousel configuration. Paths are relative to the repo root.
+
+[ollama]
+host = "http://localhost:11434"
+timeout_s = 900
+
+[models]
+# Roles, see plan §2. Tags must match `ollama list`; digests are pinned in models.lock.
+text = "qwen3.6:35b-mlx"
+critic = "gemma4:26b-mlx"
+vision = "gemma4:e4b"  # the MLX builds ignore images (probe, 2026-09-26); small non-MLX VLM
+image = "x/z-image-turbo:latest"  # provisional until `make probe` decides (Q5)
+image_candidates = ["x/z-image-turbo:latest", "x/flux2-klein:latest"]
+
+[generation]
+temperature = 0.0
+seed = 42
+num_ctx = 16384  # Ollama's default window would silently truncate the paper
+
+[replay]
+# live   : always call Ollama, store nothing
+# record : always call Ollama, (over)write cassettes
+# auto   : use a cassette if present, else call Ollama and record it (dev default)
+# replay : cassettes only; a miss is an error (CI / published runs)
+mode = "auto"
+dir = "cassettes"
+lock_file = "models.lock"
+
+[tracing]
+runs_dir = "runs"

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "python",
+  "packages": {
+    ".": {
+      "package-name": "paper2carousel",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        "pyproject.toml",
+        "paper2carousel/__init__.py"
+      ]
+    }
+  }
+}

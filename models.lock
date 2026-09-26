@@ -1,0 +1,8 @@
+{
+  "gemma4:26b-mlx": "21c59a2eae301d2b4ee734f0930728ddc284b4cbf9856b8ad7c3f1c11e056832",
+  "gemma4:e4b": "c6eb396dbd5992bbe3f5cdb947e8bbc0ee413d7c17e2beaae69f5d569cf982eb",
+  "phi4-reasoning:plus": "f0ad3edce8e497d8c209d2ccb3f3ea6adf98944a5b9fd944a6c54e1786c361bd",
+  "qwen3.6:35b-mlx": "1b50c6fdc2d4f75f94e6c19b49b20051bc6a7e73620d1ccdfc6687ec042ce754",
+  "x/flux2-klein:latest": "50a0c0ab15ac55078483105dc0aa5d0e3ba6a5103309f511adb85f3e3ab186e3",
+  "x/z-image-turbo:latest": "77b78ce4e88354eaca908f96069046975e1039be6718fbcf0626b36c70abf138"
+}
