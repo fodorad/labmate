@@ -284,7 +284,13 @@ def build_graph(
 
     def graph(state: State) -> State:
         stage_graph(
-            s, state["outline"], state["checked"], state["claims"], state["paper"], state["post"]
+            s,
+            state["outline"],
+            state["checked"],
+            state["claims"],
+            state["paper"],
+            state["post"],
+            state["route"].paper_type,
         )
         return {}
 

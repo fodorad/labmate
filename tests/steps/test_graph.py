@@ -2,6 +2,7 @@ import pytest
 
 from paper2carousel.schemas import ClaimCard, MethodGraph, Paper
 from paper2carousel.steps.graph import (
+    KICKERS,
     best_rankdir,
     check_graph,
     graph_dot,
@@ -87,6 +88,10 @@ def test_render_graph_and_post_image(tmp_path):
 
     image = pymupdf.Pixmap(str(out))
     assert (image.width, image.height) == (1080, 1350)
+    survey = render_post_image(
+        graph(), png, paper, "A hook", tmp_path / "survey.png", kicker=KICKERS["survey"]
+    )
+    assert survey.read_bytes() != out.read_bytes()
 
 
 def test_method_cards_come_from_the_task_and_method_blocks():

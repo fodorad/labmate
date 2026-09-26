@@ -38,6 +38,14 @@ KIND_STYLE = {
 }
 """Fill, border and shape per node kind (the project-page card colours)."""
 
+KICKERS = {
+    "method": "Proposed method",
+    "benchmark": "How the benchmark works",
+    "survey": "How the survey maps the field",
+    "position": "The argument",
+}
+"""Small heading above the hook, per paper type (a survey has no "proposed method")."""
+
 KIND_NAMES = {
     "input": "Input",
     "data": "Data",
@@ -215,6 +223,7 @@ def render_post_image(
     out: Path,
     theme: Theme | None = None,
     ppi: int = 144,
+    kicker: str = KICKERS["method"],
 ) -> Path:
     """Compose the post image: hook, paper, the method graph and a legend (4:5, PNG).
 
@@ -226,6 +235,7 @@ def render_post_image(
         out: Output PNG path (1080 x 1350 at the default ``ppi``).
         theme: Colours.
         ppi: Pixels per inch (144 gives 1080 px width for the 540 pt page).
+        kicker: Small heading above the hook (see :data:`KICKERS`).
 
     Returns:
         ``out``.
@@ -233,6 +243,7 @@ def render_post_image(
     kinds = [k for k in KIND_STYLE if any(n.kind == k for n in graph.nodes)]
     data = {
         "hook": hook,
+        "kicker": kicker,
         "title": paper.title,
         "authors": author_line(paper.authors),
         "graph": graph_png.name,

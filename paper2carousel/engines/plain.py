@@ -163,7 +163,7 @@ def run(
         written = stage_write(s, outline, claims)
         checked = stage_factcheck(s, written, outline, claims, paper)
         post = stage_post(s, checked, claims, paper)
-        stage_graph(s, outline, checked, claims, paper, post)
+        stage_graph(s, outline, checked, claims, paper, post, route.paper_type)
         labels = slide_labels(outline, checked)
         if s.config.outputs.carousel:
             visuals = stage_visuals(s, checked.slides.slides, paper, claims)

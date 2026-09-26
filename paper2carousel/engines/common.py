@@ -44,7 +44,13 @@ from paper2carousel.steps.cover import cover_subject, make_cover
 from paper2carousel.steps.critic import review_deck
 from paper2carousel.steps.extract import extract_claims
 from paper2carousel.steps.factcheck import fact_check
-from paper2carousel.steps.graph import method_cards, plan_graph, render_graph, render_post_image
+from paper2carousel.steps.graph import (
+    KICKERS,
+    method_cards,
+    plan_graph,
+    render_graph,
+    render_post_image,
+)
 from paper2carousel.steps.ingest import (
     USER_AGENT,
     ingest_arxiv,
@@ -539,6 +545,7 @@ def stage_graph(
     claims: Claims,
     paper: Paper,
     post: Post | None,
+    paper_type: str = "method",
 ) -> MethodGraph | None:
     """Draw the proposed method as a pipeline graph and compose the post image.
 
@@ -549,6 +556,7 @@ def stage_graph(
         claims: Claims.
         paper: The paper.
         post: The post (its hook heads the image); the carousel hook is used without one.
+        paper_type: The route's paper type (picks the image's kicker).
 
     Returns:
         The graph, or ``None`` if posts are disabled.
@@ -572,7 +580,14 @@ def stage_graph(
         )
         render_graph(graph, s.path("graph.png"))
         hook = post.hook if post else checked.slides.hook
-        render_post_image(graph, s.path("graph.png"), paper, hook, s.path("post.png"))
+        render_post_image(
+            graph,
+            s.path("graph.png"),
+            paper,
+            hook,
+            s.path("post.png"),
+            kicker=KICKERS.get(paper_type, KICKERS["method"]),
+        )
         span.update(nodes=len(graph.nodes), edges=len(graph.edges))
     log.info("post image: %d nodes -> post.png", len(graph.nodes))
     return graph

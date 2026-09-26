@@ -1,15 +1,17 @@
 # paper2carousel
 
-> Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
+> Turn a research paper into a fact-checked one-page summary and LinkedIn post, fully local,
+> fully reproducible.
 
 **Status: pre-alpha, feature-complete for v0.1.** The full pipeline runs: routing,
-parallel claim extraction with a quote-verification guard, an orchestrated outline, a
-human approval gate, grounded slide writing, a fact-check loop, a visuals agent (paper
-figures or Graphviz diagrams), a generated cover image and a vision-model slide critic.
+parallel claim extraction with a quote-verification guard, an orchestrated four-block
+outline, a human approval gate, grounded writing, a fact-check loop, the one-page summary
+and a LinkedIn post whose image is an evidence-checked graph of the proposed method (plus
+an optional carousel with a visuals agent, a generated cover and a vision-model critic).
 All traced and replayable, with an evaluation suite (run metrics and judge agreement
-against human labels), an HTML trace viewer, a static gallery whose entries anyone can
-replay from cassettes, and two interchangeable orchestration engines (plain Python and
-LangGraph). Next: the first published papers and v0.1.0.
+against human labels), an HTML trace viewer, a static gallery of five published papers
+that anyone can replay from cassettes, and two interchangeable orchestration engines
+(plain Python and LangGraph).
 
 ## What it does
 
@@ -85,7 +87,7 @@ make check       # lint + type-check + tests + docs (no Ollama needed)
 make lock        # pin installed model digests into models.lock
 make probe       # verify structured output, tools, vision, determinism; benchmark image models
 make run ARXIV=1706.03762      # route, extract, plan -> pauses with runs/1706.03762/outline.yaml
-make approve ARXIV=1706.03762  # after reviewing/editing the outline: write + render carousel.pdf
+make approve ARXIV=1706.03762  # after reviewing/editing the outline: write, fact-check, summary.pdf + post
 make replay ARXIV=1706.03762   # the whole run again from cassettes only, no Ollama needed
 make baseline ARXIV=1706.03762 # the M1 one-shot version, for comparison
 ```
@@ -129,6 +131,29 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
   Judge calls are recorded to cassettes like everything else, so `--mode replay`
   reproduces the table.
 
+### Results on the gallery
+
+| Paper | Claims (verified / rejected) | Unsupported in first draft | Dropped after loop | Final bullets | Block fit | Post graph | LLM calls | Compute |
+|---|---|---|---|---|---|---|---|---|
+| Attention Is All You Need | 33 / 1 | 2/12 (17%) | 1 | 11 | 91% | 5 nodes, 4 edges | 42 | 825 s |
+| BlinkLinMulT: Transformer-Based Eye Blink Detection | 43 / 0 | 3/12 (25%) | 0 | 12 | 100% | 6 nodes, 5 edges | 46 | 999 s |
+| Survey on Evaluation of LLM-based Agents | 40 / 1 | 2/15 (13%) | 1 | 14 | 71% | 8 nodes, 8 edges | 43 | 962 s |
+| RRSI: Regularized Recursive Self-Improvement of Agent Harnesses | 31 / 2 | 1/12 (8%) | 0 | 12 | 100% | 5 nodes, 4 edges | 41 | 896 s |
+| GameHorizon Suite: Multi-Horizon Data and Evaluation in Gameplay | 51 / 1 | 4/13 (31%) | 0 | 13 | 92% | 6 nodes, 5 edges | 47 | 1169 s |
+
+- **The fact-check loop earns its place:** 12 of 64 first-draft bullets (19%) were
+  unsupported by their cited evidence (a wrong number, a model name the quote doesn't
+  mention, an overreach). The loop fixed 10 by rewriting and dropped the other 2, so every
+  published bullet passed the exact-number check and the judge.
+- **The quote guard rarely fires on this model** (5 of 203 claims), but when it does it
+  catches quotes that were paraphrased or stitched together.
+- **Block fit is lowest for the survey** (71%): a survey has few result claims (2 of 40),
+  so the planner fills Main results with the gaps the survey found (limitation claims)
+  and Task with its own contribution. The four-block structure fits method and benchmark
+  papers best.
+- **About 15 minutes of local compute per paper** on a Mac mini M4 (32 GB), ~45 model
+  calls; replaying from cassettes takes seconds.
+
 ## Same pipeline, two ways
 
 The steps know nothing about orchestration. Two engines drive them:
@@ -169,10 +194,10 @@ make verify                    # replay every gallery entry from cassettes only,
 make site                      # static gallery -> site/ (GitHub Pages builds it on push to main)
 ```
 
-A gallery entry contains the step artifacts, the carousel, the post, the trace and the
-cassettes of exactly the model calls in that trace (not the paper, which is fetched from
-arXiv again). CI runs `make verify`, so a published carousel that no longer reproduces
-fails the build.
+A gallery entry contains the step artifacts, the summary, the post and its image, the
+trace and the cassettes of exactly the model calls in that trace (not the paper, which is
+fetched again from arXiv or its URL). CI runs `make verify`, so a published entry that no
+longer reproduces fails the build.
 
 ## Replay modes
 

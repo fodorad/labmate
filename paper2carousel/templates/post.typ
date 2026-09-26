@@ -12,7 +12,7 @@
 #block(height: 100%, {
   rect(width: 36pt, height: 4pt, fill: accent, stroke: none)
   v(10pt)
-  text(size: 10pt, fill: accent, weight: "bold", tracking: 1.2pt, upper("Proposed method"))
+  text(size: 10pt, fill: accent, weight: "bold", tracking: 1.2pt, upper(data.at("kicker", default: "Proposed method")))
   v(8pt)
   text(size: 22pt, weight: "bold", data.hook)
   v(8pt)
