@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from paper2carousel.schemas import Claims, FactChecked, Paper
+from paper2carousel.schemas import Claims, FactChecked
 from paper2carousel.tracing import read_trace
 
 Span = dict[str, Any]
@@ -103,11 +103,27 @@ def latest_completed(trace: Path) -> list[Span]:
     return (live or by_chain or [[]])[-1]
 
 
+def paper_title(run_dir: Path) -> str:
+    """Paper title from ``00_paper.json``, or from ``meta.json`` for published gallery runs.
+
+    Args:
+        run_dir: Run directory or gallery entry.
+
+    Returns:
+        The title, or the directory name if neither file exists.
+    """
+    for name in ("00_paper.json", "meta.json"):
+        path = run_dir / name
+        if path.exists():
+            return str(json.loads(path.read_text())["title"])
+    return run_dir.name
+
+
 def run_metrics(run_dir: Path) -> RunMetrics:
     """Compute metrics for a finished agentic run.
 
     Args:
-        run_dir: The run directory (``runs/<paper_id>``).
+        run_dir: The run directory (``runs/<paper_id>``) or a published gallery entry.
 
     Returns:
         The metrics.
@@ -115,7 +131,6 @@ def run_metrics(run_dir: Path) -> RunMetrics:
     Raises:
         FileNotFoundError: If the run hasn't reached the fact-check step.
     """
-    paper = Paper.model_validate_json((run_dir / "00_paper.json").read_text())
     claims = Claims.model_validate_json((run_dir / "02_claims.json").read_text())
     checked = FactChecked.model_validate_json((run_dir / "05_factcheck.json").read_text())
     report, final = checked.report, checked.slides
@@ -136,7 +151,7 @@ def run_metrics(run_dir: Path) -> RunMetrics:
     roots = [s for s in spans if s["name"] == "run" and s["parent_id"] is None]
     return RunMetrics(
         paper_id=run_dir.name,
-        title=paper.title,
+        title=paper_title(run_dir),
         claims_verified=len(claims.cards),
         claims_rejected=len(claims.rejected),
         bullets_first=report.total_first,

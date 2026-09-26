@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>paper2carousel gallery</title>
+<meta name="description" content="arXiv papers turned into fact-checked LinkedIn carousels by a local agentic pipeline. Every bullet traced to a quote; every model call replayable.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+{% include "_base.css.j2" %}
+.hero { margin: 16px 0 28px; }
+.hero p { font-size: 17px; max-width: 720px; }
+.links { display: flex; gap: 16px; flex-wrap: wrap; font-weight: 600; }
+.pipeline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; font-size: 13px; }
+.pipeline .step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+.pipeline .step b { display: block; font-size: 13px; }
+.pipeline .step span { color: var(--muted); font-size: 12px; }
+.pipeline .arrow { color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.paper { display: flex; flex-direction: column; text-decoration: none; color: inherit; padding: 0; overflow: hidden; }
+.paper:hover { border-color: var(--accent); }
+.paper img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; border-bottom: 1px solid var(--border); background: var(--bg); }
+.paper .body { padding: 12px 14px 14px; }
+.paper h3 { font-size: 15px; margin: 0 0 6px; line-height: 1.35; }
+.paper .stat { font-size: 13px; color: var(--muted); }
+.empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <h1>paper2carousel</h1>
+    <p>An arXiv paper in, a fact-checked LinkedIn carousel out. Runs on a Mac mini with local models only (Ollama); every bullet cites a verbatim quote from the paper, and every model call is recorded, so each carousel below can be replayed and checked without any model installed.</p>
+    <div class="links"><a href="{{ repo_url }}">Code on GitHub</a><a href="#results">Results</a><a href="#verify">Verify it yourself</a></div>
+    <div class="pipeline" aria-label="Pipeline">
+      {% for name, pattern in [("ingest", "plain code"), ("route", "routing"), ("extract", "parallelisation"), ("outline", "orchestrator"), ("gate", "human-in-the-loop"), ("write", "prompt chaining"), ("fact-check", "evaluator–optimizer"), ("visuals", "tool-using agent"), ("render", "Typst"), ("critic", "vision model")] %}
+      {% if not loop.first %}<span class="arrow">→</span>{% endif %}<div class="step"><b>{{ name }}</b><span>{{ pattern }}</span></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <h2>Gallery</h2>
+  {% if papers %}
+  <div class="grid">
+    {% for p in papers %}
+    <a class="card paper" href="{{ p.meta.paper_id }}/">
+      <img src="{{ p.thumb }}" alt="Cover slide: {{ p.meta.title }}" loading="lazy">
+      <div class="body">
+        <h3>{{ p.meta.title }}</h3>
+        <div class="chips">{% if p.route %}<span class="chip">{{ p.route.paper_type }}</span>{% endif %}<span class="chip">{{ p.metrics.slides }} slides</span><span class="chip">{{ p.metrics.claims_verified }} verified claims</span></div>
+        <div class="stat">{{ p.metrics.unsupported_first }}/{{ p.metrics.bullets_first }} first-draft bullets failed the fact-check; {{ p.metrics.dropped }} dropped after rewriting.</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">No published papers yet.</p>
+  {% endif %}
+
+  <h2 id="results">Results</h2>
+  <p class="muted">Computed from the published artifacts and traces (<code>make eval</code>). “Unsupported” means a bullet failed the exact-number check or the judge model; the loop rewrites it (at most twice) or drops it, so nothing unsupported reaches a slide.</p>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Paper</th><th>Claims verified / rejected</th><th>Unsupported in first draft</th><th>Dropped</th><th>Final bullets</th><th>Contribution coverage</th><th>Visuals</th><th>Model calls</th><th>Compute</th></tr></thead>
+      <tbody>
+      {% for p in papers %}{% set m = p.metrics %}
+        <tr><td><a href="{{ p.meta.paper_id }}/">{{ p.meta.title }}</a></td><td>{{ m.claims_verified }} / {{ m.claims_rejected }}</td><td>{{ m.unsupported_first }}/{{ m.bullets_first }} ({{ "%.0f"|format(m.unsupported_first_pct) }}%)</td><td>{{ m.dropped }}</td><td>{{ m.bullets_final }}</td><td>{{ "%.0f"|format(100 * m.contribution_coverage) }}%</td><td>{{ m.visuals }}/{{ m.slides }}</td><td>{{ m.llm_calls }}</td><td>{{ "%.0f"|format(m.wall_s) }} s</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if agreement %}
+  <h2>Is the judge any good?</h2>
+  <p class="muted">Bullets labelled by hand (blind to the pipeline's verdict), then re-judged by each candidate model with the pipeline's own prompt. κ is Cohen's kappa against the human labels.</p>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Judge</th><th>n</th><th>Accuracy</th><th>κ</th><th>Pass/fail accuracy</th><th>Pass/fail κ</th></tr></thead>
+      <tbody>
+      {% for a in agreement %}
+        <tr><td><code>{{ a.model }}</code></td><td>{{ a.n }}</td><td>{{ "%.2f"|format(a.accuracy) }}</td><td>{{ "%.2f"|format(a.kappa) }}</td><td>{{ "%.2f"|format(a.accuracy_binary) }}</td><td>{{ "%.2f"|format(a.kappa_binary) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <h2 id="verify">Verify it yourself</h2>
+  <div class="card">
+    <p>Each entry ships the cassettes of every model call in its trace. Replaying them re-runs the whole pipeline without Ollama and compares every step's output byte for byte:</p>
+    <pre><code>git clone {{ repo_url }} && cd paper2carousel
+make install
+make verify</code></pre>
+  </div>
+
+  <footer>Made by <a href="https://adamfodor.com">Ádám Fodor</a> · <a href="{{ repo_url }}">paper2carousel</a> (AGPL-3.0)</footer>
+</main>
+</body>
+</html>

@@ -173,11 +173,9 @@ def run(
     live = None
     if mode is not ReplayMode.REPLAY:
         live = client or OllamaClient(config.ollama.host, config.ollama.timeout_s)
+    digests = read_lock(config.replay.lock_file)
     backend = TracedClient(
-        ReplayClient(
-            live, CassetteStore(config.replay.dir), mode, read_lock(config.replay.lock_file)
-        ),
-        tracer,
+        ReplayClient(live, CassetteStore(config.replay.dir), mode, digests), tracer, digests
     )
     gen = config.generation
     llm = LLM(backend, config.models.text, gen.seed, gen.temperature, gen.num_ctx)

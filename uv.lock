@@ -758,6 +758,7 @@ version = "0.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
+    { name = "jinja2" },
     { name = "pydantic" },
     { name = "pymupdf" },
     { name = "pyyaml" },
@@ -783,6 +784,7 @@ dev = [
 requires-dist = [
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2024.8" },
     { name = "httpx", specifier = ">=0.28" },
+    { name = "jinja2", specifier = ">=3.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0" },

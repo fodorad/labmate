@@ -1,0 +1,176 @@
+import json
+import shutil
+
+import pytest
+
+from paper2carousel.config import Config
+from paper2carousel.engines.plain import run
+from paper2carousel.gallery import (
+    Meta,
+    PublishError,
+    build_site,
+    paper_context,
+    publish,
+    verify,
+)
+from tests.conftest import agentic_chat, make_pdf
+
+
+@pytest.fixture
+def config(tmp_path):
+    cfg = Config()
+    cfg.replay.dir = tmp_path / "cassettes"
+    cfg.replay.lock_file = tmp_path / "models.lock"
+    cfg.tracing.runs_dir = tmp_path / "runs"
+    return cfg
+
+
+@pytest.fixture
+def finished(fake, arxiv, config):
+    fake.chat_handler = agentic_chat
+    run(config, ref="2401.00001", client=fake.client(), http=arxiv.client())
+    return run(config, ref="2401.00001", client=fake.client(), http=arxiv.client(), approve=True)
+
+
+@pytest.fixture
+def entry(finished, config, tmp_path):
+    return publish(finished.run_dir, tmp_path / "gallery", config)[0]
+
+
+def test_publish_copies_artifacts_trace_and_only_the_runs_cassettes(finished, config, tmp_path):
+    stray = config.replay.dir / "zz" / ("zz" + "0" * 62 + ".json")
+    stray.parent.mkdir(parents=True)
+    stray.write_text("{}")
+    entry, n = publish(finished.run_dir, tmp_path / "gallery", config)
+    assert entry == tmp_path / "gallery" / "2401.00001"
+    assert n == len(list((entry / "cassettes").glob("*/*.json"))) > 10
+    assert not (entry / "cassettes" / "zz").exists()
+    assert (entry / "05_factcheck.json").exists() and (entry / "carousel.pdf").exists()
+    assert not (entry / "paper.pdf").exists() and not (entry / "00_paper.json").exists()
+    meta = Meta.model_validate_json((entry / "meta.json").read_text())
+    assert meta.source == "arxiv" and meta.title == "A Test Paper" and meta.published
+    roots = [json.loads(line) for line in (entry / "trace.jsonl").read_text().splitlines()]
+    assert {s["status"] for s in roots if s["name"] == "run"} == {"ok", "awaiting_approval"}
+    # republishing replaces the entry
+    (entry / "old.txt").write_text("x")
+    publish(finished.run_dir, tmp_path / "gallery", config)
+    assert not (entry / "old.txt").exists()
+
+
+def test_publish_finds_cassettes_of_traces_without_digest_keys(finished, config, tmp_path):
+    from paper2carousel.llm.replay import CassetteStore
+
+    config.replay.lock_file.write_text(json.dumps({"gemma4:26b-mlx": "cd" * 32}))
+    store, legacy = CassetteStore(config.replay.dir), CassetteStore(tmp_path / "legacy")
+    for path in store.root.glob("*/*.json"):  # re-key every cassette with the digest
+        record = json.loads(path.read_text())
+        from paper2carousel.llm.types import ChatRequest
+
+        if "messages" in record["request"] and record["request"]["model"] == "gemma4:26b-mlx":
+            key = ChatRequest.model_validate(
+                {**record["request"], **record["request"].get("options", {})}
+            ).cache_key("cd" * 32)
+            legacy.put(key, record["request"], record["response"])
+        else:
+            legacy.put(path.stem, record["request"], record["response"])
+    config.replay.dir = legacy.root
+    entry, n = publish(finished.run_dir, tmp_path / "gallery", config)
+    assert n == len({s for s in (entry / "trace.jsonl").read_text().split('"key": "')[1:]})
+
+
+def test_publish_refuses_unfinished_or_unrecorded_runs(fake, arxiv, config, tmp_path):
+    fake.chat_handler = agentic_chat
+    paused = run(config, ref="2401.00001", client=fake.client(), http=arxiv.client())
+    with pytest.raises(PublishError, match="has not finished"):
+        publish(paused.run_dir, tmp_path / "g", config)
+    done = run(config, ref="2401.00001", client=fake.client(), http=arxiv.client(), approve=True)
+    shutil.rmtree(config.replay.dir)
+    with pytest.raises(PublishError, match="no cassette"):
+        publish(done.run_dir, tmp_path / "g", config)
+    (done.run_dir / "trace.jsonl").write_text("")
+    with pytest.raises(PublishError, match="no completed run"):
+        publish(done.run_dir, tmp_path / "g", config)
+
+
+def test_publish_local_pdf_hides_the_local_path(fake, config, tmp_path):
+    fake.chat_handler = agentic_chat
+    pdf = make_pdf(tmp_path / "My Paper.pdf")
+    kw = {"pdf": pdf, "title": "Mine", "client": fake.client()}
+    run(config, **kw)
+    done = run(config, approve=True, **kw)
+    entry, _ = publish(done.run_dir, tmp_path / "gallery", config, include_pdf=True)
+    assert (entry / "my-paper.pdf").exists()
+    assert Meta.model_validate_json((entry / "meta.json").read_text()).source == "pdf"
+    assert str(tmp_path) not in (entry / "trace.jsonl").read_text()
+
+
+def test_verify_reproduces_every_artifact_from_cassettes(entry, config, arxiv):
+    report = verify(entry, Config(), http=arxiv.client())
+    assert report.ok, report
+    assert "05_factcheck.json" in report.identical and len(report.identical) == 9
+
+
+def test_verify_reports_differences_and_missing_cassettes(entry, arxiv):
+    (entry / "02_claims.json").write_text("{}")
+    report = verify(entry, Config(), http=arxiv.client())
+    assert report.different == ["02_claims.json"] and not report.ok
+    shutil.rmtree(entry / "cassettes")
+    report = verify(entry, Config(), http=arxiv.client())
+    assert "CassetteMissError" in report.error and not report.ok
+
+
+def test_verify_local_pdf_entry(fake, config, tmp_path):
+    fake.chat_handler = agentic_chat
+    kw = {"pdf": make_pdf(tmp_path / "mine.pdf"), "title": "Mine", "client": fake.client()}
+    run(config, **kw)
+    done = run(config, approve=True, **kw)
+    entry, _ = publish(done.run_dir, tmp_path / "gallery", config, include_pdf=True)
+    assert verify(entry, Config()).ok
+
+
+def test_paper_context_describes_the_audit(entry):
+    check = json.loads((entry / "05_factcheck.json").read_text())
+    first = check["report"]["rounds"][0]
+    first[0] |= {"verdict": "unsupported", "reason": "made up"}
+    first[1] |= {"problems": ["number(s) 7 not in the cited evidence"]}
+    rewritten = dict(first[1], text="A better bullet", problems=[])
+    failing_again = dict(first[2], verdict="partial")
+    check["report"]["rounds"].append(
+        [first[0] | {"verdict": "supported"}, rewritten, failing_again, first[3]]
+    )
+    first[2] |= {"verdict": "partial"}
+    check["report"]["dropped_slides"] = [4]
+    first[3] |= {"verdict": "unsupported"}
+    (entry / "05_factcheck.json").write_text(json.dumps(check))
+    ctx = paper_context(entry)
+    outcomes = [a["outcome"] for a in ctx["audit"]]
+    assert outcomes == ["passed", "rewritten: A better bullet", "dropped", "slide dropped"]
+    assert ctx["route"].paper_type == "method" and ctx["post"] is not None
+    assert ctx["alt"][1] and ctx["slides"][0].bullets[0]["evidence"]
+
+
+def test_build_site(entry, tmp_path):
+    judges = tmp_path / "judges.json"
+    judges.write_text(json.dumps([{
+        "model": "gemma4:26b-mlx", "n": 10, "accuracy": 0.8, "kappa": 0.6,
+        "accuracy_binary": 0.9, "kappa_binary": 0.7, "confusion": {},
+    }]))  # fmt: skip
+    out = tmp_path / "site"
+    out.mkdir()
+    (out / "stale.html").write_text("x")
+    metrics = build_site(entry.parent, out, judges)
+    assert [m.paper_id for m in metrics] == ["2401.00001"]
+    assert not (out / "stale.html").exists() and (out / ".nojekyll").exists()
+    index = (out / "index.html").read_text()
+    assert 'href="2401.00001/"' in index and "gemma4:26b-mlx" in index and "0.70" in index
+    page = (out / "2401.00001" / "index.html").read_text()
+    assert "A Test Paper" in page and "Every bullet and its evidence" in page
+    assert "no_visual" in page and "pages/page-01.png" in page
+    assert (out / "2401.00001" / "pages" / "page-01.png").exists()
+    assert (out / "2401.00001" / "trace.html").exists()
+    assert (out / "2401.00001" / "carousel.pdf").exists()
+
+
+def test_build_site_without_entries(tmp_path):
+    assert build_site(tmp_path / "none", tmp_path / "site") == []
+    assert "No published papers yet" in (tmp_path / "site" / "index.html").read_text()

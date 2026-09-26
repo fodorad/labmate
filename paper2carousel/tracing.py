@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
@@ -107,14 +107,21 @@ def read_trace(path: Path) -> list[dict[str, Any]]:
 class TracedClient:
     """Backend wrapper that records a span for every model call.
 
+    Each span's ``key`` is the cassette key of the call (the same digests as the replay
+    client), so a trace row points at the exact cassette file that reproduces it.
+
     Args:
         backend: Wrapped backend (typically a :class:`~paper2carousel.llm.replay.ReplayClient`).
         tracer: Destination tracer.
+        digests: Pinned model digests (``models.lock``) used in cassette keys.
     """
 
-    def __init__(self, backend: Backend, tracer: Tracer) -> None:
+    def __init__(
+        self, backend: Backend, tracer: Tracer, digests: Mapping[str, str] | None = None
+    ) -> None:
         self.backend = backend
         self.tracer = tracer
+        self.digests = dict(digests or {})
 
     def chat(self, request: ChatRequest) -> ChatResponse:
         """Run and trace a chat request.
@@ -125,7 +132,8 @@ class TracedClient:
         Returns:
             The wrapped backend's response.
         """
-        with self.tracer.span("llm.chat", model=request.model, key=request.cache_key()) as s:
+        key = request.cache_key(self.digests.get(request.model))
+        with self.tracer.span("llm.chat", model=request.model, key=key) as s:
             response = self.backend.chat(request)
             s.update(
                 cached=response.cached,
@@ -145,7 +153,8 @@ class TracedClient:
         Returns:
             The wrapped backend's response.
         """
-        with self.tracer.span("llm.image", model=request.model, key=request.cache_key()) as s:
+        key = request.cache_key(self.digests.get(request.model))
+        with self.tracer.span("llm.image", model=request.model, key=key) as s:
             response = self.backend.generate_image(request)
             s.update(cached=response.cached, image_sha256=response.sha256())
             return response

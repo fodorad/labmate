@@ -191,3 +191,34 @@ def test_labels_then_judges(fake, arxiv, workdir, capsys):
     argv = ["judges", "--mode", "replay", "--models", "gemma4:26b-mlx"]
     assert main(argv, client=fake.client()) == 0
     assert len(json.loads((workdir / "evals" / "judges.json").read_text())) == 1
+
+
+# --- M6: trace viewer and gallery ----------------------------------------------------------
+
+
+def test_trace_publish_verify_site(fake, arxiv, workdir, capsys):
+    _finish(fake, arxiv)
+    assert (workdir / "runs" / "2401.00001" / "trace.html").exists()  # written by `run`
+    assert main(["trace", "arXiv:2401.00001", "--all"]) == 0
+    assert main(["trace", "runs/2401.00001"]) == 0
+    assert main(["trace", "no-such-paper"]) == 1
+    assert "no trace.jsonl" in capsys.readouterr().err
+
+    assert main(["publish", "2401.00001"]) == 0
+    assert "Published gallery/2401.00001" in capsys.readouterr().out
+    assert main(["publish", "missing"]) == 1
+
+    assert main(["verify"], http=arxiv.client()) == 0
+    assert "OK   2401.00001: 9 identical" in capsys.readouterr().out
+    (workdir / "gallery" / "2401.00001" / "04_slides.json").write_text("{}")
+    assert main(["verify", "2401.00001"], http=arxiv.client()) == 1
+    assert "different: 04_slides.json" in capsys.readouterr().out
+
+    assert main(["site"]) == 0
+    assert (workdir / "site" / "2401.00001" / "index.html").exists()
+    assert "1 paper(s)" in capsys.readouterr().out
+
+
+def test_verify_empty_gallery(workdir, capsys):
+    assert main(["verify"]) == 0
+    assert "Nothing to verify" in capsys.readouterr().out

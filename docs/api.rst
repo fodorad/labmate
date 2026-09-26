@@ -84,6 +84,12 @@ API Reference
 .. automodule:: paper2carousel.evals.agreement
    :members:
 
+.. automodule:: paper2carousel.traceview
+   :members:
+
+.. automodule:: paper2carousel.gallery
+   :members:
+
 .. automodule:: paper2carousel.engines.plain
    :members:
 

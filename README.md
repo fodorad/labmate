@@ -2,12 +2,13 @@
 
 > Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
 
-**Status: pre-alpha (milestone M5).** The full pipeline runs: routing, parallel claim
+**Status: pre-alpha (milestone M6).** The full pipeline runs: routing, parallel claim
 extraction with a quote-verification guard, an orchestrated outline, a human approval gate,
 grounded slide writing, a fact-check loop, a visuals agent (paper figures or Graphviz
 diagrams), a generated cover image and a vision-model slide critic. All traced and
 replayable, with an evaluation suite (run metrics and judge agreement against human
-labels). Next: the public gallery (M6).
+labels), an HTML trace viewer and a static gallery whose entries anyone can replay from
+cassettes. Next: the first published papers and v0.1.0.
 
 ## What it will do
 
@@ -102,6 +103,20 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
   (`qwen3.6:35b-mlx`), which tests whether a separate judge model is worth the swap.
   Judge calls are recorded to cassettes like everything else, so `--mode replay`
   reproduces the table.
+
+## Trace viewer and gallery
+
+```bash
+make trace ARXIV=1706.03762    # runs/1706.03762/trace.html: every step and model call on a timeline
+make publish ARXIV=1706.03762  # copy the finished run + the cassettes of its model calls to gallery/
+make verify                    # replay every gallery entry from cassettes only, compare byte for byte
+make site                      # static gallery -> site/ (GitHub Pages builds it on push to main)
+```
+
+A gallery entry contains the step artifacts, the carousel, the post, the trace and the
+cassettes of exactly the model calls in that trace (not the paper, which is fetched from
+arXiv again). CI runs `make verify`, so a published carousel that no longer reproduces
+fails the build.
 
 ## Replay modes
 

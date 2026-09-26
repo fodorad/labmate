@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe probe-fast lock run approve baseline replay eval labels judges
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe probe-fast lock run approve baseline replay eval labels judges trace publish verify site site-serve
 
 install:
 	uv sync --extra dev
@@ -56,6 +56,25 @@ baseline:  ## M1 one-shot pipeline, for comparison
 
 replay:  ## re-run the LLM steps from cassettes only (no Ollama needed)
 	uv run paper2carousel run $(ARXIV) --mode replay --fresh --approve
+
+trace:  ## HTML trace viewer -> runs/$(ARXIV)/trace.html
+	uv run paper2carousel trace $(ARXIV)
+
+# --- Gallery ---
+
+PAPER ?=
+
+publish:  ## copy a finished run + its cassettes into gallery/$(ARXIV)
+	uv run paper2carousel publish $(ARXIV)
+
+verify:  ## replay gallery entries from their cassettes only and compare every artifact
+	uv run paper2carousel verify $(PAPER)
+
+site:  ## build the static gallery -> site/
+	uv run paper2carousel site
+
+site-serve: site
+	python3 -m http.server 8001 --directory site
 
 # --- Evaluation ---
 

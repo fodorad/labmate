@@ -19,6 +19,8 @@ docs/_build/
 .DS_Store
 tmp/
 
-# Pipeline outputs (published demo runs are added explicitly later)
+# Pipeline outputs (published runs live in gallery/, with their cassettes)
 runs/
+cassettes/
+site/
 probe/images/

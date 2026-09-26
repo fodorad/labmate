@@ -7,6 +7,7 @@ Without an outline the text is split per page. The references section is dropped
 from __future__ import annotations
 
 import re
+import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -212,11 +213,15 @@ def ingest_pdf(
         pdf: PDF path.
         title: Title override; defaults to the PDF metadata title or the file name.
         url: Link to show on the slides.
-        run_dir: Where figure crops go (``run_dir/figures``); no figures if omitted.
+        run_dir: Where the PDF is cached (``paper.pdf``) and figure crops go
+            (``run_dir/figures``); no figures if omitted.
 
     Returns:
         The ingested paper. The abstract is taken from a section titled "Abstract" if any.
     """
+    if run_dir is not None and pdf.resolve() != (run_dir / "paper.pdf").resolve():
+        run_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(pdf, run_dir / "paper.pdf")
     with pymupdf.open(pdf) as doc:
         meta_title = (doc.metadata or {}).get("title") or ""
     sections = split_sections(pdf)

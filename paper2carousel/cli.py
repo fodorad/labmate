@@ -16,11 +16,14 @@ from paper2carousel.engines.plain import run
 from paper2carousel.evals.agreement import agreement, agreement_markdown, judge_labels
 from paper2carousel.evals.labels import export_labels, read_labels
 from paper2carousel.evals.metrics import results_markdown, run_metrics
+from paper2carousel.gallery import PublishError, build_site, publish, verify
 from paper2carousel.llm.client import OllamaClient, OllamaError, normalize_tag
 from paper2carousel.llm.replay import CassetteStore, ReplayClient, read_lock, write_lock
 from paper2carousel.phases import ModelSwitcher
 from paper2carousel.probe import run_probe
+from paper2carousel.steps.ingest import IngestError, parse_arxiv_id, slugify
 from paper2carousel.steps.llm import LLM
+from paper2carousel.traceview import write_trace_html
 from paper2carousel.tracing import TracedClient, Tracer
 
 
@@ -132,7 +135,118 @@ def cmd_run(
             "Edit it if you like, then continue with --approve (make approve)."
         )
         return 0
-    print(f"Carousel: {result.carousel}\nTrace:    {result.trace}")
+    viewer = write_trace_html(result.run_dir)
+    print(f"Carousel: {result.carousel}\nTrace:    {viewer}")
+    return 0
+
+
+def resolve_run(config: Config, ref: str) -> Path:
+    """A run directory from a path or an arXiv id / slug under ``runs_dir``.
+
+    Args:
+        config: Loaded configuration.
+        ref: ``runs/1706.03762``, ``1706.03762`` or ``arXiv:1706.03762``.
+
+    Returns:
+        The run directory (may not exist).
+    """
+    path = Path(ref)
+    if path.is_dir():
+        return path
+    try:
+        return config.tracing.runs_dir / parse_arxiv_id(ref)
+    except IngestError:
+        return config.tracing.runs_dir / slugify(ref)
+
+
+def cmd_trace(config: Config, ref: str, all_traces: bool) -> int:
+    """Write the HTML trace viewer for a run.
+
+    Args:
+        config: Loaded configuration.
+        ref: Run directory or paper id.
+        all_traces: Include every invocation, not just the latest completed run.
+
+    Returns:
+        Exit code: 0 on success, 1 if the run has no trace.
+    """
+    run_dir = resolve_run(config, ref)
+    try:
+        out = write_trace_html(run_dir, all_traces)
+    except FileNotFoundError:
+        print(f"error: no trace.jsonl in {run_dir}", file=sys.stderr)
+        return 1
+    print(f"Trace viewer: {out}")
+    return 0
+
+
+def cmd_publish(config: Config, ref: str, gallery: Path, include_pdf: bool) -> int:
+    """Publish a finished run into the gallery.
+
+    Args:
+        config: Loaded configuration.
+        ref: Run directory or paper id.
+        gallery: Gallery root.
+        include_pdf: Also publish the paper PDF.
+
+    Returns:
+        Exit code: 0 on success, 1 if the run can't be published.
+    """
+    try:
+        entry, n = publish(resolve_run(config, ref), gallery, config, include_pdf)
+    except (PublishError, FileNotFoundError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(
+        f"Published {entry} with {n} cassette(s). Check it with `make verify PAPER={entry.name}`."
+    )
+    return 0
+
+
+def cmd_verify(
+    config: Config, gallery: Path, papers: Sequence[str], http: httpx.Client | None
+) -> int:
+    """Replay published gallery entries from their cassettes and compare the artifacts.
+
+    Args:
+        config: Loaded configuration.
+        gallery: Gallery root.
+        papers: Entry ids (default: all).
+        http: HTTP client for arXiv (tests).
+
+    Returns:
+        Exit code: 0 if every entry reproduced exactly, 1 otherwise.
+    """
+    logging.basicConfig(level=logging.WARNING, format="%(message)s", force=True)
+    entries = [gallery / p for p in papers] or sorted(m.parent for m in gallery.glob("*/meta.json"))
+    if not entries:
+        print(f"Nothing to verify in {gallery}")
+        return 0
+    failed = 0
+    for entry in entries:
+        report = verify(entry, config, http)
+        status = "OK  " if report.ok else "FAIL"
+        print(f"{status} {report.paper_id}: {len(report.identical)} identical", end="")
+        if report.different:
+            print(f", different: {', '.join(report.different)}", end="")
+        print(f" ({report.error})" if report.error else "")
+        failed += not report.ok
+    return 1 if failed else 0
+
+
+def cmd_site(gallery: Path, out: Path, judges: Path) -> int:
+    """Build the static gallery site.
+
+    Args:
+        gallery: Gallery root.
+        out: Output directory.
+        judges: ``judges.json`` to include judge agreement, if it exists.
+
+    Returns:
+        Exit code 0.
+    """
+    metrics = build_site(gallery, out, judges)
+    print(f"Built {out}/index.html with {len(metrics)} paper(s).")
     return 0
 
 
@@ -232,11 +346,9 @@ def cmd_judges(
     live = None if mode is ReplayMode.REPLAY else client
     out.mkdir(parents=True, exist_ok=True)
     tracer = Tracer(out / "judges_trace.jsonl")
+    digests = read_lock(config.replay.lock_file)
     backend = TracedClient(
-        ReplayClient(
-            live, CassetteStore(config.replay.dir), mode, read_lock(config.replay.lock_file)
-        ),
-        tracer,
+        ReplayClient(live, CassetteStore(config.replay.dir), mode, digests), tracer, digests
     )
     gen = config.generation
     switcher = ModelSwitcher(live)
@@ -293,6 +405,24 @@ def build_parser() -> argparse.ArgumentParser:
     labels.add_argument("-n", type=int, default=50, help="target number of bullets")
     labels.add_argument("--seed", type=int, default=0, help="sampling seed")
 
+    trace = sub.add_parser("trace", help="HTML trace viewer for a run -> runs/<id>/trace.html")
+    trace.add_argument("ref", help="run dir or paper id, e.g. 1706.03762")
+    trace.add_argument("--all", action="store_true", help="every invocation, not just the last")
+
+    pub = sub.add_parser("publish", help="copy a finished run + its cassettes into the gallery")
+    pub.add_argument("ref", help="run dir or paper id")
+    pub.add_argument("--gallery", type=Path, default=Path("gallery"))
+    pub.add_argument("--include-pdf", action="store_true", help="also publish the paper PDF")
+
+    ver = sub.add_parser("verify", help="replay gallery entries from cassettes, compare outputs")
+    ver.add_argument("papers", nargs="*", help="entry ids (default: all)")
+    ver.add_argument("--gallery", type=Path, default=Path("gallery"))
+
+    site = sub.add_parser("site", help="build the static gallery site")
+    site.add_argument("--gallery", type=Path, default=Path("gallery"))
+    site.add_argument("--out", type=Path, default=Path("site"))
+    site.add_argument("--judges", type=Path, default=Path("evals/judges.json"))
+
     judges = sub.add_parser("judges", help="agreement of judge models with your labels")
     judges.add_argument("--labels", type=Path, default=Path("evals/labels.csv"))
     judges.add_argument("--models", nargs="*", default=[], help="default: critic + writer")
@@ -324,6 +454,14 @@ def main(
         return cmd_eval(config, args.runs, args.out)
     if args.command == "labels":
         return cmd_labels(config, args.runs, args.out, args.n, args.seed)
+    if args.command == "trace":
+        return cmd_trace(config, args.ref, args.all)
+    if args.command == "publish":
+        return cmd_publish(config, args.ref, args.gallery, args.include_pdf)
+    if args.command == "verify":
+        return cmd_verify(config, args.gallery, args.papers, http)
+    if args.command == "site":
+        return cmd_site(args.gallery, args.out, args.judges)
     client = client or OllamaClient(config.ollama.host, config.ollama.timeout_s)
     try:
         if args.command == "judges":

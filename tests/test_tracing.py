@@ -65,3 +65,20 @@ def test_traced_client_records_usage_and_cache_hits(fake, tmp_path):
     assert first["tokens_out"] == 50 and first["model"] == "qwen3.6:35b-mlx"
     assert first["key"] == request.cache_key()
     assert image["name"] == "llm.image" and len(image["image_sha256"]) == 64
+
+
+def test_traced_client_keys_match_cassettes_when_digests_are_pinned(fake, tmp_path):
+    from paper2carousel.config import ReplayMode
+    from paper2carousel.llm.replay import CassetteStore, ReplayClient
+    from paper2carousel.llm.types import ChatRequest, Message
+
+    digests = {"qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52}
+    store = CassetteStore(tmp_path / "c")
+    tracer = Tracer()
+    client = TracedClient(
+        ReplayClient(fake.client(), store, ReplayMode.RECORD, digests), tracer, digests
+    )
+    request = ChatRequest(model="qwen3.6:35b-mlx", messages=[Message(role="user", content="hi")])
+    client.chat(request)
+    key = tracer.spans[0]["key"]
+    assert key != request.cache_key() and store.path(key).exists()
