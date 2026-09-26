@@ -138,3 +138,14 @@ def test_image_response_without_image_raises():
 def test_num_predict_goes_into_options():
     assert _req(num_predict=64).to_payload()["options"]["num_predict"] == 64
     assert "num_predict" not in _req().to_payload()["options"]
+
+
+def test_tool_call_arguments_have_a_canonical_key_order():
+    from paper2carousel.llm.types import ToolFunction
+
+    # a live response and its cassette (written with sorted keys) must look the same
+    live = ToolFunction(
+        name="make_chart", arguments={"values": [1], "labels": ["a"], "x": {"b": 1, "a": 2}}
+    )
+    assert list(live.arguments) == ["labels", "values", "x"]
+    assert list(live.arguments["x"]) == ["a", "b"]

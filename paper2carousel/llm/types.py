@@ -11,7 +11,7 @@ import hashlib
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 NS_PER_MS = 1_000_000
 """Ollama reports durations in nanoseconds."""
@@ -34,11 +34,30 @@ def _cache_key(kind: str, payload: dict[str, Any], digest: str | None) -> str:
     return hashlib.sha256(canonical_json(material).encode()).hexdigest()
 
 
+def _sorted(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _sorted(value[k]) for k in sorted(value)}
+    if isinstance(value, list):
+        return [_sorted(v) for v in value]
+    return value
+
+
 class ToolFunction(BaseModel):
-    """A function invocation requested by the model."""
+    """A function invocation requested by the model.
+
+    Arguments are stored with sorted keys. Cassettes are written with sorted keys, so
+    without this a live run and its replay would see the same call in different key
+    orders, and requests that echo the call back to the model would get different keys.
+    """
 
     name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("arguments")
+    @classmethod
+    def _canonical(cls, value: dict[str, Any]) -> dict[str, Any]:
+        result: dict[str, Any] = _sorted(value)
+        return result
 
 
 class ToolCall(BaseModel):
