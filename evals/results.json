@@ -9,14 +9,15 @@
     "bullets_final": 11,
     "dropped": 1,
     "rounds": 3,
-    "contribution_coverage": 0.25,
+    "block_fit": 0.909,
     "slides": 4,
-    "visuals": 4,
-    "llm_calls": 41,
-    "tokens_in": 38492,
-    "tokens_out": 7584,
+    "graph_nodes": 5,
+    "graph_edges": 4,
+    "llm_calls": 42,
+    "tokens_in": 39345,
+    "tokens_out": 7911,
     "swaps": 5,
-    "wall_s": 803.0
+    "wall_s": 824.7
   },
   {
     "paper_id": "2023-fodor-adam-mdpi-blinklinmult",
@@ -28,14 +29,15 @@
     "bullets_final": 12,
     "dropped": 0,
     "rounds": 3,
-    "contribution_coverage": 0.0,
+    "block_fit": 1.0,
     "slides": 4,
-    "visuals": 4,
-    "llm_calls": 45,
-    "tokens_in": 52161,
-    "tokens_out": 8760,
+    "graph_nodes": 6,
+    "graph_edges": 5,
+    "llm_calls": 46,
+    "tokens_in": 53053,
+    "tokens_out": 9197,
     "swaps": 5,
-    "wall_s": 973.9
+    "wall_s": 999.2
   },
   {
     "paper_id": "2503.16416",
@@ -47,14 +49,15 @@
     "bullets_final": 14,
     "dropped": 1,
     "rounds": 3,
-    "contribution_coverage": 0.333,
+    "block_fit": 0.714,
     "slides": 4,
-    "visuals": 4,
-    "llm_calls": 42,
-    "tokens_in": 43344,
-    "tokens_out": 8346,
+    "graph_nodes": 8,
+    "graph_edges": 8,
+    "llm_calls": 43,
+    "tokens_in": 44195,
+    "tokens_out": 8940,
     "swaps": 5,
-    "wall_s": 932.0
+    "wall_s": 962.2
   },
   {
     "paper_id": "2609.24972",
@@ -66,14 +69,15 @@
     "bullets_final": 12,
     "dropped": 0,
     "rounds": 2,
-    "contribution_coverage": 0.0,
+    "block_fit": 1.0,
     "slides": 4,
-    "visuals": 4,
-    "llm_calls": 40,
-    "tokens_in": 44353,
-    "tokens_out": 7397,
+    "graph_nodes": 5,
+    "graph_edges": 4,
+    "llm_calls": 41,
+    "tokens_in": 45377,
+    "tokens_out": 7767,
     "swaps": 3,
-    "wall_s": 871.8
+    "wall_s": 896.0
   },
   {
     "paper_id": "2609.25001",
@@ -85,13 +89,14 @@
     "bullets_final": 13,
     "dropped": 0,
     "rounds": 2,
-    "contribution_coverage": 0.062,
+    "block_fit": 0.923,
     "slides": 4,
-    "visuals": 3,
-    "llm_calls": 46,
-    "tokens_in": 55703,
-    "tokens_out": 9917,
+    "graph_nodes": 6,
+    "graph_edges": 5,
+    "llm_calls": 47,
+    "tokens_in": 56565,
+    "tokens_out": 10347,
     "swaps": 3,
-    "wall_s": 1143.1
+    "wall_s": 1168.6
   }
 ]

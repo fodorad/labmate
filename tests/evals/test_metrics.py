@@ -24,11 +24,17 @@ def test_run_metrics_on_a_finished_run(finished):
     assert m.claims_verified == 6 and m.claims_rejected == 0
     assert m.bullets_first == m.bullets_final > 0
     assert m.unsupported_first == 0 and m.dropped == 0 and m.rounds == 1
-    assert 0 <= m.contribution_coverage <= 1
-    assert m.slides == 4 and m.visuals >= 0
+    assert 0 <= m.block_fit <= 1
+    assert m.slides == 4 and m.graph_nodes >= 3 and m.graph_edges >= 2
     # the paused run (route, extract, outline) and the approved run both count
     assert m.llm_calls > 10 and m.wall_s >= 0 and m.swaps >= 1
     assert m.unsupported_first_pct == 0
+
+
+def test_run_metrics_without_a_post(finished):
+    (finished / "09_graph.json").unlink()
+    m = run_metrics(finished)
+    assert m.graph_nodes == m.graph_edges == 0
 
 
 def test_latest_completed_joins_paused_and_approved_runs(tmp_path):

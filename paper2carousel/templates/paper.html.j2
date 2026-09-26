@@ -119,7 +119,7 @@ dl.meta dd { margin: 0; font-weight: 600; }
       <div><dt>Compute time</dt><dd>{{ "%.0f"|format(metrics.wall_s) }} s</dd></div>
       <div><dt>Fact-check rounds</dt><dd>{{ metrics.rounds }}</dd></div>
       <div><dt>Model swaps (fact-check)</dt><dd>{{ metrics.swaps }}</dd></div>
-      <div><dt>Contribution coverage</dt><dd>{{ "%.0f"|format(100 * metrics.contribution_coverage) }}%</dd></div>
+      <div><dt>Block fit</dt><dd>{{ "%.0f"|format(100 * metrics.block_fit) }}%</dd></div>
     </dl>
     <p class="small muted" style="margin-bottom:0">Replay this run without any model: <code>make verify PAPER={{ meta.paper_id }}</code> · <a href="trace.html">open the trace</a></p>
   </div>

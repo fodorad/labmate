@@ -59,13 +59,13 @@
   {% endif %}
 
   <h2 id="results">Results</h2>
-  <p class="muted">Computed from the published artifacts and traces (<code>make eval</code>). “Unsupported” means a bullet failed the exact-number check or the judge model; the loop rewrites it (at most twice) or drops it, so nothing unsupported reaches a slide.</p>
+  <p class="muted">Computed from the published artifacts and traces (<code>make eval</code>). “Unsupported” means a bullet failed the exact-number check or the judge model; the loop rewrites it (at most twice) or drops it, so nothing unsupported reaches a slide. “Block fit” is the share of bullets that cite a claim of their block’s kind (a result under Main results, a challenge under Challenges).</p>
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Paper</th><th>Claims verified / rejected</th><th>Unsupported in first draft</th><th>Dropped</th><th>Final bullets</th><th>Contribution coverage</th><th>Visuals</th><th>Model calls</th><th>Compute</th></tr></thead>
+      <thead><tr><th>Paper</th><th>Claims verified / rejected</th><th>Unsupported in first draft</th><th>Dropped</th><th>Final bullets</th><th>Block fit</th><th>Post graph</th><th>Model calls</th><th>Compute</th></tr></thead>
       <tbody>
       {% for p in papers %}{% set m = p.metrics %}
-        <tr><td><a href="{{ p.meta.paper_id }}/">{{ p.meta.title }}</a></td><td>{{ m.claims_verified }} / {{ m.claims_rejected }}</td><td>{{ m.unsupported_first }}/{{ m.bullets_first }} ({{ "%.0f"|format(m.unsupported_first_pct) }}%)</td><td>{{ m.dropped }}</td><td>{{ m.bullets_final }}</td><td>{{ "%.0f"|format(100 * m.contribution_coverage) }}%</td><td>{{ m.visuals }}/{{ m.slides }}</td><td>{{ m.llm_calls }}</td><td>{{ "%.0f"|format(m.wall_s) }} s</td></tr>
+        <tr><td><a href="{{ p.meta.paper_id }}/">{{ p.meta.title }}</a></td><td>{{ m.claims_verified }} / {{ m.claims_rejected }}</td><td>{{ m.unsupported_first }}/{{ m.bullets_first }} ({{ "%.0f"|format(m.unsupported_first_pct) }}%)</td><td>{{ m.dropped }}</td><td>{{ m.bullets_final }}</td><td>{{ "%.0f"|format(100 * m.block_fit) }}%</td><td>{{ m.graph_nodes }} nodes, {{ m.graph_edges }} edges</td><td>{{ m.llm_calls }}</td><td>{{ "%.0f"|format(m.wall_s) }} s</td></tr>
       {% endfor %}
       </tbody>
     </table>

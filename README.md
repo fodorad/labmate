@@ -116,8 +116,9 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
 
 - **Run metrics** come from the run artifacts and the trace, no model needed: verified vs
   rejected claims, the share of first-draft bullets that failed the fact-check, bullets
-  dropped after the loop, coverage of the paper's contribution claims, model calls,
-  tokens and compute time (the paused and the approved invocation together).
+  dropped after the loop, *block fit* (the share of bullets citing a claim of their
+  block's kind, e.g. a result under Main results), the size of the post's method graph,
+  model calls, tokens and compute time (the paused and the approved invocation together).
 - **Judge agreement:** `make labels` samples bullets from every fact-check round, about half
   of them rejected by the pipeline's judge, and writes them with their evidence but
   *without* the judge's verdict. You fill the `human` column (`s` / `p` / `u`).

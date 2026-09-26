@@ -12,10 +12,18 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from paper2carousel.schemas import Claims, FactChecked
+from paper2carousel.schemas import Claims, FactChecked, MethodGraph, Outline
 from paper2carousel.tracing import read_trace
 
 Span = dict[str, Any]
+
+BLOCK_KINDS = {
+    "task": {"task"},
+    "challenges": {"challenge", "limitation"},
+    "method": {"method", "contribution"},
+    "results": {"result"},
+}
+"""Claim kinds that belong in each of the four blocks."""
 
 
 class RunMetrics(BaseModel):
@@ -31,9 +39,12 @@ class RunMetrics(BaseModel):
         bullets_final: Bullets on the published slides.
         dropped: Bullets removed after the rewrite budget.
         rounds: Fact-check rounds used.
-        contribution_coverage: Share of contribution claims used on some slide.
-        slides: Slides in the final carousel.
-        visuals: Slides with a figure or diagram.
+        block_fit: Share of final bullets that cite at least one claim of their block's
+            kind (a task claim in Task, a result in Main results, ...): whether the
+            orchestrator put the paper's claims in the right place.
+        slides: Blocks in the summary (four).
+        graph_nodes: Nodes of the post image's method graph (0 without a post).
+        graph_edges: Edges of that graph.
         llm_calls: Distinct model requests the carousel needed.
         tokens_in: Prompt tokens of those requests.
         tokens_out: Generated tokens of those requests.
@@ -51,9 +62,10 @@ class RunMetrics(BaseModel):
     bullets_final: int
     dropped: int
     rounds: int
-    contribution_coverage: float
+    block_fit: float
     slides: int
-    visuals: int
+    graph_nodes: int
+    graph_edges: int
     llm_calls: int
     tokens_in: int
     tokens_out: int
@@ -166,17 +178,15 @@ def run_metrics(run_dir: Path) -> RunMetrics:
     checked = FactChecked.model_validate_json((run_dir / "05_factcheck.json").read_text())
     report, final = checked.report, checked.slides
 
-    used = {cid for s in final.slides for b in s.bullets for cid in b.claim_ids}
-    contributions = [c.id for c in claims.cards if c.kind == "contribution"]
-    coverage = (
-        sum(cid in used for cid in contributions) / len(contributions) if contributions else 0.0
-    )
-    visuals_file = run_dir / "06_visuals.json"
-    visuals = (
-        sum(v is not None for v in json.loads(visuals_file.read_text())["slides"])
-        if visuals_file.exists()
-        else 0
-    )
+    outline = Outline.model_validate_json((run_dir / "03_outline.json").read_text())
+    kinds = {c.id: c.kind for c in claims.cards}
+    placed = [
+        any(kinds.get(cid) in BLOCK_KINDS.get(planned.purpose, set()) for cid in b.claim_ids)
+        for slide, planned in zip(final.slides, outline.slides, strict=False)
+        for b in slide.bullets
+    ]
+    graph_file = run_dir / "09_graph.json"
+    graph = MethodGraph.model_validate_json(graph_file.read_text()) if graph_file.exists() else None
     trace = run_dir / "trace.jsonl"
     spans = read_trace(trace) if trace.exists() else []
     llm = distinct_calls(spans, run_dir / "cassettes")
@@ -191,9 +201,10 @@ def run_metrics(run_dir: Path) -> RunMetrics:
         bullets_final=sum(len(s.bullets) for s in final.slides),
         dropped=len(report.dropped),
         rounds=len(report.rounds),
-        contribution_coverage=round(coverage, 3),
+        block_fit=round(sum(placed) / len(placed), 3) if placed else 0.0,
         slides=len(final.slides),
-        visuals=visuals,
+        graph_nodes=len(graph.nodes) if graph else 0,
+        graph_edges=len(graph.edges) if graph else 0,
         llm_calls=len(llm),
         tokens_in=sum(int(s.get("tokens_in") or 0) for s in llm),
         tokens_out=sum(int(s.get("tokens_out") or 0) for s in llm),
@@ -215,7 +226,7 @@ def results_markdown(metrics: list[RunMetrics]) -> str:
     """
     rows = [
         "| Paper | Claims (verified / rejected) | Unsupported in first draft | "
-        "Dropped after loop | Final bullets | Contribution coverage | Visuals | LLM calls | "
+        "Dropped after loop | Final bullets | Block fit | Post graph | LLM calls | "
         "Wall time |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
@@ -223,8 +234,8 @@ def results_markdown(metrics: list[RunMetrics]) -> str:
         rows.append(
             f"| {m.title} | {m.claims_verified} / {m.claims_rejected} | "
             f"{m.unsupported_first}/{m.bullets_first} ({m.unsupported_first_pct:.0f}%) | "
-            f"{m.dropped} | {m.bullets_final} | {100 * m.contribution_coverage:.0f}% | "
-            f"{m.visuals}/{m.slides} | {m.llm_calls} | {m.wall_s:.0f} s |"
+            f"{m.dropped} | {m.bullets_final} | {100 * m.block_fit:.0f}% | "
+            f"{m.graph_nodes} nodes, {m.graph_edges} edges | {m.llm_calls} | {m.wall_s:.0f} s |"
         )
     first = sum(m.bullets_first for m in metrics)
     unsupported = sum(m.unsupported_first for m in metrics)
