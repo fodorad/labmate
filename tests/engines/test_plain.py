@@ -8,7 +8,7 @@ import yaml
 from paper2carousel.config import Config, ReplayMode
 from paper2carousel.engines.plain import NothingSupportedError, run, run_id_for
 from paper2carousel.llm.replay import CassetteMissError
-from paper2carousel.schemas import Claims, Deck, Outline, Visuals, WrittenSlides
+from paper2carousel.schemas import Claims, Deck, Outline, Review, Visuals, WrittenSlides
 from paper2carousel.steps.gate import GateError
 from paper2carousel.tracing import read_trace
 from tests.conftest import DECK, agentic_chat, deck_chat, make_pdf
@@ -114,8 +114,9 @@ def test_auto_approve_runs_straight_through_and_traces_every_step(model, arxiv, 
     assert len(llm_in_extract) == 3  # one per section, parent kept across worker threads
     factcheck = next(s for s in spans if s["name"] == "step.factcheck")
     assert factcheck["failed_first"] == 0 and factcheck["rounds"] == 1 and factcheck["swaps"] == 1
-    # route 1 + extract 3 + outline 1 + write 4 + judge 4 + visuals 4
-    assert n_chats(model) == 17
+    # route 1 + extract 3 + outline 1 + write 4 + judge 4 + post 2 + visuals 4 + critic 5
+    assert n_chats(model) == 24
+    assert model.paths().count("/api/generate") >= 1  # the cover image
     assert not model.loaded  # every model released at the end
 
 
@@ -136,7 +137,9 @@ def test_fresh_replay_reproduces_the_agentic_run_without_any_model(model, arxiv,
     assert again.artifact("02_claims.json").read_text() == claims
     spans = [s for s in read_trace(again.trace) if s["trace_id"] == again.trace_id]
     llm = [s for s in spans if s["name"] == "llm.chat"]
-    assert len(llm) == 17 and all(s["cached"] for s in llm)
+    assert len(llm) == 24 and all(s["cached"] for s in llm)
+    images = [s for s in spans if s["name"] == "llm.image"]
+    assert len(images) == 1 and images[0]["cached"]
 
 
 def test_replay_without_cassettes_fails_loudly(arxiv, config):
@@ -196,3 +199,56 @@ def test_visuals_can_be_disabled(model, arxiv, config):
     config.visuals.enabled = False
     result = go(config, model, arxiv, auto_approve=True)
     assert result.status == "done" and not result.artifact("06_visuals.json").exists()
+
+
+def test_all_outputs_are_written(model, arxiv, config):
+    result = go(config, model, arxiv, auto_approve=True)
+    post = result.artifact("post.md").read_text()
+    assert post.startswith("Linear attention without the accuracy tax\n\n→ A grounded takeaway.")
+    assert "https://arxiv.org/abs/2401.00001" in post
+    summary = result.artifact("summary.md").read_text()
+    assert summary.startswith("# Linear attention, same accuracy") and "  - p. " in summary
+    alt = json.loads(result.artifact("alt_texts.json").read_text())
+    assert [a["page"] for a in alt] == [1, 2, 3, 4, 5]
+    assert result.artifact("cover.png").read_bytes().startswith(b"\x89PNG")
+    assert (result.run_dir / "pages" / "page-01.png").exists()
+    with pymupdf.open(result.carousel) as doc:
+        assert doc[0].get_images()  # cover illustration embedded
+
+
+def test_cover_failure_is_not_fatal(model, arxiv, config):
+    model.image_handler = lambda b: {"model": b["model"], "response": "no image support"}
+    result = go(config, model, arxiv, auto_approve=True)
+    assert result.status == "done" and not result.artifact("cover.png").exists()
+    cover = next(s for s in read_trace(result.trace) if s["name"] == "step.cover")
+    assert cover["status"].startswith("skipped")
+
+
+def test_critic_drops_an_unrelated_visual_and_rerenders(model, config, tmp_path):
+    inner = model.chat_handler
+
+    def mislabel(body):
+        # make the first figure look unrelated to the slide it was placed on
+        for m in body["messages"]:
+            if m.get("images") and "synthetic architecture" in m["content"]:
+                m["content"] = m["content"] + "\nUNRELATED"
+        return inner(body)
+
+    model.chat_handler = mislabel
+    pdf = make_pdf(tmp_path / "Figs.pdf", figure=True)
+    result = run(config, pdf=pdf, auto_approve=True, client=model.client())
+    review = Review.model_validate_json(result.artifact("07_review.json").read_text())
+    assert review.dropped_visuals == [1]
+    with pymupdf.open(result.carousel) as doc:
+        assert not doc[1].get_images() and doc[2].get_images()
+
+
+def test_optional_steps_can_be_switched_off(model, arxiv, config):
+    config.visuals.cover_image = False
+    config.visuals.critic = False
+    config.outputs.post = False
+    result = go(config, model, arxiv, auto_approve=True)
+    assert result.status == "done"
+    for name in ("cover.png", "07_review.json", "alt_texts.json", "08_post.json", "post.md"):
+        assert not result.artifact(name).exists(), name
+    assert result.artifact("summary.md").exists()

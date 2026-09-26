@@ -48,8 +48,8 @@ USE_FIGURE = _tool(
 )
 MAKE_DIAGRAM = _tool(
     "make_diagram",
-    "Draw a small diagram with Graphviz. Use rankdir=LR, box nodes, at most 8 nodes, "
-    "short labels, no colours or fonts.",
+    "Draw a small diagram with Graphviz. Use rankdir=LR, at most 8 nodes and short "
+    "labels; colours and fonts are applied automatically.",
     dot=("string", "Complete Graphviz DOT source, e.g. 'digraph { rankdir=LR; a -> b }'."),
     caption=("string", "One-line caption for the diagram."),
 )
@@ -67,6 +67,28 @@ def graphviz_available() -> bool:
     return shutil.which("dot") is not None
 
 
+DOT_STYLE = (
+    'graph [bgcolor="transparent", pad="0.2", nodesep="0.35", ranksep="0.45"]; '
+    'node [shape=box, style="rounded,filled", fillcolor="#f1e1dc", color="#ab4c31", '
+    'fontname="Helvetica", fontcolor="#222b35", fontsize=13, margin="0.18,0.08"]; '
+    'edge [color="#4c6176", arrowsize=0.7]; '
+)
+"""House style prepended to every diagram; the model's own attributes still override it."""
+
+
+def style_dot(dot: str) -> str:
+    """Insert the house style right after the graph's opening brace.
+
+    Args:
+        dot: Graphviz source from the model.
+
+    Returns:
+        Styled source (unchanged if there is no opening brace).
+    """
+    brace = dot.find("{")
+    return dot if brace < 0 else dot[: brace + 1] + " " + DOT_STYLE + dot[brace + 1 :]
+
+
 def render_dot(dot: str, out: Path) -> str | None:
     """Render DOT source to PNG.
 
@@ -81,7 +103,7 @@ def render_dot(dot: str, out: Path) -> str | None:
     try:
         proc = subprocess.run(
             ["dot", "-Tpng", "-Gdpi=200", "-o", str(out)],
-            input=dot,
+            input=style_dot(dot),
             capture_output=True,
             text=True,
             timeout=DOT_TIMEOUT_S,

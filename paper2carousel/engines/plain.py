@@ -2,7 +2,11 @@
 
 Agentic pipeline (default)::
 
-    ingest ─▶ route ─▶ extract ─▶ outline ─▶ ✋ gate ─▶ write ─▶ fact-check ─▶ visuals ─▶ render
+    ingest ─▶ route ─▶ extract ─▶ outline ─▶ ✋ gate ─▶ write ─▶ fact-check
+           ─▶ post ─▶ visuals ─▶ cover image ─▶ render ─▶ slide critic ─▶ summary
+
+Models are used in phases (writer/judge, then image, then vision) so that only one large
+model is resident at a time.
 
 Baseline (``--baseline``, the M1 walking skeleton, kept for evaluation)::
 
@@ -16,6 +20,7 @@ input, not a model output, so ``fresh`` never discards it.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from collections.abc import Callable
@@ -37,10 +42,14 @@ from paper2carousel.schemas import (
     FactChecked,
     Outline,
     Paper,
+    Post,
+    Review,
     Route,
     Visuals,
     WrittenSlides,
 )
+from paper2carousel.steps.cover import make_cover
+from paper2carousel.steps.critic import review_deck
 from paper2carousel.steps.draft import draft_deck
 from paper2carousel.steps.extract import extract_claims
 from paper2carousel.steps.factcheck import fact_check
@@ -48,8 +57,10 @@ from paper2carousel.steps.gate import read_gate, write_gate
 from paper2carousel.steps.ingest import ingest_arxiv, ingest_pdf, parse_arxiv_id, slugify
 from paper2carousel.steps.llm import LLM
 from paper2carousel.steps.outline import TEMPLATES, plan_outline
+from paper2carousel.steps.post import post_markdown, write_post
 from paper2carousel.steps.render import render_deck
 from paper2carousel.steps.route import route_paper
+from paper2carousel.steps.summary import summary_markdown
 from paper2carousel.steps.visuals import choose_visuals
 from paper2carousel.steps.write import write_slides
 from paper2carousel.tracing import TracedClient, Tracer
@@ -171,6 +182,7 @@ def run(
     gen = config.generation
     llm = LLM(backend, config.models.text, gen.seed, gen.temperature, gen.num_ctx)
     judge = LLM(backend, config.models.critic, gen.seed, gen.temperature, gen.num_ctx)
+    vision = LLM(backend, config.models.vision, gen.seed, gen.temperature, gen.num_ctx)
     switcher = ModelSwitcher(live)
     workers = config.pipeline.workers
     paths = {
@@ -183,6 +195,8 @@ def run(
             "04_slides.json",
             "05_factcheck.json",
             "06_visuals.json",
+            "07_review.json",
+            "08_post.json",
             "01_deck.json",
         ]
     }
@@ -330,6 +344,19 @@ def run(
                 f"the fact-check dropped every slide; see {paths['05_factcheck.json']}"
             )
         final = checked.slides.slides
+
+        if config.outputs.post:
+            with tracer.span("step.post") as s:
+                post = _checkpoint(
+                    paths["08_post.json"],
+                    Post,
+                    lambda: write_post(checked.slides, claims, paper, llm, judge, switcher),
+                    reuse=not fresh,
+                )
+                (run_dir / "post.md").write_text(post_markdown(post, paper))
+                s.update(takeaways=len(post.takeaways), dropped=len(post.report.dropped))
+            log.info("post: %d takeaways -> post.md", len(post.takeaways))
+
         with tracer.span("step.visuals", enabled=config.visuals.enabled) as s:
             if config.visuals.enabled:
                 switcher.use(llm.model)
@@ -345,7 +372,54 @@ def run(
             s.update(visuals=chosen, tool_calls=len(visuals.steps))
         log.info("visuals: %s", ", ".join(chosen) or "none")
         deck = checked.slides.to_deck(visuals.slides)
-        return _finish(tracer, deck, paper, result("done"), switcher)
+
+        if config.visuals.cover_image:
+            with tracer.span("step.cover", model=config.models.image) as s:
+                cover = run_dir / "cover.png"
+                status = "reused"
+                if fresh or not cover.exists():
+                    switcher.use(config.models.image)
+                    _, status = make_cover(
+                        paper.title, backend, config.models.image, cover, gen.seed
+                    )
+                if cover.exists():
+                    deck = deck.model_copy(update={"cover_image": cover.name})
+                s.update(status=status)
+            log.info("cover image: %s", status)
+
+        out = result("done")
+        with tracer.span("step.render"):
+            render_deck(deck, paper, out.carousel)
+
+        if config.visuals.critic:
+            with tracer.span("step.critic", model=vision.model) as s:
+                switcher.use(vision.model)
+                review = _checkpoint(
+                    paths["07_review.json"],
+                    Review,
+                    lambda: review_deck(deck, out.carousel, vision, workers),
+                    reuse=not fresh,
+                )
+                if review.dropped_visuals:
+                    slides = list(deck.slides)
+                    for i in review.dropped_visuals:
+                        slides[i - 1] = slides[i - 1].model_copy(
+                            update={"image": None, "image_caption": None}
+                        )
+                    deck = deck.model_copy(update={"slides": slides})
+                    render_deck(deck, paper, out.carousel)
+                alt = [{"page": i, "alt_text": r.alt_text} for i, r in enumerate(review.pages, 1)]
+                (run_dir / "alt_texts.json").write_text(json.dumps(alt, indent=2) + "\n")
+                flagged = [i for i, r in enumerate(review.pages, 1) if r.overflow or not r.legible]
+                s.update(dropped_visuals=review.dropped_visuals, flagged_pages=flagged)
+            log.info(
+                "critic: dropped visuals %s, flagged pages %s", review.dropped_visuals, flagged
+            )
+
+        (run_dir / "summary.md").write_text(summary_markdown(checked.slides, claims, paper))
+        log.info("rendered: %s", out.carousel)
+        switcher.release()
+        return out
 
 
 def _finish(

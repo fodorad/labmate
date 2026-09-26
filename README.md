@@ -2,12 +2,11 @@
 
 > Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
 
-**Status: pre-alpha (milestone M4a).** The agentic pipeline runs end to end: routing,
-parallel claim extraction with a quote-verification guard, an orchestrated outline, a human
-approval gate, grounded slide writing, a fact-check loop (a separate judge model plus exact
-number checks, with rewrites) and a visuals agent that places paper figures or draws Graphviz
-diagrams, all traced and replayable. Next: slide critic, alt texts and cover image (M4b),
-then the evaluation suite (M5).
+**Status: pre-alpha (milestone M4).** The full pipeline runs: routing, parallel claim
+extraction with a quote-verification guard, an orchestrated outline, a human approval gate,
+grounded slide writing, a fact-check loop, a visuals agent (paper figures or Graphviz
+diagrams), a generated cover image and a vision-model slide critic. All traced and
+replayable. Next: the evaluation suite (M5) and the public gallery (M6).
 
 ## What it will do
 
@@ -36,7 +35,10 @@ arXiv id ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan outline �
 | write | prompt chaining | one call per slide; every bullet cites the claim ids it uses |
 | fact-check | evaluator–optimizer | numbers must match the cited evidence exactly; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
 | visuals | agent (tool use) | per slide the model calls `use_paper_figure`, `make_diagram` (Graphviz) or `no_visual`; tool errors come back as observations, ≤ 3 calls per slide; figures are cropped from the PDF during ingest |
-| render | plain code | Typst → 4:5 PDF |
+| post | chaining + evaluator | LinkedIn post drafted from the final slides; its takeaways go through the same fact-check |
+| cover | plain call | illustration from the local image model in the slide palette; skipped (not fatal) if generation fails |
+| render | plain code | Typst → 4:5 PDF in the adamfodor.com palette, Inter font bundled for identical renders everywhere |
+| critic | vision model | reviews each rendered page at phone size, writes alt texts, removes illegible or off-topic visuals |
 
 ## Models
 
@@ -69,6 +71,10 @@ make approve ARXIV=1706.03762  # after reviewing/editing the outline: write + re
 make replay ARXIV=1706.03762   # the whole run again from cassettes only, no Ollama needed
 make baseline ARXIV=1706.03762 # the M1 one-shot version, for comparison
 ```
+
+Each run folder contains `carousel.pdf`, `post.md` (paste-ready LinkedIn text),
+`summary.md` (every bullet with its page and quote), `alt_texts.json`, `pages/*.png`, every
+step's JSON artifact and `trace.jsonl`.
 
 Local PDFs work too: `uv run paper2carousel run --pdf path/to/paper.pdf --title "..."`.
 

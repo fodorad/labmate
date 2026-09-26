@@ -57,6 +57,18 @@ API Reference
 .. automodule:: paper2carousel.steps.visuals
    :members:
 
+.. automodule:: paper2carousel.steps.cover
+   :members:
+
+.. automodule:: paper2carousel.steps.critic
+   :members:
+
+.. automodule:: paper2carousel.steps.post
+   :members:
+
+.. automodule:: paper2carousel.steps.summary
+   :members:
+
 .. automodule:: paper2carousel.steps.draft
    :members:
 

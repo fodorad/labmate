@@ -76,6 +76,7 @@ class Deck(BaseModel):
 
     title: str = Field(description="Hook headline for the cover slide, at most 10 words.")
     slides: list[DraftSlide] = Field(min_length=1, max_length=10)
+    cover_image: str | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # --- M2: agentic pipeline --------------------------------------------------------------------
@@ -310,3 +311,38 @@ class Visuals(BaseModel):
 
     slides: list[Visual | None]
     steps: list[AgentStep] = Field(default_factory=list)
+
+
+class SlideReview(BaseModel):
+    """The vision model's review of one rendered page."""
+
+    legible: bool = Field(description="All text and the visual are readable at phone size.")
+    overflow: bool = Field(description="Something is cut off, overlapping or outside the page.")
+    visual_relevant: bool = Field(
+        description="The image (if any) illustrates the slide's text. True if there is no image."
+    )
+    alt_text: str = Field(description="Alt text for screen readers, at most 40 words.")
+
+
+class Review(BaseModel):
+    """Slide critic output: one review per page (cover first) and the visuals it removed."""
+
+    pages: list[SlideReview]
+    dropped_visuals: list[int] = Field(default_factory=list)
+
+
+class PostDraft(BaseModel):
+    """A LinkedIn post drafted from the fact-checked slides."""
+
+    hook: str = Field(description="First line, at most 15 words, makes people open the post.")
+    takeaways: list[Bullet] = Field(min_length=2, max_length=3)
+    question: str = Field(description="A closing question to readers, with no factual claims.")
+
+
+class Post(BaseModel):
+    """The fact-checked post and its audit trail."""
+
+    hook: str
+    takeaways: list[Bullet]
+    question: str
+    report: FactCheckReport

@@ -22,7 +22,12 @@ workers = 2  # concurrent calls for parallel steps; Ollama queues beyond OLLAMA_
 max_rewrite_rounds = 2  # fact-check loop budget; bullets still unsupported after it are dropped
 
 [visuals]
-enabled = true  # figures from the paper / Graphviz diagrams chosen by the visuals agent
+enabled = true      # figures from the paper / Graphviz diagrams chosen by the visuals agent
+cover_image = true  # generated with models.image; skipped (not fatal) if generation fails
+critic = true       # vision model reviews rendered pages, writes alt texts, drops bad visuals
+
+[outputs]
+post = true  # post.md for LinkedIn, fact-checked like the slides
 
 [replay]
 # live   : always call Ollama, store nothing

@@ -286,7 +286,22 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
     props = body.get("format", {}).get("properties", {})
     prompt = _last_user(body)
     conversation = "\n".join(m["content"] for m in body["messages"] if m["role"] == "user")
-    if "paper_type" in props:
+    if "takeaways" in props:
+        ids = re.findall(r"\[(c\d{2})", prompt)
+        content = {
+            "hook": "Linear attention without the accuracy tax",
+            "takeaways": [{"text": "A grounded takeaway.", "claim_ids": [cid]} for cid in ids[:3]],
+            "question": "Where would linear attention help your models?",
+        }
+    elif "legible" in props:
+        image_seen = bool(body["messages"][-1].get("images"))
+        content = {
+            "legible": image_seen,
+            "overflow": False,
+            "visual_relevant": "UNRELATED" not in prompt,
+            "alt_text": "A slide with a title and bullet points." if image_seen else "(no image)",
+        }
+    elif "paper_type" in props:
         content: Any = {"paper_type": "method", "confidence": 0.9, "reason": "new model"}
     elif "claims" in props:
         text = prompt.split("SECTION TEXT:", 1)[1]

@@ -63,9 +63,17 @@ class PipelineConfig(BaseModel):
 
 
 class VisualsConfig(BaseModel):
-    """Visuals agent settings."""
+    """Visuals settings."""
 
     enabled: bool = True
+    cover_image: bool = True
+    critic: bool = True
+
+
+class OutputsConfig(BaseModel):
+    """Extra outputs next to the carousel."""
+
+    post: bool = True
 
 
 class ReplayConfig(BaseModel):
@@ -90,6 +98,7 @@ class Config(BaseModel):
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     visuals: VisualsConfig = Field(default_factory=VisualsConfig)
+    outputs: OutputsConfig = Field(default_factory=OutputsConfig)
     replay: ReplayConfig = Field(default_factory=ReplayConfig)
     tracing: TracingConfig = Field(default_factory=TracingConfig)
 
