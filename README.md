@@ -2,11 +2,12 @@
 
 > Turn an arXiv paper into a fact-checked LinkedIn carousel, fully local, fully reproducible.
 
-**Status: pre-alpha (milestone M4).** The full pipeline runs: routing, parallel claim
+**Status: pre-alpha (milestone M5).** The full pipeline runs: routing, parallel claim
 extraction with a quote-verification guard, an orchestrated outline, a human approval gate,
 grounded slide writing, a fact-check loop, a visuals agent (paper figures or Graphviz
 diagrams), a generated cover image and a vision-model slide critic. All traced and
-replayable. Next: the evaluation suite (M5) and the public gallery (M6).
+replayable, with an evaluation suite (run metrics and judge agreement against human
+labels). Next: the public gallery (M6).
 
 ## What it will do
 
@@ -79,6 +80,28 @@ step's JSON artifact and `trace.jsonl`.
 Local PDFs work too: `uv run paper2carousel run --pdf path/to/paper.pdf --title "..."`.
 
 `make probe` writes `probe/probe_report.md`.
+
+## Evaluation
+
+```bash
+make eval    # metrics of every finished run -> evals/results.md, results.json
+make labels  # blind labelling sheet -> evals/labels.csv
+make judges  # re-judge your labels with each judge model -> evals/judges.md
+```
+
+- **Run metrics** come from the run artifacts and the trace, no model needed: verified vs
+  rejected claims, the share of first-draft bullets that failed the fact-check, bullets
+  dropped after the loop, coverage of the paper's contribution claims, model calls,
+  tokens and compute time (the paused and the approved invocation together).
+- **Judge agreement:** `make labels` samples bullets from every fact-check round, about half
+  of them rejected by the pipeline's judge, and writes them with their evidence but
+  *without* the judge's verdict. You fill the `human` column (`s` / `p` / `u`).
+  `make judges` then re-judges them with each candidate model using the pipeline's own
+  judge prompt and reports accuracy and Cohen's κ, on the three labels and on pass/fail.
+  The default candidates are the critic (`gemma4:26b-mlx`) and the writer judging itself
+  (`qwen3.6:35b-mlx`), which tests whether a separate judge model is worth the swap.
+  Judge calls are recorded to cassettes like everything else, so `--mode replay`
+  reproduces the table.
 
 ## Replay modes
 

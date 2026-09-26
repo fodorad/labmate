@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from collections.abc import Sequence
@@ -12,9 +13,15 @@ import httpx
 
 from paper2carousel.config import Config, ReplayMode, load_config
 from paper2carousel.engines.plain import run
+from paper2carousel.evals.agreement import agreement, agreement_markdown, judge_labels
+from paper2carousel.evals.labels import export_labels, read_labels
+from paper2carousel.evals.metrics import results_markdown, run_metrics
 from paper2carousel.llm.client import OllamaClient, OllamaError, normalize_tag
-from paper2carousel.llm.replay import read_lock, write_lock
+from paper2carousel.llm.replay import CassetteStore, ReplayClient, read_lock, write_lock
+from paper2carousel.phases import ModelSwitcher
 from paper2carousel.probe import run_probe
+from paper2carousel.steps.llm import LLM
+from paper2carousel.tracing import TracedClient, Tracer
 
 
 def configured_models(config: Config) -> list[str]:
@@ -129,6 +136,125 @@ def cmd_run(
     return 0
 
 
+def finished_runs(config: Config, run_dirs: Sequence[Path]) -> list[Path]:
+    """The given run directories, or every run that reached the fact-check.
+
+    Args:
+        config: Loaded configuration (for ``runs_dir``).
+        run_dirs: Explicit run directories; empty means "all".
+
+    Returns:
+        Run directories containing ``05_factcheck.json``, sorted.
+    """
+    candidates = list(run_dirs) or sorted(config.tracing.runs_dir.glob("*"))
+    return [d for d in candidates if (d / "05_factcheck.json").exists()]
+
+
+def cmd_eval(config: Config, run_dirs: Sequence[Path], out: Path) -> int:
+    """Compute run metrics and write ``results.md`` / ``results.json``.
+
+    Args:
+        config: Loaded configuration.
+        run_dirs: Runs to evaluate (default: all finished runs).
+        out: Output directory.
+
+    Returns:
+        Exit code: 0 on success, 1 if there is no finished run.
+    """
+    runs = finished_runs(config, run_dirs)
+    if not runs:
+        print("error: no finished runs (need 05_factcheck.json)", file=sys.stderr)
+        return 1
+    metrics = [run_metrics(d) for d in runs]
+    out.mkdir(parents=True, exist_ok=True)
+    table = results_markdown(metrics)
+    (out / "results.md").write_text(table)
+    (out / "results.json").write_text(
+        json.dumps([m.model_dump() for m in metrics], indent=2) + "\n"
+    )
+    print(table)
+    print(f"Wrote {out / 'results.md'}")
+    return 0
+
+
+def cmd_labels(config: Config, run_dirs: Sequence[Path], out: Path, n: int, seed: int) -> int:
+    """Write or top up the blind labelling sheet.
+
+    Args:
+        config: Loaded configuration.
+        run_dirs: Runs to sample from (default: all finished runs).
+        out: CSV path.
+        n: Target number of rows.
+        seed: Sampling seed.
+
+    Returns:
+        Exit code: 0 on success, 1 if there is no finished run.
+    """
+    runs = finished_runs(config, run_dirs)
+    if not runs:
+        print("error: no finished runs (need 05_factcheck.json)", file=sys.stderr)
+        return 1
+    added = export_labels(runs, out, n, seed)
+    print(
+        f"Added {added} bullet(s) to {out}. Fill the `human` column with "
+        "supported / partial / unsupported (or s / p / u), then run `make judges`."
+    )
+    return 0
+
+
+def cmd_judges(
+    config: Config,
+    labels_path: Path,
+    models: Sequence[str],
+    out: Path,
+    mode: ReplayMode | None,
+    client: OllamaClient | None,
+) -> int:
+    """Re-judge the labelled bullets with each model and report agreement.
+
+    Args:
+        config: Loaded configuration.
+        labels_path: Labelling sheet.
+        models: Judge models (default: critic and writer, i.e. cross- vs self-judging).
+        out: Output directory.
+        mode: Replay mode override.
+        client: Live Ollama client (``None`` in replay mode).
+
+    Returns:
+        Exit code: 0 on success, 1 without labelled bullets.
+    """
+    rows = read_labels(labels_path) if labels_path.exists() else []
+    labelled = [b for b in rows if b.human is not None]
+    if not labelled:
+        print(f"error: no labelled bullets in {labels_path} (run `make labels`)", file=sys.stderr)
+        return 1
+    mode = mode or config.replay.mode
+    live = None if mode is ReplayMode.REPLAY else client
+    out.mkdir(parents=True, exist_ok=True)
+    tracer = Tracer(out / "judges_trace.jsonl")
+    backend = TracedClient(
+        ReplayClient(
+            live, CassetteStore(config.replay.dir), mode, read_lock(config.replay.lock_file)
+        ),
+        tracer,
+    )
+    gen = config.generation
+    switcher = ModelSwitcher(live)
+    results = []
+    for model in list(dict.fromkeys(models or [config.models.critic, config.models.text])):
+        switcher.use(model)
+        judge = LLM(backend, model, gen.seed, gen.temperature, gen.num_ctx)
+        predicted = judge_labels(labelled, judge, config.pipeline.workers)
+        results.append(agreement([b.human for b in labelled if b.human], predicted, model))
+    switcher.release()
+    table = agreement_markdown(results)
+    (out / "judges.md").write_text(table)
+    (out / "judges.json").write_text(json.dumps([r.model_dump() for r in results], indent=2) + "\n")
+    print(table)
+    print(f"Wrote {out / 'judges.md'}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser.
 
@@ -156,6 +282,24 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--approve", action="store_true", help="accept outline.yaml, continue")
     run_p.add_argument("--auto-approve", action="store_true", help="skip the human gate")
     run_p.add_argument("--baseline", action="store_true", help="M1 one-shot pipeline")
+
+    eval_p = sub.add_parser("eval", help="metrics of finished runs -> evals/results.md")
+    eval_p.add_argument("runs", nargs="*", type=Path, help="run dirs (default: all)")
+    eval_p.add_argument("--out", type=Path, default=Path("evals"), help="output directory")
+
+    labels = sub.add_parser("labels", help="blind labelling sheet of fact-checked bullets")
+    labels.add_argument("runs", nargs="*", type=Path, help="run dirs (default: all)")
+    labels.add_argument("--out", type=Path, default=Path("evals/labels.csv"), help="CSV path")
+    labels.add_argument("-n", type=int, default=50, help="target number of bullets")
+    labels.add_argument("--seed", type=int, default=0, help="sampling seed")
+
+    judges = sub.add_parser("judges", help="agreement of judge models with your labels")
+    judges.add_argument("--labels", type=Path, default=Path("evals/labels.csv"))
+    judges.add_argument("--models", nargs="*", default=[], help="default: critic + writer")
+    judges.add_argument("--out", type=Path, default=Path("evals"), help="output directory")
+    judges.add_argument(
+        "--mode", choices=[m.value for m in ReplayMode], help="override [replay].mode"
+    )
     return parser
 
 
@@ -176,8 +320,15 @@ def main(
     """
     args = build_parser().parse_args(argv)
     config = load_config(args.config)
+    if args.command == "eval":
+        return cmd_eval(config, args.runs, args.out)
+    if args.command == "labels":
+        return cmd_labels(config, args.runs, args.out, args.n, args.seed)
     client = client or OllamaClient(config.ollama.host, config.ollama.timeout_s)
     try:
+        if args.command == "judges":
+            mode = ReplayMode(args.mode) if args.mode else None
+            return cmd_judges(config, args.labels, args.models, args.out, mode, client)
         if args.command == "lock":
             return cmd_lock(config, client)
         if args.command == "run":

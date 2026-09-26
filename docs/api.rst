@@ -75,6 +75,15 @@ API Reference
 .. automodule:: paper2carousel.steps.render
    :members:
 
+.. automodule:: paper2carousel.evals.metrics
+   :members:
+
+.. automodule:: paper2carousel.evals.labels
+   :members:
+
+.. automodule:: paper2carousel.evals.agreement
+   :members:
+
 .. automodule:: paper2carousel.engines.plain
    :members:
 

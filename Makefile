@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe probe-fast lock run approve baseline replay
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe probe-fast lock run approve baseline replay eval labels judges
 
 install:
 	uv sync --extra dev
@@ -56,6 +56,17 @@ baseline:  ## M1 one-shot pipeline, for comparison
 
 replay:  ## re-run the LLM steps from cassettes only (no Ollama needed)
 	uv run paper2carousel run $(ARXIV) --mode replay --fresh --approve
+
+# --- Evaluation ---
+
+eval:  ## metrics of all finished runs -> evals/results.md (no Ollama needed)
+	uv run paper2carousel eval
+
+labels:  ## blind labelling sheet -> evals/labels.csv; fill the `human` column (s / p / u)
+	uv run paper2carousel labels
+
+judges:  ## re-judge your labelled bullets with each judge model -> evals/judges.md (Cohen's kappa)
+	uv run paper2carousel judges
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov dist build docs/_build coverage.xml .coverage

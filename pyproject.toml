@@ -66,6 +66,9 @@ ignore = ["D203", "D213", "D107"]  # D107: __init__ args are documented on the c
 "tests/**" = ["D"]
 "docs/**" = ["D"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["paper2carousel", "tests"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 

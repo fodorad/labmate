@@ -131,3 +131,63 @@ def test_run_baseline_flag(fake, arxiv, workdir, capsys):
 def test_run_without_paper_is_an_error(fake, workdir, capsys):
     assert main(["run"], client=fake.client()) == 1
     assert "give an arXiv id" in capsys.readouterr().err
+
+
+# --- M5: evaluation commands ---------------------------------------------------------------
+
+
+def _finish(fake, arxiv):
+    from tests.conftest import agentic_chat
+
+    fake.chat_handler = agentic_chat
+    argv = ["run", "2401.00001", "--auto-approve"]
+    assert main(argv, client=fake.client(), http=arxiv.client()) == 0
+
+
+def test_eval_writes_results(fake, arxiv, workdir, capsys):
+    _finish(fake, arxiv)
+    (workdir / "runs" / "paused-only").mkdir()
+    assert main(["eval"]) == 0
+    assert "| A Test Paper |" in (workdir / "evals" / "results.md").read_text()
+    results = json.loads((workdir / "evals" / "results.json").read_text())
+    assert [r["paper_id"] for r in results] == ["2401.00001"]
+    assert main(["eval", "runs/2401.00001", "--out", "e2"]) == 0
+    assert (workdir / "e2" / "results.md").exists()
+
+
+def test_eval_and_labels_without_runs(workdir, capsys):
+    assert main(["eval"]) == 1
+    assert main(["labels"]) == 1
+    assert "no finished runs" in capsys.readouterr().err
+
+
+def test_labels_then_judges(fake, arxiv, workdir, capsys):
+    import csv
+
+    _finish(fake, arxiv)
+    assert main(["judges"], client=fake.client()) == 1
+    assert "no labelled bullets" in capsys.readouterr().err
+
+    assert main(["labels", "-n", "3"]) == 0
+    assert "Added" in capsys.readouterr().out
+    path = workdir / "evals" / "labels.csv"
+    with path.open() as f:
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        row["human"] = "s"
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    assert main(["judges"], client=fake.client()) == 0
+    out = capsys.readouterr().out
+    assert "`gemma4:26b-mlx`" in out and "`qwen3.6:35b-mlx`" in out
+    judged = json.loads((workdir / "evals" / "judges.json").read_text())
+    assert [r["accuracy"] for r in judged] == [1.0, 1.0]
+    assert (workdir / "evals" / "judges_trace.jsonl").exists()
+
+    # the same verdicts come back from cassettes alone
+    argv = ["judges", "--mode", "replay", "--models", "gemma4:26b-mlx"]
+    assert main(argv, client=fake.client()) == 0
+    assert len(json.loads((workdir / "evals" / "judges.json").read_text())) == 1
