@@ -3,11 +3,11 @@
   "release-type": "python",
   "packages": {
     ".": {
-      "package-name": "paper2carousel",
+      "package-name": "paper2flow",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         "pyproject.toml",
-        "paper2carousel/__init__.py"
+        "paper2flow/__init__.py"
       ]
     }
   }

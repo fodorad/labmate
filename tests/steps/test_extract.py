@@ -1,7 +1,7 @@
 import json
 
-from paper2carousel.schemas import Paper, Section
-from paper2carousel.steps.extract import (
+from paper2flow.schemas import Paper, Section
+from paper2flow.steps.extract import (
     MIN_SECTION_CHARS,
     chunk_section,
     extract_claims,
@@ -9,7 +9,7 @@ from paper2carousel.steps.extract import (
     numeric_tokens,
     quote_score,
 )
-from paper2carousel.steps.llm import LLM
+from paper2flow.steps.llm import LLM
 
 TEXT = (
     "The Transformer allows for signif-\nicantly more parallelization and reaches a new state "

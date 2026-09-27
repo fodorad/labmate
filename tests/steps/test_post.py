@@ -1,9 +1,9 @@
 import json
 
-from paper2carousel.phases import ModelSwitcher
-from paper2carousel.schemas import Bullet, Paper, SlideText, WrittenSlides
-from paper2carousel.steps.llm import LLM
-from paper2carousel.steps.post import post_markdown, write_post
+from paper2flow.phases import ModelSwitcher
+from paper2flow.schemas import Bullet, Paper, SlideText, WrittenSlides
+from paper2flow.steps.llm import LLM
+from paper2flow.steps.post import write_post
 from tests.conftest import agentic_chat
 from tests.steps.test_factcheck import CLAIMS
 
@@ -66,23 +66,3 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
         "It trains fast.",
     ]
     assert post.report.failed_first == 1
-
-
-def test_post_markdown():
-    from paper2carousel.schemas import FactCheckReport, Post
-
-    post = Post(
-        hook="H",
-        takeaways=[Bullet(text="T1", claim_ids=["c01"])],
-        question="Q?",
-        report=FactCheckReport(rounds=[]),
-    )
-    text = post_markdown(post, PAPER)
-    assert text.splitlines()[:4] == ["H", "", "T1", ""]
-    assert "https://arxiv.org/abs/1706.03762" in text
-    assert (
-        "https://"
-        not in post_markdown(post, PAPER.model_copy(update={"url": ""}))
-        .split("Paper:")[1]
-        .split("\n")[0]
-    )

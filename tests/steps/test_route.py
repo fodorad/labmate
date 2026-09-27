@@ -1,8 +1,8 @@
 import json
 
-from paper2carousel.schemas import Paper
-from paper2carousel.steps.llm import LLM
-from paper2carousel.steps.route import route_paper
+from paper2flow.schemas import Paper
+from paper2flow.steps.llm import LLM
+from paper2flow.steps.route import route_paper
 
 PAPER = Paper(paper_id="x", title="A Survey of Things", abstract="We review things.")
 

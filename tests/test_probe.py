@@ -2,7 +2,7 @@ import base64
 import struct
 import zlib
 
-from paper2carousel.probe import (
+from paper2flow.probe import (
     PROBE_MAX_TOKENS,
     VISION_SIZE,
     CheckResult,
@@ -202,7 +202,7 @@ def test_every_probe_chat_call_is_token_capped(fake):
 
 
 def test_progress_is_logged_per_check(fake, caplog):
-    caplog.set_level("INFO", logger="paper2carousel.probe")
+    caplog.set_level("INFO", logger="paper2flow.probe")
     probe_chat_model(fake.client(), TEXT, vision=False)
     messages = [r.getMessage() for r in caplog.records]
     assert any("think=False" in m for m in messages)

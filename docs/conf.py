@@ -1,11 +1,11 @@
-"""Sphinx configuration for paper2carousel."""
+"""Sphinx configuration for paper2flow."""
 
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 
-project = "paper2carousel"
+project = "paper2flow"
 copyright = "2026, Ádám Fodor"
 author = "Ádám Fodor"
 

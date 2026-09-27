@@ -3,7 +3,7 @@ import threading
 
 import pytest
 
-from paper2carousel.parallel import parallel_map
+from paper2flow.parallel import parallel_map
 
 VAR: contextvars.ContextVar[str] = contextvars.ContextVar("VAR", default="unset")
 

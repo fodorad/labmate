@@ -4,7 +4,7 @@ import sys
 
 def test_module_entrypoint_shows_help():
     out = subprocess.run(
-        [sys.executable, "-m", "paper2carousel", "--help"], capture_output=True, text=True
+        [sys.executable, "-m", "paper2flow", "--help"], capture_output=True, text=True
     )
     assert out.returncode == 0
     assert "probe" in out.stdout and "lock" in out.stdout

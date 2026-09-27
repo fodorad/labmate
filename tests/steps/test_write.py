@@ -1,5 +1,5 @@
-from paper2carousel.schemas import Bullet, SlideText
-from paper2carousel.steps.write import check_slide
+from paper2flow.schemas import Bullet, SlideText
+from paper2flow.steps.write import check_slide
 
 
 def slide(title="Short title", *bullets):

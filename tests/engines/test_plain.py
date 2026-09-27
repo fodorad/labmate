@@ -5,13 +5,13 @@ import pymupdf
 import pytest
 import yaml
 
-from paper2carousel.config import Config, ReplayMode
-from paper2carousel.engines.plain import NothingSupportedError, run, run_id_for
-from paper2carousel.llm.replay import CassetteMissError
-from paper2carousel.schemas import Claims, Deck, Outline, Review, Visuals, WrittenSlides
-from paper2carousel.steps.gate import GateError
-from paper2carousel.tracing import read_trace
-from tests.conftest import DECK, agentic_chat, deck_chat, make_pdf
+from paper2flow.config import Config, ReplayMode
+from paper2flow.engines.plain import NothingSupportedError, run, run_id_for
+from paper2flow.llm.replay import CassetteMissError
+from paper2flow.schemas import Claims, Flows, Outline, WrittenSlides
+from paper2flow.steps.gate import GateError
+from paper2flow.tracing import read_trace
+from tests.conftest import agentic_chat, make_pdf
 
 REF = "2401.00001"
 
@@ -22,7 +22,6 @@ def config(tmp_path):
     cfg.replay.dir = tmp_path / "cassettes"
     cfg.replay.lock_file = tmp_path / "models.lock"
     cfg.tracing.runs_dir = tmp_path / "runs"
-    cfg.outputs.carousel = True  # the full pipeline; the summary-only default is tested too
     return cfg
 
 
@@ -53,7 +52,7 @@ def test_run_id():
 def test_first_run_pauses_at_the_gate_with_an_editable_outline(model, arxiv, config):
     result = go(config, model, arxiv)
     assert result.status == "awaiting_approval"
-    assert not result.carousel.exists()
+    assert not result.overview.exists() and not result.post.exists()
     text = result.gate.read_text()
     assert "make approve ARXIV=2401.00001" in text and "# Available claim cards:" in text
     outline = Outline.model_validate(yaml.safe_load(text))
@@ -74,14 +73,20 @@ def test_approve_finishes_and_respects_human_edits(model, arxiv, config):
     assert result.status == "done"
     written = WrittenSlides.model_validate_json(result.artifact("04_slides.json").read_text())
     assert written.hook == "Edited by a human" and len(written.slides) == 4
-    with pymupdf.open(result.carousel) as doc:
+    with pymupdf.open(result.overview) as doc:
+        # paper, four blocks, data flow, two detail flows
         assert doc.page_count == 5
-        assert "Edited by a human" in " ".join(doc[0].get_text().split())
-        assert "CHALLENGES" in doc[2].get_text()  # the block label is the slide badge
-    with pymupdf.open(result.artifact("summary.pdf")) as doc:
-        text = " ".join(doc[0].get_text().split())
-        assert doc.page_count == 1
-        assert all(k in text for k in ["Task", "Challenges", "Proposed method", "Main results"])
+        assert "A Test Paper" in doc[0].get_text()
+        blocks = " ".join(doc[1].get_text().split())
+        assert all(
+            k in blocks for k in ["Task", "Why it is hard", "Proposed method", "Main results"]
+        )
+        assert "END-TO-END DATA FLOW" in doc[2].get_text()
+        assert "DETAIL A" in doc[3].get_text() and "DETAIL B" in doc[4].get_text()
+        assert not doc.metadata["creationDate"]  # no timestamp: same run, same bytes
+    with pymupdf.open(result.post) as doc:
+        assert doc.page_count == 4  # the text, then one image per diagram
+        assert "Where would linear attention help your models?" in doc[0].get_text()
     gate_span = next(
         s
         for s in read_trace(result.trace)
@@ -102,7 +107,7 @@ def test_invalid_edit_is_rejected_with_the_rule_it_breaks(model, arxiv, config):
 
 def test_auto_approve_runs_straight_through_and_traces_every_step(model, arxiv, config):
     result = go(config, model, arxiv, auto_approve=True)
-    assert result.status == "done" and result.carousel.exists()
+    assert result.status == "done" and result.overview.exists() and result.post.exists()
     spans = read_trace(result.trace)
     names = {s["name"] for s in spans}
     assert {
@@ -112,6 +117,12 @@ def test_auto_approve_runs_straight_through_and_traces_every_step(model, arxiv, 
         "step.gate",
         "step.write",
         "step.factcheck",
+        "step.publication",
+        "step.post",
+        "step.flows",
+        "step.flow.overview",
+        "step.flow.detail",
+        "step.render",
     } <= names
     extract = next(s for s in spans if s["name"] == "step.extract")
     llm_in_extract = [
@@ -120,10 +131,9 @@ def test_auto_approve_runs_straight_through_and_traces_every_step(model, arxiv, 
     assert len(llm_in_extract) == 3  # one per section, parent kept across worker threads
     factcheck = next(s for s in spans if s["name"] == "step.factcheck")
     assert factcheck["failed_first"] == 0 and factcheck["rounds"] == 1 and factcheck["swaps"] == 1
-    # route 1 + extract 3 + outline 1 + write 4 + judge 4 + post 2 + graph 1 + visuals 4
-    # + critic 5
-    assert n_chats(model) == 25
-    assert model.paths().count("/api/generate") >= 1  # the cover image
+    # publication 1 + route 1 + extract 3 + outline 1 + write 4 + judge 4 + post 2
+    # + flow overview 1 + details 2
+    assert n_chats(model) == 19
     assert not model.loaded  # every model released at the end
 
 
@@ -144,9 +154,10 @@ def test_fresh_replay_reproduces_the_agentic_run_without_any_model(model, arxiv,
     assert again.artifact("02_claims.json").read_text() == claims
     spans = [s for s in read_trace(again.trace) if s["trace_id"] == again.trace_id]
     llm = [s for s in spans if s["name"] == "llm.chat"]
-    assert len(llm) == 25 and all(s["cached"] for s in llm)
-    images = [s for s in spans if s["name"] == "llm.image"]
-    assert len(images) == 1 and images[0]["cached"]
+    assert len(llm) == 19 and all(s["cached"] for s in llm)
+    assert (
+        again.artifact("09_flows.json").read_text() == first.artifact("09_flows.json").read_text()
+    )
 
 
 def test_replay_without_cassettes_fails_loudly(arxiv, config):
@@ -157,20 +168,7 @@ def test_replay_without_cassettes_fails_loudly(arxiv, config):
 def test_local_pdf_run(model, config, tmp_path):
     pdf = make_pdf(tmp_path / "Own Paper.pdf")
     result = run(config, pdf=pdf, title="My Own Paper", auto_approve=True, client=model.client())
-    assert result.run_dir.name == "own-paper" and result.carousel.exists()
-
-
-# --- baseline (M1 one-shot) ----------------------------------------------------------------
-
-
-def test_baseline_runs_in_its_own_directory_and_shares_the_paper(fake, arxiv, config):
-    fake.chat_handler = deck_chat
-    result = run(config, ref=REF, baseline=True, client=fake.client(), http=arxiv.client())
-    assert result.run_dir.name == "baseline" and result.status == "done"
-    assert Deck.model_validate_json(result.artifact("01_deck.json").read_text()) == DECK
-    assert (result.run_dir.parent / "00_paper.json").exists()
-    with pymupdf.open(result.carousel) as doc:
-        assert doc.page_count == len(DECK.slides) + 1
+    assert result.run_dir.name == "own-paper" and result.overview.exists()
 
 
 def test_run_fails_clearly_when_nothing_survives_the_fact_check(fake, arxiv, config):
@@ -190,88 +188,25 @@ def test_run_fails_clearly_when_nothing_survives_the_fact_check(fake, arxiv, con
     assert not fake.loaded
 
 
-def test_paper_figures_reach_the_slides(model, config, tmp_path):
+def test_the_main_figure_is_on_the_first_page(model, config, tmp_path):
     pdf = make_pdf(tmp_path / "Figs.pdf", figure=True)
     result = run(config, pdf=pdf, auto_approve=True, client=model.client())
-    visuals = Visuals.model_validate_json(result.artifact("06_visuals.json").read_text())
-    assert visuals.slides[0] is not None and visuals.slides[0].source == "fig1"
-    assert (result.run_dir / visuals.slides[0].path).exists()
-    sources = [v.source for v in visuals.slides if v is not None]
-    assert sources == ["fig1", "fig2"]  # each figure used once, in slide order
-    with pymupdf.open(result.carousel) as doc:
-        assert doc[1].get_images()  # the figure is embedded on the first content slide
+    with pymupdf.open(result.overview) as doc:
+        assert doc[0].get_images()  # the paper figure
+        assert "synthetic architecture diagram" in doc[0].get_text()  # its caption
 
 
-def test_visuals_can_be_disabled(model, arxiv, config):
-    config.visuals.enabled = False
+def test_only_the_two_pdfs_and_the_diagrams_are_written(model, arxiv, config):
     result = go(config, model, arxiv, auto_approve=True)
-    assert result.status == "done" and not result.artifact("06_visuals.json").exists()
-
-
-def test_all_outputs_are_written(model, arxiv, config):
-    result = go(config, model, arxiv, auto_approve=True)
-    post = result.artifact("post.md").read_text()
-    assert post.startswith("Linear attention without the accuracy tax\n\nA grounded takeaway.")
-    assert "https://arxiv.org/abs/2401.00001" in post
-    summary = result.artifact("summary.md").read_text()
-    assert summary.startswith("# Linear attention, same accuracy") and "  - p. " in summary
-    alt = json.loads(result.artifact("alt_texts.json").read_text())
-    assert [a["page"] for a in alt] == [1, 2, 3, 4, 5]
-    assert result.artifact("cover.png").read_bytes().startswith(b"\x89PNG")
-    assert (result.run_dir / "pages" / "page-01.png").exists()
-    with pymupdf.open(result.carousel) as doc:
-        assert doc[0].get_images()  # cover illustration embedded
-
-
-def test_cover_failure_is_not_fatal(model, arxiv, config):
-    model.image_handler = lambda b: {"model": b["model"], "response": "no image support"}
-    result = go(config, model, arxiv, auto_approve=True)
-    assert result.status == "done" and not result.artifact("cover.png").exists()
-    cover = next(s for s in read_trace(result.trace) if s["name"] == "step.cover")
-    assert cover["status"].startswith("skipped")
-
-
-def test_critic_drops_an_unrelated_visual_and_rerenders(model, config, tmp_path):
-    inner = model.chat_handler
-
-    def mislabel(body):
-        # make the first figure look unrelated to the slide it was placed on
-        for m in body["messages"]:
-            if m.get("images") and "synthetic architecture" in m["content"]:
-                m["content"] = m["content"] + "\nUNRELATED"
-        return inner(body)
-
-    model.chat_handler = mislabel
-    pdf = make_pdf(tmp_path / "Figs.pdf", figure=True)
-    result = run(config, pdf=pdf, auto_approve=True, client=model.client())
-    review = Review.model_validate_json(result.artifact("07_review.json").read_text())
-    assert review.dropped_visuals == [1]
-    with pymupdf.open(result.carousel) as doc:
-        assert not doc[1].get_images() and doc[2].get_images()
-
-
-def test_optional_steps_can_be_switched_off(model, arxiv, config):
-    config.visuals.cover_image = False
-    config.visuals.critic = False
-    config.outputs.post = False
-    result = go(config, model, arxiv, auto_approve=True)
-    assert result.status == "done"
-    for name in ("cover.png", "07_review.json", "alt_texts.json", "08_post.json", "post.md"):
-        assert not result.artifact(name).exists(), name
-    assert result.artifact("summary.md").exists()
-
-
-def test_default_outputs_are_the_summary_and_the_post(model, arxiv, config):
-    config.outputs.carousel = False  # the default
-    result = go(config, model, arxiv, auto_approve=True)
-    assert result.status == "done"
-    assert result.summary.exists() and result.post_image.exists()
-    assert not result.carousel.exists() and not result.artifact("06_visuals.json").exists()
-    graph = json.loads(result.artifact("09_graph.json").read_text())
-    assert len(graph["nodes"]) >= 3
-    import pymupdf as pdf
-
-    with pdf.open(result.summary) as doc:
-        assert doc.page_count == 1 and "Proposed method" in doc[0].get_text()
-    names = {s["name"] for s in read_trace(result.trace)}
-    assert "step.graph" in names and "step.visuals" not in names and "step.cover" not in names
+    outputs = {p.name for p in result.run_dir.iterdir() if p.suffix in (".pdf", ".png", ".md")}
+    assert outputs == {
+        "paper.pdf",
+        "overview.pdf",
+        "post.pdf",
+        "flow.png",
+        "flow-a.png",
+        "flow-b.png",
+    }
+    assert not list(result.run_dir.glob("*.typ"))  # Typst sources are removed after rendering
+    flows = Flows.model_validate_json(result.artifact("09_flows.json").read_text())
+    assert [d.node_id for d in flows.details] == ["n1", "n2"]

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from paper2carousel.traceview import render_trace, trace_view, write_trace_html
+from paper2flow.traceview import render_trace, trace_view, write_trace_html
 
 
 def span(sid, name, parent, start, ms, **attrs):

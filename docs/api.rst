@@ -1,123 +1,111 @@
 API Reference
 =============
 
-.. automodule:: paper2carousel
+.. automodule:: paper2flow
    :members:
 
-.. automodule:: paper2carousel.config
+.. automodule:: paper2flow.config
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: paper2carousel.llm.types
+.. automodule:: paper2flow.llm.types
    :members:
    :show-inheritance:
 
-.. automodule:: paper2carousel.llm.client
+.. automodule:: paper2flow.llm.client
    :members:
    :show-inheritance:
 
-.. automodule:: paper2carousel.llm.structured
+.. automodule:: paper2flow.llm.structured
    :members:
 
-.. automodule:: paper2carousel.llm.replay
-   :members:
-   :show-inheritance:
-
-.. automodule:: paper2carousel.schemas
-   :members:
-
-.. automodule:: paper2carousel.steps.ingest
-   :members:
-
-.. automodule:: paper2carousel.steps.llm
-   :members:
-
-.. automodule:: paper2carousel.steps.route
-   :members:
-
-.. automodule:: paper2carousel.steps.extract
-   :members:
-
-.. automodule:: paper2carousel.steps.outline
-   :members:
-
-.. automodule:: paper2carousel.steps.gate
-   :members:
-
-.. automodule:: paper2carousel.steps.write
-   :members:
-
-.. automodule:: paper2carousel.steps.factcheck
-   :members:
-
-.. automodule:: paper2carousel.steps.figures
-   :members:
-
-.. automodule:: paper2carousel.steps.visuals
-   :members:
-
-.. automodule:: paper2carousel.steps.charts
-   :members:
-
-.. automodule:: paper2carousel.steps.graph
-   :members:
-
-.. automodule:: paper2carousel.steps.cover
-   :members:
-
-.. automodule:: paper2carousel.steps.critic
-   :members:
-
-.. automodule:: paper2carousel.steps.post
-   :members:
-
-.. automodule:: paper2carousel.steps.summary
-   :members:
-
-.. automodule:: paper2carousel.steps.draft
-   :members:
-
-.. automodule:: paper2carousel.steps.render
-   :members:
-
-.. automodule:: paper2carousel.evals.metrics
-   :members:
-
-.. automodule:: paper2carousel.evals.labels
-   :members:
-
-.. automodule:: paper2carousel.evals.agreement
-   :members:
-
-.. automodule:: paper2carousel.traceview
-   :members:
-
-.. automodule:: paper2carousel.gallery
-   :members:
-
-.. automodule:: paper2carousel.engines.common
-   :members:
-
-.. automodule:: paper2carousel.engines.plain
-   :members:
-
-.. automodule:: paper2carousel.engines.langgraph_engine
-   :members:
-
-.. automodule:: paper2carousel.phases
-   :members:
-
-.. automodule:: paper2carousel.parallel
-   :members:
-
-.. automodule:: paper2carousel.tracing
+.. automodule:: paper2flow.llm.replay
    :members:
    :show-inheritance:
 
-.. automodule:: paper2carousel.probe
+.. automodule:: paper2flow.schemas
+   :members:
+
+.. automodule:: paper2flow.steps.ingest
+   :members:
+
+.. automodule:: paper2flow.steps.llm
+   :members:
+
+.. automodule:: paper2flow.steps.route
+   :members:
+
+.. automodule:: paper2flow.steps.extract
+   :members:
+
+.. automodule:: paper2flow.steps.outline
+   :members:
+
+.. automodule:: paper2flow.steps.gate
+   :members:
+
+.. automodule:: paper2flow.steps.write
+   :members:
+
+.. automodule:: paper2flow.steps.factcheck
+   :members:
+
+.. automodule:: paper2flow.steps.figures
+   :members:
+
+.. automodule:: paper2flow.steps.words
+   :members:
+
+.. automodule:: paper2flow.steps.publication
+   :members:
+
+.. automodule:: paper2flow.steps.post
+   :members:
+
+.. automodule:: paper2flow.steps.flow
+   :members:
+
+.. automodule:: paper2flow.steps.render
+   :members:
+
+.. automodule:: paper2flow.evals.metrics
+   :members:
+
+.. automodule:: paper2flow.evals.labels
+   :members:
+
+.. automodule:: paper2flow.evals.agreement
+   :members:
+
+.. automodule:: paper2flow.traceview
+   :members:
+
+.. automodule:: paper2flow.gallery
+   :members:
+
+.. automodule:: paper2flow.engines.common
+   :members:
+
+.. automodule:: paper2flow.engines.plain
+   :members:
+
+.. automodule:: paper2flow.engines.langgraph_engine
+   :members:
+
+.. automodule:: paper2flow.phases
+   :members:
+
+.. automodule:: paper2flow.parallel
+   :members:
+
+.. automodule:: paper2flow.tracing
    :members:
    :show-inheritance:
 
-.. automodule:: paper2carousel.cli
+.. automodule:: paper2flow.probe
+   :members:
+   :show-inheritance:
+
+.. automodule:: paper2flow.cli
    :members:

@@ -1,6 +1,6 @@
 import json
 
-from paper2carousel.evals.metrics import latest_completed, results_markdown, run_metrics
+from paper2flow.evals.metrics import latest_completed, results_markdown, run_metrics
 
 
 def _root(trace_id, status, latency=1000.0, cached=False):
@@ -25,16 +25,16 @@ def test_run_metrics_on_a_finished_run(finished):
     assert m.bullets_first == m.bullets_final > 0
     assert m.unsupported_first == 0 and m.dropped == 0 and m.rounds == 1
     assert 0 <= m.block_fit <= 1
-    assert m.slides == 4 and m.graph_nodes >= 3 and m.graph_edges >= 2
+    assert m.slides == 4 and m.flow_nodes == 4 and m.flow_details == 2
     # the paused run (route, extract, outline) and the approved run both count
     assert m.llm_calls > 10 and m.wall_s >= 0 and m.swaps >= 1
     assert m.unsupported_first_pct == 0
 
 
-def test_run_metrics_without_a_post(finished):
-    (finished / "09_graph.json").unlink()
+def test_run_metrics_without_flows(finished):
+    (finished / "09_flows.json").unlink()
     m = run_metrics(finished)
-    assert m.graph_nodes == m.graph_edges == 0
+    assert m.flow_nodes == m.flow_details == 0
 
 
 def test_latest_completed_joins_paused_and_approved_runs(tmp_path):

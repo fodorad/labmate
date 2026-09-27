@@ -1032,7 +1032,7 @@ wheels = [
 ]
 
 [[package]]
-name = "paper2carousel"
+name = "paper2flow"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [
@@ -1074,7 +1074,7 @@ requires-dist = [
     { name = "langgraph-checkpoint-sqlite", marker = "extra == 'langgraph'", specifier = ">=2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "paper2carousel", extras = ["langgraph"], marker = "extra == 'dev'" },
+    { name = "paper2flow", extras = ["langgraph"], marker = "extra == 'dev'" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pymupdf", specifier = ">=1.25" },

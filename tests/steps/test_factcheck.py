@@ -2,10 +2,10 @@ import json
 
 import pytest
 
-from paper2carousel.phases import ModelSwitcher
-from paper2carousel.schemas import Bullet, ClaimCard, Claims, SlideText, WrittenSlides
-from paper2carousel.steps.factcheck import deterministic_problems, fact_check, numbers_in
-from paper2carousel.steps.llm import LLM
+from paper2flow.phases import ModelSwitcher
+from paper2flow.schemas import Bullet, ClaimCard, Claims, SlideText, WrittenSlides
+from paper2flow.steps.factcheck import deterministic_problems, fact_check, numbers_in
+from paper2flow.steps.llm import LLM
 from tests.conftest import agentic_chat
 
 CARDS = [
@@ -159,7 +159,7 @@ def test_switcher_unloads_previous_model(fake):
 
 
 def test_names_must_be_in_the_evidence_unless_generic_or_in_the_title():
-    from paper2carousel.steps.factcheck import names_in, title_names
+    from paper2flow.steps.factcheck import names_in, title_names
 
     assert names_in("DenseNet121 gets 0.99 F1 on MRL, EN-DE and TalkingFace data") == {
         "densenet121",

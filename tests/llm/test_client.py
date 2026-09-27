@@ -1,8 +1,8 @@
 import httpx
 import pytest
 
-from paper2carousel.llm.client import Backend, OllamaClient, OllamaError, normalize_tag
-from paper2carousel.llm.types import ChatRequest, ImageRequest, Message
+from paper2flow.llm.client import Backend, OllamaClient, OllamaError, normalize_tag
+from paper2flow.llm.types import ChatRequest, ImageRequest, Message
 
 
 def test_normalize_tag():
@@ -83,7 +83,7 @@ def test_unload_wait_times_out_for_stuck_model(fake):
 def test_a_dropped_connection_is_retried_once():
     import httpx
 
-    from paper2carousel.llm.client import OllamaClient, OllamaError
+    from paper2flow.llm.client import OllamaClient, OllamaError
 
     calls = []
 

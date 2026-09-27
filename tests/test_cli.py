@@ -3,9 +3,9 @@ import json
 import httpx
 import pytest
 
-from paper2carousel.cli import configured_models, main
-from paper2carousel.config import Config, load_config
-from paper2carousel.llm.client import OllamaClient
+from paper2flow.cli import configured_models, main
+from paper2flow.config import Config, load_config
+from paper2flow.llm.client import OllamaClient
 
 
 @pytest.fixture
@@ -16,17 +16,17 @@ def workdir(tmp_path, monkeypatch):
 
 def test_configured_models_are_normalized_and_unique():
     config = Config()
-    config.models.image = "x/flux2-klein"
-    tags = configured_models(config)
-    assert tags.count("x/flux2-klein:latest") == 1
-    assert tags[:3] == ["qwen3.6:35b-mlx", "gemma4:26b-mlx", "gemma4:e4b"]
+    assert configured_models(config) == ["qwen3.6:35b-mlx", "gemma4:26b-mlx"]
+    config.models.critic = "qwen3.6:35b-mlx"
+    config.models.text = "qwen3.6:35b-mlx"
+    assert configured_models(config) == ["qwen3.6:35b-mlx"]
 
 
 def test_lock_writes_digests(fake, workdir, capsys):
     assert main(["lock"], client=fake.client()) == 0
     lock = json.loads((workdir / "models.lock").read_text())
     assert lock["gemma4:26b-mlx"].startswith("21c59a2eae30")
-    assert len(lock) == 5
+    assert len(lock) == 2
     assert "CHANGED" not in capsys.readouterr().out
 
 
@@ -39,41 +39,29 @@ def test_lock_flags_changed_digests(fake, workdir, capsys):
 
 
 def test_lock_fails_when_model_missing(fake, workdir, capsys):
-    del fake.installed["x/flux2-klein:latest"]
+    del fake.installed["gemma4:26b-mlx"]
     assert main(["lock"], client=fake.client()) == 1
-    assert "x/flux2-klein:latest" in capsys.readouterr().err
+    assert "gemma4:26b-mlx" in capsys.readouterr().err
     assert not (workdir / "models.lock").exists()
 
 
 def test_probe_success_writes_report(fake, workdir):
-    assert main(["probe", "--out", "p", "--skip-images"], client=fake.client()) == 0
+    assert main(["probe", "--out", "p"], client=fake.client()) == 0
     report = json.loads((workdir / "p" / "probe_report.json").read_text())
     assert report["ollama_version"] == "0.24.0"
-    assert {r["model"] for r in report["results"]} == {
-        "qwen3.6:35b-mlx",
-        "gemma4:26b-mlx",
-        "gemma4:e4b",
-    }
+    assert {r["model"] for r in report["results"]} == {"qwen3.6:35b-mlx", "gemma4:26b-mlx"}
 
 
 def test_probe_silences_per_request_http_logs(fake, workdir):
     import logging
 
-    main(["probe", "--out", "p", "--skip-images"], client=fake.client())
+    main(["probe", "--out", "p"], client=fake.client())
     assert logging.getLogger("httpx").level == logging.WARNING
 
 
 def test_probe_returns_1_when_a_check_fails(fake, workdir):
     fake.chat_handler = lambda b: {"model": b["model"], "message": {"content": "nope"}}
-    assert main(["probe", "--out", "p", "--skip-images"], client=fake.client()) == 1
-
-
-def test_probe_includes_image_candidates_by_default(fake, workdir):
-    main(["probe", "--out", "p"], client=fake.client())
-    models = {
-        r["model"] for r in json.loads((workdir / "p/probe_report.json").read_text())["results"]
-    }
-    assert "x/z-image-turbo:latest" in models and "x/flux2-klein:latest" in models
+    assert main(["probe", "--out", "p"], client=fake.client()) == 1
 
 
 def test_unreachable_server_exits_2(workdir, capsys):
@@ -104,7 +92,7 @@ def test_main_builds_a_real_client_when_none_injected(workdir, monkeypatch):
                 transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"models": []})),
             )
 
-    monkeypatch.setattr("paper2carousel.cli.OllamaClient", Recorder)
+    monkeypatch.setattr("paper2flow.cli.OllamaClient", Recorder)
     assert main(["lock"]) == 1  # nothing installed on this fake server
     assert built["host"] == "http://localhost:11434"
 
@@ -117,17 +105,7 @@ def test_run_pauses_then_approve_finishes(fake, arxiv, workdir, capsys):
     assert "Outline ready for review: runs/2401.00001/outline.yaml" in capsys.readouterr().out
     assert main(["run", "2401.00001", "--approve"], client=fake.client(), http=arxiv.client()) == 0
     out = capsys.readouterr().out
-    assert "runs/2401.00001/summary.pdf" in out and "runs/2401.00001/post.png" in out
-    assert "carousel.pdf" not in out  # off by default
-
-
-def test_run_baseline_flag(fake, arxiv, workdir, capsys):
-    from tests.conftest import deck_chat
-
-    fake.chat_handler = deck_chat
-    argv = ["run", "2401.00001", "--baseline"]
-    assert main(argv, client=fake.client(), http=arxiv.client()) == 0
-    assert "runs/2401.00001/baseline/carousel.pdf" in capsys.readouterr().out
+    assert "runs/2401.00001/overview.pdf" in out and "runs/2401.00001/post.pdf" in out
 
 
 def test_run_without_paper_is_an_error(fake, workdir, capsys):
@@ -211,7 +189,7 @@ def test_trace_publish_verify_site(fake, arxiv, workdir, capsys):
     assert main(["publish", "missing"]) == 1
 
     assert main(["verify"], http=arxiv.client()) == 0
-    assert "OK   2401.00001: 8 identical" in capsys.readouterr().out
+    assert "OK   2401.00001: 9 identical" in capsys.readouterr().out
     (workdir / "gallery" / "2401.00001" / "04_slides.json").write_text("{}")
     assert main(["verify", "2401.00001"], http=arxiv.client()) == 1
     assert "different: 04_slides.json" in capsys.readouterr().out
@@ -237,9 +215,7 @@ def test_run_with_the_langgraph_engine(fake, arxiv, workdir, capsys):
     assert main(argv, client=fake.client(), http=arxiv.client()) == 0
     assert "Outline ready for review" in capsys.readouterr().out
     assert main([*argv, "--approve"], client=fake.client(), http=arxiv.client()) == 0
-    assert "summary.pdf" in capsys.readouterr().out
-    assert main([*argv, "--baseline"], client=fake.client(), http=arxiv.client()) == 1
-    assert "only available with --engine plain" in capsys.readouterr().err
+    assert "overview.pdf" in capsys.readouterr().out
 
 
 def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
@@ -262,7 +238,10 @@ def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
     run_dir = workdir / "runs" / "2023-my-paper"
     paper = json.loads((run_dir / "00_paper.json").read_text())
     assert paper["url"] == url and paper["title"] == "A Test Paper"
-    assert "https://example.org/pdf/2023_My_Paper.pdf" in (run_dir / "post.md").read_text()
+    import pymupdf
+
+    with pymupdf.open(run_dir / "post.pdf") as doc:
+        assert "https://example.org/pdf/2023_My_Paper.pdf" in doc[0].get_text()
 
     assert main(["trace", url]) == 0
     assert main(["publish", url], http=http) == 0

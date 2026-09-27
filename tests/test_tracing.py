@@ -1,9 +1,9 @@
 import pytest
 
-from paper2carousel.config import ReplayMode
-from paper2carousel.llm.replay import CassetteStore, ReplayClient
-from paper2carousel.llm.types import ChatRequest, ImageRequest, Message
-from paper2carousel.tracing import TracedClient, Tracer, read_trace
+from paper2flow.config import ReplayMode
+from paper2flow.llm.replay import CassetteStore, ReplayClient
+from paper2flow.llm.types import ChatRequest, ImageRequest, Message
+from paper2flow.tracing import TracedClient, Tracer, read_trace
 
 
 def test_nested_spans_link_to_parent_and_finish_inner_first():
@@ -68,9 +68,9 @@ def test_traced_client_records_usage_and_cache_hits(fake, tmp_path):
 
 
 def test_traced_client_keys_match_cassettes_when_digests_are_pinned(fake, tmp_path):
-    from paper2carousel.config import ReplayMode
-    from paper2carousel.llm.replay import CassetteStore, ReplayClient
-    from paper2carousel.llm.types import ChatRequest, Message
+    from paper2flow.config import ReplayMode
+    from paper2flow.llm.replay import CassetteStore, ReplayClient
+    from paper2flow.llm.types import ChatRequest, Message
 
     digests = {"qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52}
     store = CassetteStore(tmp_path / "c")

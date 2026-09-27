@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "paper2carousel"
+name = "paper2flow"
 version = "0.0.0"
-description = "Local agentic pipeline that turns an arXiv paper into a fact-checked LinkedIn carousel."
+description = "Local agentic pipeline that turns a research paper into a fact-checked overview with data-flow diagrams and a LinkedIn post."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -44,7 +44,7 @@ dev = [
     "myst-parser>=4.0",
     "sphinx-autodoc-typehints>=2.5",
     "types-pyyaml>=6.0",
-    "paper2carousel[langgraph]",
+    "paper2flow[langgraph]",
 ]
 # The second orchestration engine (M7): same steps, driven by a LangGraph StateGraph.
 langgraph = [
@@ -53,13 +53,13 @@ langgraph = [
 ]
 
 [project.scripts]
-paper2carousel = "paper2carousel.cli:main"
+paper2flow = "paper2flow.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/fodorad/paper2carousel"
-Repository = "https://github.com/fodorad/paper2carousel"
-Issues = "https://github.com/fodorad/paper2carousel/issues"
-Changelog = "https://github.com/fodorad/paper2carousel/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/fodorad/paper2flow"
+Repository = "https://github.com/fodorad/paper2flow"
+Issues = "https://github.com/fodorad/paper2flow/issues"
+Changelog = "https://github.com/fodorad/paper2flow/blob/main/CHANGELOG.md"
 
 [tool.ruff]
 line-length = 100
@@ -74,7 +74,7 @@ ignore = ["D203", "D213", "D107"]  # D107: __init__ args are documented on the c
 "docs/**" = ["D"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["paper2carousel", "tests"]
+known-first-party = ["paper2flow", "tests"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -87,10 +87,10 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=paper2carousel --cov-report=term-missing --cov-report=xml --cov-fail-under=90"
+addopts = "--cov=paper2flow --cov-report=term-missing --cov-report=xml --cov-fail-under=90"
 
 [tool.coverage.run]
-source = ["paper2carousel"]
+source = ["paper2flow"]
 
 [tool.coverage.report]
 exclude_lines = [

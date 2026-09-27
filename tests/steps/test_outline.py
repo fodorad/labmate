@@ -1,8 +1,8 @@
 import pytest
 
-from paper2carousel.schemas import ClaimCard, Claims, Outline, OutlineSlide, Route
-from paper2carousel.steps.llm import LLM
-from paper2carousel.steps.outline import TEMPLATES, check_outline, format_claims, plan_outline
+from paper2flow.schemas import ClaimCard, Claims, Outline, OutlineSlide, Route
+from paper2flow.steps.llm import LLM
+from paper2flow.steps.outline import TEMPLATES, check_outline, format_claims, plan_outline
 from tests.conftest import agentic_chat
 
 CLAIMS = Claims(

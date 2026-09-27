@@ -2,7 +2,7 @@ import httpx
 import pymupdf
 import pytest
 
-from paper2carousel.steps.ingest import (
+from paper2flow.steps.ingest import (
     IngestError,
     download_pdf,
     download_url,
@@ -158,12 +158,13 @@ def test_download_url_caches_and_rejects_non_pdfs(tmp_path):
 
 
 def test_metadata_falls_back_to_the_abstract_page(monkeypatch):
-    monkeypatch.setattr("paper2carousel.steps.ingest.RETRY_WAIT_S", 0.0)
+    monkeypatch.setattr("paper2flow.steps.ingest.RETRY_WAIT_S", 0.0)
     page = (
         '<meta name="citation_title" content="Survey on Evaluation of LLM-based Agents" />'
         '<meta name="citation_author" content="Yehudai, Asaf" />'
         '<meta name="citation_author" content="Eden, Lilach" />'
         '<meta name="citation_abstract" content="We survey  agents &amp; benchmarks." />'
+        '<meta name="citation_date" content="2025/03/20" />'
     )
 
     def handle(request):
@@ -178,5 +179,37 @@ def test_metadata_falls_back_to_the_abstract_page(monkeypatch):
     assert meta.title == "Survey on Evaluation of LLM-based Agents"
     assert meta.authors == ["Asaf Yehudai", "Lilach Eden"]
     assert meta.abstract == "We survey agents & benchmarks."
+    assert meta.published == "2025-03-20"
     with pytest.raises(IngestError, match="no entry"):
         fetch_metadata("2503.99999", http)
+
+
+DATED_ATOM = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <entry>
+    <title>A Test Paper</title>
+    <summary>Abstract.</summary>
+    <published>2017-06-12T17:57:34Z</published>
+    <author><name>Ada Lovelace</name></author>
+    <arxiv:comment>15 pages, 5 figures</arxiv:comment>
+    <arxiv:journal_ref>NeurIPS 30 (2017)</arxiv:journal_ref>
+  </entry>
+</feed>"""
+
+
+def test_arxiv_publication_date_and_notes(tmp_path):
+    from paper2flow.steps.ingest import ingest_arxiv
+
+    fake = FakeArxiv(make_pdf(tmp_path / "src.pdf").read_bytes(), atom=DATED_ATOM)
+    paper = ingest_arxiv("2401.00001", tmp_path / "run", fake.client())
+    assert paper.date == "2017-06-12" and paper.year == 2017
+    assert paper.notes == ("Journal reference: NeurIPS 30 (2017)\nComments: 15 pages, 5 figures")
+
+
+def test_pdf_year_falls_back_to_the_creation_date_and_first_page_text(tmp_path):
+    from paper2flow.steps.ingest import first_page_text, ingest_pdf
+
+    pdf = make_pdf(tmp_path / "p.pdf", metadata={"creationDate": "D:20230921120000Z"})
+    assert ingest_pdf(pdf).year == 2023
+    text = first_page_text(pdf, limit=30)
+    assert text.startswith("1 Introduction") and len(text) == 30

@@ -12,9 +12,8 @@ import httpx
 import pymupdf
 import pytest
 
-from paper2carousel.llm.client import OllamaClient
-from paper2carousel.probe import ProbeClaim, solid_png
-from paper2carousel.schemas import Deck, DraftSlide
+from paper2flow.llm.client import OllamaClient
+from paper2flow.probe import ProbeClaim, solid_png
 
 INSTALLED = {
     "qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52,
@@ -142,8 +141,8 @@ def fake() -> FakeOllama:
 @pytest.fixture(autouse=True)
 def fast_unload_polling(monkeypatch: pytest.MonkeyPatch) -> None:
     """Never really sleep while waiting for (fake) unloads."""
-    monkeypatch.setattr("paper2carousel.probe.UNLOAD_WAIT_S", 0.2)
-    monkeypatch.setattr("paper2carousel.probe.UNLOAD_POLL_S", 0.0)
+    monkeypatch.setattr("paper2flow.probe.UNLOAD_WAIT_S", 0.2)
+    monkeypatch.setattr("paper2flow.probe.UNLOAD_POLL_S", 0.0)
 
 
 # --- M1 helpers: synthetic papers, a fake arXiv, a deck-writing model ---------------------
@@ -257,23 +256,6 @@ def arxiv(tmp_path):
     return FakeArxiv(make_pdf(tmp_path / "src.pdf").read_bytes())
 
 
-DECK = Deck(
-    title="Linear attention, same accuracy",
-    slides=[
-        DraftSlide(title="The problem", bullets=["Attention cost grows quadratically."]),
-        DraftSlide(title="The idea", bullets=["LinAttn is linear in sequence length."]),
-        DraftSlide(title="Results", bullets=["84.6% accuracy, up from 82.1%.", "38% less memory."]),
-    ],
-)
-
-
-def deck_chat(body: dict[str, Any]) -> dict[str, Any]:
-    """A model that answers deck requests with DECK and everything else like default_chat."""
-    if "slides" in body.get("format", {}).get("properties", {}):
-        return {"model": body["model"], "message": {"content": DECK.model_dump_json()}}
-    return default_chat(body)
-
-
 # --- M2: a fake model that plays router, extractor, planner and writer ---------------------
 
 ALL_IDS = re.compile(r"^(c\d{2}) ", re.MULTILINE)
@@ -286,6 +268,12 @@ def _last_user(body: dict[str, Any]) -> str:
 def _first_sentences(text: str, n: int) -> list[str]:
     sentences = [s.strip() for s in text.replace("\n", " ").split(". ") if len(s.split()) >= 4]
     return sentences[:n]
+
+
+def _flow_words(prompt: str) -> list[str]:
+    """Distinct words of the section text a flow prompt shows, to use as grounded labels."""
+    text = prompt.split("Section text:", 1)[-1]
+    return list(dict.fromkeys(w.lower() for w in re.findall(r"[A-Za-z]{6,}", text)))
 
 
 def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
@@ -302,28 +290,26 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
             ],
             "question": "Where would linear attention help your models?",
         }
-    elif "legible" in props:
-        image_seen = bool(body["messages"][-1].get("images"))
+    elif "venue" in props:
+        content = {"venue": "", "date": ""}
+    elif "expand" in props:
+        words = _flow_words(prompt)[:4]
+        kinds = ["input", "process", "component", "output"]
         content = {
-            "legible": image_seen,
-            "overflow": False,
-            "visual_relevant": "UNRELATED" not in prompt,
-            "alt_text": "A slide with a title and bullet points." if image_seen else "(no image)",
-        }
-    elif "nodes" in props:
-        evidence = prompt.split("Evidence quoted from the paper:", 1)[-1]
-        words = [w for w in re.findall(r"[A-Za-z]{5,}", evidence)][:3] or [
-            "input",
-            "model",
-            "output",
-        ]
-        kinds = ["input", "component", "output"]
-        content = {
-            "nodes": [
-                {"id": f"n{i}", "label": w, "kind": kinds[i % 3]} for i, w in enumerate(words)
-            ],
+            "title": "The method end to end",
+            "nodes": [{"id": f"n{i}", "label": w, "kind": kinds[i]} for i, w in enumerate(words)],
             "edges": [{"source": f"n{i}", "target": f"n{i + 1}"} for i in range(len(words) - 1)],
             "caption": "The method in one flow.",
+            "expand": ["n1", "n2"],
+        }
+    elif "nodes" in props:
+        words = _flow_words(prompt)[4:7]
+        kinds = ["data", "process", "output"]
+        content = {
+            "title": "Inside one step",
+            "nodes": [{"id": f"d{i}", "label": w, "kind": kinds[i]} for i, w in enumerate(words)],
+            "edges": [{"source": f"d{i}", "target": f"d{i + 1}"} for i in range(len(words) - 1)],
+            "caption": "What happens inside the step.",
         }
     elif "paper_type" in props:
         content: Any = {"paper_type": "method", "confidence": 0.9, "reason": "new model"}
@@ -356,17 +342,6 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
                 }
                 for n, text in bullets
             ]
-        }
-    elif any(t["function"]["name"] == "no_visual" for t in body.get("tools", [])):
-        figure = re.search(r"^(fig\d+) \(page", prompt, re.MULTILINE)
-        call = (
-            {"name": "use_paper_figure", "arguments": {"figure_id": figure.group(1)}}
-            if figure
-            else {"name": "no_visual", "arguments": {"reason": "text is clearer"}}
-        )
-        return {
-            "model": body["model"],
-            "message": {"content": "", "tool_calls": [{"function": call}]},
         }
     elif "bullets" in props:
         ids = ALL_IDS.findall(conversation)

@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe probe-fast lock run approve baseline replay eval labels judges trace publish verify site site-serve
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe lock run approve replay eval labels judges trace publish verify site site-serve
 
 install:
 	uv sync --extra dev
@@ -13,7 +13,7 @@ format:
 	uv run ruff check --fix .
 
 type-check:
-	uv run mypy paper2carousel
+	uv run mypy paper2flow
 
 test:
 	uv run pytest
@@ -34,14 +34,11 @@ check: lint type-check test docs
 
 # --- Local model tooling (needs a running Ollama) ---
 
-probe:  ## verify model capabilities + benchmark image models -> probe/probe_report.md
-	uv run paper2carousel probe --out probe
-
-probe-fast:  ## same, without the (slow) image benchmark
-	uv run paper2carousel probe --out probe --skip-images
+probe:  ## verify model capabilities (structured output, tools, determinism) -> probe/probe_report.md
+	uv run paper2flow probe --out probe
 
 lock:  ## pin installed model digests into models.lock
-	uv run paper2carousel lock
+	uv run paper2flow lock
 
 ARXIV ?= 1706.03762
 ENGINE ?= plain
@@ -52,32 +49,29 @@ SRC = $(if $(PDF),--pdf "$(PDF)" $(if $(TITLE),--title "$(TITLE)"),$(ARXIV))
 REF = $(if $(PDF),$(PDF),$(ARXIV))
 
 run:  ## paper -> outline.yaml for review (reuses finished steps), e.g. make run ARXIV=1706.03762
-	uv run paper2carousel run $(SRC) --engine $(ENGINE)
+	uv run paper2flow run $(SRC) --engine $(ENGINE)
 
-approve:  ## accept the (edited) outline.yaml and finish the carousel
-	uv run paper2carousel run $(SRC) --engine $(ENGINE) --approve
-
-baseline:  ## M1 one-shot pipeline, for comparison
-	uv run paper2carousel run $(SRC) --baseline
+approve:  ## accept the (edited) outline.yaml and finish: overview.pdf + post.pdf
+	uv run paper2flow run $(SRC) --engine $(ENGINE) --approve
 
 replay:  ## re-run the LLM steps from cassettes only (no Ollama needed)
-	uv run paper2carousel run $(SRC) --engine $(ENGINE) --mode replay --fresh --approve
+	uv run paper2flow run $(SRC) --engine $(ENGINE) --mode replay --fresh --approve
 
 trace:  ## HTML trace viewer -> runs/$(ARXIV)/trace.html
-	uv run paper2carousel trace "$(REF)"
+	uv run paper2flow trace "$(REF)"
 
 # --- Gallery ---
 
 PAPER ?=
 
 publish:  ## copy a finished run + its cassettes into gallery/$(ARXIV)
-	uv run paper2carousel publish "$(REF)"
+	uv run paper2flow publish "$(REF)"
 
 verify:  ## replay gallery entries from their cassettes only and compare every artifact
-	uv run paper2carousel verify $(PAPER)
+	uv run paper2flow verify $(PAPER)
 
 site:  ## build the static gallery -> site/
-	uv run paper2carousel site
+	uv run paper2flow site
 
 site-serve: site
 	python3 -m http.server 8001 --directory site
@@ -85,13 +79,13 @@ site-serve: site
 # --- Evaluation ---
 
 eval:  ## metrics of all finished runs -> evals/results.md (no Ollama needed)
-	uv run paper2carousel eval
+	uv run paper2flow eval
 
 labels:  ## blind labelling sheet -> evals/labels.csv; fill the `human` column (s / p / u)
-	uv run paper2carousel labels
+	uv run paper2flow labels
 
 judges:  ## re-judge your labelled bullets with each judge model -> evals/judges.md (Cohen's kappa)
-	uv run paper2carousel judges
+	uv run paper2flow judges
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov dist build docs/_build coverage.xml .coverage

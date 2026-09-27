@@ -1,14 +1,14 @@
 import pytest
 from pydantic import BaseModel
 
-from paper2carousel.llm.structured import (
+from paper2flow.llm.structured import (
     StructuredOutputError,
     extract_json,
     parse_structured,
     schema_instruction,
     structured_chat,
 )
-from paper2carousel.llm.types import ChatRequest, Message
+from paper2flow.llm.types import ChatRequest, Message
 
 
 class Claim(BaseModel):

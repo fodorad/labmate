@@ -2,7 +2,7 @@ import base64
 
 import pytest
 
-from paper2carousel.llm.types import (
+from paper2flow.llm.types import (
     ChatRequest,
     ChatResponse,
     ImageRequest,
@@ -141,7 +141,7 @@ def test_num_predict_goes_into_options():
 
 
 def test_tool_call_arguments_have_a_canonical_key_order():
-    from paper2carousel.llm.types import ToolFunction
+    from paper2flow.llm.types import ToolFunction
 
     # a live response and its cassette (written with sorted keys) must look the same
     live = ToolFunction(

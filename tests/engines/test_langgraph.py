@@ -6,36 +6,34 @@ import shutil
 import pytest
 import yaml
 
-from paper2carousel.config import Config, ReplayMode
-from paper2carousel.engines import langgraph_engine, plain
-from paper2carousel.engines.common import NothingSupportedError
-from paper2carousel.tracing import read_trace
+from paper2flow.config import Config, ReplayMode
+from paper2flow.engines import langgraph_engine, plain
+from paper2flow.engines.common import NothingSupportedError
+from paper2flow.tracing import read_trace
 from tests.conftest import FakeArxiv, agentic_chat, make_pdf
 
 REF = "2401.00001"
 COMPARED = [
+    "00_publication.json",
     "01_route.json",
     "02_claims.json",
     "03_outline.draft.json",
     "03_outline.json",
     "04_slides.json",
     "05_factcheck.json",
-    "06_visuals.json",
-    "07_review.json",
     "08_post.json",
-    "09_graph.json",
-    "post.md",
-    "summary.md",
-    "alt_texts.json",
+    "09_flows.json",
+    "overview.pdf",
+    "post.pdf",
 ]
 
 
 def flaky_writer(body):
-    """Slide 2's first draft is unsupported; the rewrite fixes it (exercises the cycle)."""
+    """Block 2's first draft is unsupported; the rewrite fixes it (exercises the cycle)."""
     reply = agentic_chat(body)
     prompt = body["messages"][-1]["content"]
     writing = "bullets" in body.get("format", {}).get("properties", {})
-    if writing and "Slide 2 of" in prompt and "flagged problems" not in prompt:
+    if writing and "Block 2 of" in prompt and "flagged problems" not in prompt:
         content = json.loads(reply["message"]["content"])
         content["bullets"][0]["text"] = "WRONG: better than everything."
         reply["message"]["content"] = json.dumps(content)
@@ -47,7 +45,6 @@ def config_for(tmp_path, name):
     cfg.replay.dir = tmp_path / "cassettes"
     cfg.replay.lock_file = tmp_path / "models.lock"
     cfg.tracing.runs_dir = tmp_path / name
-    cfg.outputs.carousel = True
     return cfg
 
 
@@ -76,13 +73,14 @@ def test_both_engines_write_identical_artifacts_in_replay(model, paper, tmp_path
     result = langgraph_engine.run(
         graph_cfg, ref=REF, mode=ReplayMode.REPLAY, http=paper.client(), approve=True
     )
-    assert result.status == "done" and result.carousel.exists()
+    assert result.status == "done" and result.overview.exists()
     for name in COMPARED:
         assert (graph_dir / name).read_bytes() == done.artifact(name).read_bytes(), name
 
     spans = read_trace(result.trace)
     names = {s["name"] for s in spans}
     assert {"step.extract.unit", "step.write.slide", "step.factcheck.judge"} <= names
+    assert {"step.flow.overview", "step.flow.detail", "step.flows", "step.render"} <= names
     assert "step.factcheck.rewrite" in names
     assert all(s.get("cached") for s in spans if s["name"] == "llm.chat")
     root = next(s for s in spans if s["name"] == "run")
@@ -109,7 +107,7 @@ def test_interrupt_pauses_at_the_gate_and_resumes_from_the_checkpoint(model, pap
     done = langgraph_engine.run(
         cfg, ref=REF, client=model.client(), http=paper.client(), approve=True
     )
-    assert done.status == "done" and done.carousel.exists()
+    assert done.status == "done" and done.overview.exists() and done.post.exists()
     written = json.loads(done.artifact("04_slides.json").read_text())
     assert written["hook"] == "Edited in the gate"
     resumed = [s for s in read_trace(done.trace) if s["trace_id"] == done.trace_id]
@@ -146,3 +144,23 @@ def test_nothing_supported_propagates(fake, paper, tmp_path):
         langgraph_engine.run(
             cfg, ref=REF, client=fake.client(), http=paper.client(), auto_approve=True
         )
+
+
+def test_an_overview_without_steps_to_expand_skips_the_details(fake, paper, tmp_path):
+    def no_details(body):
+        reply = agentic_chat(body)
+        if "expand" in body.get("format", {}).get("properties", {}):
+            content = json.loads(reply["message"]["content"])
+            content["nodes"], content["edges"] = content["nodes"][:3], content["edges"][:2]
+            content["nodes"][2]["kind"] = "output"
+            content["expand"] = []
+            reply["message"]["content"] = json.dumps(content)
+        return reply
+
+    fake.chat_handler = no_details
+    cfg = config_for(tmp_path, "graph")
+    result = langgraph_engine.run(
+        cfg, ref=REF, client=fake.client(), http=paper.client(), auto_approve=True
+    )
+    flows = json.loads(result.artifact("09_flows.json").read_text())
+    assert result.status == "done" and flows["details"] == []

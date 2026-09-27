@@ -1,6 +1,6 @@
 import pymupdf
 
-from paper2carousel.steps.figures import extract_figures
+from paper2flow.steps.figures import extract_figures
 from tests.conftest import make_pdf
 
 
@@ -20,7 +20,7 @@ def test_raster_and_vector_figures_are_cropped_with_captions(tmp_path):
 
 def _box_of(page, crop, fig):
     # reconstruct the crop box from the image position: pixels / (dpi/72)
-    from paper2carousel.steps.figures import DPI, PADDING
+    from paper2flow.steps.figures import DPI, PADDING
 
     w, h = crop.width * 72 / DPI, crop.height * 72 / DPI
     img = page.get_image_rects(page.get_images()[0][0])[0]

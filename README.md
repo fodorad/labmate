@@ -1,43 +1,50 @@
-# paper2carousel
+# paper2flow
 
-> Turn a research paper into a fact-checked one-page summary and LinkedIn post, fully local,
-> fully reproducible.
+> Turn a research paper into a fact-checked overview with data-flow diagrams, and a
+> ready-to-post LinkedIn post. Fully local, fully reproducible.
 
-**Status: pre-alpha, feature-complete for v0.1.** The full pipeline runs: routing,
-parallel claim extraction with a quote-verification guard, an orchestrated four-block
-outline, a human approval gate, grounded writing, a fact-check loop, the one-page summary
-and a LinkedIn post whose image is an evidence-checked graph of the proposed method (plus
-an optional carousel with a visuals agent, a generated cover and a vision-model critic).
-All traced and replayable, with an evaluation suite (run metrics and judge agreement
-against human labels), an HTML trace viewer, a static gallery of five published papers
-that anyone can replay from cassettes, and two interchangeable orchestration engines
-(plain Python and LangGraph).
+**Status: pre-alpha, feature-complete for v0.1.** Routing, parallel claim extraction with
+a quote-verification guard, an orchestrated four-block outline, a human approval gate,
+grounded writing, a fact-check loop, and flow diagrams planned by an orchestrator and
+drawn by workers, every label checked against the paper. All traced and replayable, with
+an evaluation suite (run metrics and judge agreement against human labels), an HTML trace
+viewer, a static gallery that anyone can replay from cassettes, and two interchangeable
+orchestration engines (plain Python and LangGraph).
 
 ## What it does
 
 ```
-arXiv id / PDF ─▶ ingest ─▶ route ─▶ extract claims ─▶ plan the 4 blocks ─▶ ✋ human approval
-               ─▶ write ─▶ fact-check loop ─▶ summary.pdf            (main output)
-                                           └─▶ post.md + post.png     (LinkedIn post)
-                                           └─▶ carousel.pdf           (optional)
+paper (arXiv id, PDF or URL) ─▶ ingest ─▶ venue & date ─▶ route ─▶ extract claims
+   ─▶ plan the 4 blocks ─▶ ✋ human approval ─▶ write ─▶ fact-check loop ─▶ post text
+   ─▶ flow diagrams (overview ─▶ details) ─▶ overview.pdf + post.pdf
 ```
 
-Every paper becomes the same four blocks, the structure of a research project page:
-**Task**, **Challenges**, **Proposed method** and **Main results**.
+Two PDFs per paper, nothing else:
 
-- **`summary.pdf`**, the main output: a one-page project summary (title, authors, main
-  figure, abstract and the four blocks as cards).
-- **LinkedIn post**: `post.md` (hook, 3–5 sentences telling the paper's story, a question)
-  and `post.png`, a 1080×1350 image of the proposed method as a pipeline graph. The model
-  proposes the graph as typed nodes and edges; code checks every label against the
-  evidence and draws it with Graphviz in a fixed house style.
-- **`carousel.pdf`** (`[outputs] carousel = true`): a cover plus one slide per block, each
-  with a paper figure, a generated diagram or a chart of the paper's numbers.
+- **`overview.pdf`** (A4 portrait)
+  1. the paper: title, authors, venue and publication date, and its main figure;
+  2. four blocks, the structure of a research project page: **Task**, **Challenges**,
+     **Proposed method**, **Main results**;
+  3. the **end-to-end data flow**, top to bottom, from the raw data to the target output;
+  4. one page per **detail flow** that breaks a step of the overview down (marked
+     "detail A", "detail B", … in the overview).
+- **`post.pdf`** (4:5 pages): what a LinkedIn post needs. Page 1 is the post text, ready
+  to copy (hook, 3–5 sentences telling the paper's story, a question, the link); the next
+  pages are the diagrams as images to attach, or to upload together as a document carousel.
 
-- **Grounded:** every bullet on a slide cites a claim card, and every claim card carries
-  a verbatim quote from the paper. A fact-check loop rewrites or drops unsupported bullets.
+What makes it trustworthy:
+
+- **Grounded:** every bullet cites a claim card, and every claim card carries a verbatim
+  quote from the paper. A fact-check loop rewrites or drops unsupported bullets; the post
+  goes through the same loop.
+- **Checked diagrams:** the model proposes each diagram as data (typed boxes and arrows);
+  code accepts it only if it runs from input data to an output, every label names
+  something in the paper's text and no number is invented, then lays it out with Graphviz
+  in a fixed house style. The venue and date are accepted only if they are printed on the
+  paper's first page.
 - **Agentic where it pays off:** routing, parallel extraction, an orchestrator, an
-  evaluator–optimizer loop and one bounded tool-using agent. Everything else stays plain code.
+  evaluator–optimizer loop and orchestrator–workers for the diagrams. Everything else is
+  plain code.
 - **Local and free:** runs on a Mac mini M4 (32 GB) with Ollama. No paid APIs.
 - **Reproducible:** every model call is recorded to a cassette. `replay` mode reruns a
   published run byte-for-byte without any model installed; this is also what CI runs.
@@ -46,36 +53,31 @@ Every paper becomes the same four blocks, the structure of a research project pa
 
 | Step | Pattern | What it does |
 |---|---|---|
-| ingest | plain code | arXiv PDF → sections via the PDF outline, references dropped |
-| route | routing | title + abstract → method / benchmark / survey / position template |
+| ingest | plain code | PDF → sections via the PDF outline (references dropped), figures cropped; arXiv metadata incl. the submission date and journal reference |
+| publication | structured output + check | the writer reads the venue and publication date off the first page; accepted only if copied verbatim from it (the arXiv margin stamp is ignored); the year falls back to the arXiv date |
+| route | routing | title + abstract → method / benchmark / survey / position |
 | extract | parallelisation | per section: claim cards with verbatim evidence quotes; quotes that aren't in the paper, or whose numbers differ, are dropped in code |
-| outline | orchestrator | assigns claim cards to the four blocks (task, challenges, method, results) and titles them; rules (the four blocks in order, valid ids, ≤ 2 uses per claim) are checked in code and fed back on violation |
+| outline | orchestrator | assigns claim cards to the four blocks and titles them; rules (the four blocks in order, valid ids, ≤ 2 uses per claim) are checked in code and fed back on violation |
 | gate | human-in-the-loop | writes `outline.yaml` and pauses; your edits are validated with the same rules |
-| write | prompt chaining | one call per slide; every bullet cites the claim ids it uses |
-| fact-check | evaluator–optimizer | numbers must match the cited evidence exactly; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
-| visuals | agent (tool use) | per slide the model calls `use_paper_figure` (only offered the figures whose caption matches this slide best), `make_chart` (a bar chart whose every value must appear in the slide's evidence quotes, checked in code), `make_diagram` (Graphviz) or `no_visual`; tool errors come back as observations, ≤ 4 calls per slide |
-| post | chaining + evaluator | LinkedIn post drafted from the final slides (hook, 3–5 sentences telling the paper's story, a question); every sentence goes through the same fact-check |
-| graph | structured output + checks | the proposed method as typed nodes and edges; labels must name something in the evidence (checked in code, fed back on violation); Graphviz layout in the orientation that fills the 4:5 post image best |
-| cover | plain call | illustration from the local image model in the slide palette; skipped (not fatal) if generation fails |
-| render | plain code | Typst → 4:5 PDF in the adamfodor.com palette, Inter font bundled for identical renders everywhere |
-| critic | vision model | reviews each rendered page at phone size, writes alt texts, removes illegible or off-topic visuals |
+| write | prompt chaining | one call per block; every bullet cites the claim ids it uses |
+| fact-check | evaluator–optimizer | numbers and names must be in the cited evidence; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
+| post | chaining + evaluator | LinkedIn post text drafted from the final blocks; every sentence goes through the same fact-check |
+| flows | orchestrator–workers | the planner draws the end-to-end flow from the method block, its evidence quotes and the text of the sections they come from, and picks 1–3 steps to break down; one worker call per step draws its detail flow. Checked in code: starts at inputs, ends at outputs, grounded labels, no invented numbers, details add new boxes |
+| render | plain code | Graphviz (top to bottom) + Typst → the two PDFs in the adamfodor.com palette, Inter bundled; no creation date, so the same run renders the same bytes |
 
 ## Models
 
 | Role | Model |
 |---|---|
 | Writer / planner | `qwen3.6:35b-mlx` |
-| Critic, fact-checker | `gemma4:26b-mlx` |
-| Vision (slide critic, alt texts) | `gemma4:e4b` |
-| Cover image | `x/z-image-turbo` or `x/flux2-klein` (decided by the probe) |
+| Fact-checker (judge) | `gemma4:26b-mlx` |
 
-Only one large model fits in memory at a time, so the pipeline runs in phases
-(text → critic → image) and unloads models between them.
+Only one large model fits in memory at a time, so the pipeline runs in phases and unloads
+the previous model when it switches.
 
 **Probe findings** (`make probe`, Ollama 0.24, Mac mini M4): the MLX builds ignore Ollama's
 `format=` JSON constraint (0/10 valid) but follow a schema given in the system prompt (10/10),
-so the pipeline always sends both and validates with a retry loop. The MLX builds also ignore
-image inputs, hence the separate non-MLX vision model.
+so the pipeline always sends both and validates with a retry loop.
 
 ## Quickstart
 
@@ -85,28 +87,23 @@ make check       # lint + type-check + tests + docs (no Ollama needed)
 
 # with Ollama running:
 make lock        # pin installed model digests into models.lock
-make probe       # verify structured output, tools, vision, determinism; benchmark image models
-make run ARXIV=1706.03762      # route, extract, plan -> pauses with runs/1706.03762/outline.yaml
-make approve ARXIV=1706.03762  # after reviewing/editing the outline: write, fact-check, summary.pdf + post
+make probe       # verify structured output, tool calling and determinism
+make run ARXIV=1706.03762      # ingest, route, extract, plan -> pauses with runs/1706.03762/outline.yaml
+make approve ARXIV=1706.03762  # after reviewing/editing the outline: overview.pdf + post.pdf
 make replay ARXIV=1706.03762   # the whole run again from cassettes only, no Ollama needed
-make baseline ARXIV=1706.03762 # the M1 one-shot version, for comparison
 ```
 
-Each run folder contains `summary.pdf` (the one-page project summary), `post.md`
-(paste-ready LinkedIn text) and `post.png` (its image), `carousel.pdf` if enabled,
-`summary.md` (every bullet with its page and quote), `alt_texts.json`, `pages/*.png`, every
-step's JSON artifact and `trace.jsonl`.
+Each run folder contains the two PDFs, the diagram PNGs they embed, every step's JSON
+artifact and `trace.jsonl`.
 
 Papers that aren't on arXiv work too, from a path or a URL (title and authors come from
-the PDF metadata when present; the URL is linked on the slides):
+the PDF metadata when present; the URL is linked in the outputs):
 
 ```bash
 make run PDF=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
 make approve PDF=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
 make run PDF=papers/mine.pdf TITLE="My paper"
 ```
-
-`make probe` writes `probe/probe_report.md`.
 
 ## Evaluation
 
@@ -119,7 +116,7 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
 - **Run metrics** come from the run artifacts and the trace, no model needed: verified vs
   rejected claims, the share of first-draft bullets that failed the fact-check, bullets
   dropped after the loop, *block fit* (the share of bullets citing a claim of their
-  block's kind, e.g. a result under Main results), the size of the post's method graph,
+  block's kind, e.g. a result under Main results), the size of the flow diagrams,
   model calls, tokens and compute time (the paused and the approved invocation together).
 - **Judge agreement:** `make labels` samples bullets from every fact-check round, about half
   of them rejected by the pipeline's judge, and writes them with their evidence but
@@ -133,26 +130,7 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
 
 ### Results on the gallery
 
-| Paper | Claims (verified / rejected) | Unsupported in first draft | Dropped after loop | Final bullets | Block fit | Post graph | LLM calls | Compute |
-|---|---|---|---|---|---|---|---|---|
-| Attention Is All You Need | 33 / 1 | 2/12 (17%) | 1 | 11 | 91% | 5 nodes, 4 edges | 42 | 825 s |
-| BlinkLinMulT: Transformer-Based Eye Blink Detection | 43 / 0 | 3/12 (25%) | 0 | 12 | 100% | 6 nodes, 5 edges | 46 | 999 s |
-| Survey on Evaluation of LLM-based Agents | 40 / 1 | 2/15 (13%) | 1 | 14 | 71% | 8 nodes, 8 edges | 43 | 962 s |
-| RRSI: Regularized Recursive Self-Improvement of Agent Harnesses | 31 / 2 | 1/12 (8%) | 0 | 12 | 100% | 5 nodes, 4 edges | 41 | 896 s |
-| GameHorizon Suite: Multi-Horizon Data and Evaluation in Gameplay | 51 / 1 | 4/13 (31%) | 0 | 13 | 92% | 6 nodes, 5 edges | 47 | 1169 s |
-
-- **The fact-check loop earns its place:** 12 of 64 first-draft bullets (19%) were
-  unsupported by their cited evidence (a wrong number, a model name the quote doesn't
-  mention, an overreach). The loop fixed 10 by rewriting and dropped the other 2, so every
-  published bullet passed the exact-number check and the judge.
-- **The quote guard rarely fires on this model** (5 of 203 claims), but when it does it
-  catches quotes that were paraphrased or stitched together.
-- **Block fit is lowest for the survey** (71%): a survey has few result claims (2 of 40),
-  so the planner fills Main results with the gaps the survey found (limitation claims)
-  and Task with its own contribution. The four-block structure fits method and benchmark
-  papers best.
-- **About 15 minutes of local compute per paper** on a Mac mini M4 (32 GB), ~45 model
-  calls; replaying from cassettes takes seconds.
+RESULTS
 
 ## Same pipeline, two ways
 
@@ -166,7 +144,7 @@ make run ARXIV=1706.03762 ENGINE=langgraph  # LangGraph StateGraph
 | | `engine=plain` | `engine=langgraph` |
 |---|---|---|
 | Code (without docstrings) | ~100 lines | ~290 lines |
-| Parallel extraction / writing | thread pool (`parallel_map`) | `Send` fan-out + `operator.add` reducer |
+| Parallel extraction / writing / detail flows | thread pool (`parallel_map`) | `Send` fan-out + `operator.add` reducer |
 | Fact-check loop | `while` loop | `judge ⇄ rewrite` cycle with a conditional edge |
 | Human gate | pause, re-run with `--approve`, reuse file checkpoints | `interrupt()`, resume from a SQLite checkpoint |
 | Resume after a crash | step artifacts on disk | graph checkpoint per super-step |
@@ -194,9 +172,9 @@ make verify                    # replay every gallery entry from cassettes only,
 make site                      # static gallery -> site/ (GitHub Pages builds it on push to main)
 ```
 
-A gallery entry contains the step artifacts, the summary, the post and its image, the
-trace and the cassettes of exactly the model calls in that trace (not the paper, which is
-fetched again from arXiv or its URL). CI runs `make verify`, so a published entry that no
+A gallery entry contains the step artifacts, the two PDFs, the trace and the cassettes of
+exactly the model calls in that trace (not the paper, which is fetched again from arXiv or
+its URL). CI runs `make verify`, so a published entry that no
 longer reproduces fails the build.
 
 ## Replay modes

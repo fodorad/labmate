@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from paper2carousel.config import Config
-from paper2carousel.engines.plain import run
-from paper2carousel.schemas import (
+from paper2flow.config import Config
+from paper2flow.engines.plain import run
+from paper2flow.schemas import (
     Bullet,
     BulletCheck,
     ClaimCard,

@@ -1,13 +1,13 @@
 import pytest
 
-from paper2carousel.evals.agreement import (
+from paper2flow.evals.agreement import (
     agreement,
     agreement_markdown,
     cohen_kappa,
     judge_labels,
 )
-from paper2carousel.evals.labels import LabelledBullet
-from paper2carousel.steps.llm import LLM
+from paper2flow.evals.labels import LabelledBullet
+from paper2flow.steps.llm import LLM
 from tests.conftest import agentic_chat
 
 

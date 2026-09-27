@@ -3,9 +3,9 @@ import shutil
 
 import pytest
 
-from paper2carousel.config import Config
-from paper2carousel.engines.plain import run
-from paper2carousel.gallery import (
+from paper2flow.config import Config
+from paper2flow.engines.plain import run
+from paper2flow.gallery import (
     Meta,
     PublishError,
     build_site,
@@ -22,7 +22,6 @@ def config(tmp_path):
     cfg.replay.dir = tmp_path / "cassettes"
     cfg.replay.lock_file = tmp_path / "models.lock"
     cfg.tracing.runs_dir = tmp_path / "runs"
-    cfg.outputs.carousel = True  # the full pipeline; the summary-only default is tested too
     return cfg
 
 
@@ -48,10 +47,13 @@ def test_publish_copies_artifacts_trace_and_only_the_runs_cassettes(
     assert entry == tmp_path / "gallery" / "2401.00001"
     assert n == len(list((entry / "cassettes").glob("*/*.json"))) > 10
     assert not (entry / "cassettes" / "zz").exists()
-    assert (entry / "05_factcheck.json").exists() and (entry / "carousel.pdf").exists()
+    assert (entry / "05_factcheck.json").exists() and (entry / "09_flows.json").exists()
+    assert (entry / "overview.pdf").exists() and (entry / "post.pdf").exists()
+    assert not (entry / "flow.png").exists()  # the diagrams are inside the PDFs
     assert not (entry / "paper.pdf").exists() and not (entry / "00_paper.json").exists()
     meta = Meta.model_validate_json((entry / "meta.json").read_text())
     assert meta.source == "arxiv" and meta.title == "A Test Paper" and meta.published
+    assert meta.publication.startswith("arXiv preprint")
     roots = [json.loads(line) for line in (entry / "trace.jsonl").read_text().splitlines()]
     assert {s["status"] for s in roots if s["name"] == "run"} == {"ok", "awaiting_approval"}
     # republishing replaces the entry
@@ -61,13 +63,13 @@ def test_publish_copies_artifacts_trace_and_only_the_runs_cassettes(
 
 
 def test_publish_finds_cassettes_of_traces_without_digest_keys(finished, config, arxiv, tmp_path):
-    from paper2carousel.llm.replay import CassetteStore
+    from paper2flow.llm.replay import CassetteStore
 
     config.replay.lock_file.write_text(json.dumps({"gemma4:26b-mlx": "cd" * 32}))
     store, legacy = CassetteStore(config.replay.dir), CassetteStore(tmp_path / "legacy")
     for path in store.root.glob("*/*.json"):  # re-key every cassette with the digest
         record = json.loads(path.read_text())
-        from paper2carousel.llm.types import ChatRequest
+        from paper2flow.llm.types import ChatRequest
 
         if "messages" in record["request"] and record["request"]["model"] == "gemma4:26b-mlx":
             key = ChatRequest.model_validate(
@@ -110,7 +112,7 @@ def test_publish_local_pdf_hides_the_local_path(fake, config, tmp_path):
 def test_verify_reproduces_every_artifact_from_cassettes(entry, config, arxiv):
     report = verify(entry, Config(), http=arxiv.client())
     assert report.ok, report
-    assert "05_factcheck.json" in report.identical and len(report.identical) == 10
+    assert "05_factcheck.json" in report.identical and len(report.identical) == 9
 
 
 def test_verify_reports_differences_and_missing_cassettes(entry, arxiv):
@@ -149,7 +151,7 @@ def test_paper_context_describes_the_audit(entry):
     outcomes = [a["outcome"] for a in ctx["audit"]]
     assert outcomes == ["passed", "rewritten: A better bullet", "dropped", "slide dropped"]
     assert ctx["route"].paper_type == "method" and ctx["post"] is not None
-    assert ctx["alt"][1] and ctx["slides"][0].bullets[0]["evidence"]
+    assert ctx["slides"][0].bullets[0]["evidence"] and len(ctx["flows"].details) == 2
 
 
 def test_build_site(entry, tmp_path):
@@ -168,10 +170,15 @@ def test_build_site(entry, tmp_path):
     assert 'href="2401.00001/"' in index and "gemma4:26b-mlx" in index and "0.70" in index
     page = (out / "2401.00001" / "index.html").read_text()
     assert "A Test Paper" in page and "Every bullet and its evidence" in page
-    assert "no_visual" in page and "pages/page-01.png" in page
-    assert (out / "2401.00001" / "pages" / "page-01.png").exists()
+    assert "overview/page-01.png" in page and "post/page-01.png" in page
+    assert "Where would linear attention help your models?" in page  # the post text to copy
+    assert "Detail A:" in page  # what the diagrams were checked against
+    assert (out / "2401.00001" / "overview" / "page-05.png").exists()
     assert (out / "2401.00001" / "trace.html").exists()
-    assert (out / "2401.00001" / "carousel.pdf").exists()
+    assert (out / "2401.00001" / "overview.pdf").exists() and (
+        out / "2401.00001" / "post.pdf"
+    ).exists()
+    assert "2401.00001/overview/page-03.png" in index  # the data flow is the thumbnail
 
 
 def test_build_site_without_entries(tmp_path):

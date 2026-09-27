@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from paper2carousel.config import Config, ReplayMode, load_config
+from paper2flow.config import Config, ReplayMode, load_config
 
 REPO_CONFIG = Path(__file__).parent.parent / "config.toml"
 
@@ -11,7 +11,6 @@ def test_repo_config_is_valid_and_pins_the_roles():
     config = load_config(REPO_CONFIG)
     assert config.models.text == "qwen3.6:35b-mlx"
     assert config.models.critic == "gemma4:26b-mlx"
-    assert config.models.image in config.models.image_candidates
     assert config.replay.mode is ReplayMode.AUTO
     assert config.generation.temperature == 0.0
 

@@ -2,7 +2,7 @@ import csv
 
 import pytest
 
-from paper2carousel.evals.labels import (
+from paper2flow.evals.labels import (
     bullets_for_labelling,
     export_labels,
     parse_label,

@@ -2,15 +2,15 @@ import json
 
 import pytest
 
-from paper2carousel.config import ReplayMode
-from paper2carousel.llm.replay import (
+from paper2flow.config import ReplayMode
+from paper2flow.llm.replay import (
     CassetteMissError,
     CassetteStore,
     ReplayClient,
     read_lock,
     write_lock,
 )
-from paper2carousel.llm.types import ChatRequest, ImageRequest, Message
+from paper2flow.llm.types import ChatRequest, ImageRequest, Message
 
 REQ = ChatRequest(model="qwen3.6:35b-mlx", messages=[Message(role="user", content="hi")])
 IMG = ImageRequest(model="x/flux2-klein:latest", prompt="p", seed=3)
