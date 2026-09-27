@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "paper2flow"
+name = "labmate"
 version = "0.0.0"
-description = "Local agentic pipeline that turns a research paper into a fact-checked overview with data-flow diagrams and a LinkedIn post."
+description = "A local research assistant built from agentic patterns: paper2flow turns a paper into a fact-checked overview and a LinkedIn post; ask answers questions about your research with citations."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -44,22 +44,22 @@ dev = [
     "myst-parser>=4.0",
     "sphinx-autodoc-typehints>=2.5",
     "types-pyyaml>=6.0",
-    "paper2flow[langgraph]",
+    "labmate[langgraph]",
 ]
-# The second orchestration engine (M7): same steps, driven by a LangGraph StateGraph.
+# paper2flow's second orchestration engine: same steps, driven by a LangGraph StateGraph.
 langgraph = [
     "langgraph>=1.0",
     "langgraph-checkpoint-sqlite>=2.0",
 ]
 
 [project.scripts]
-paper2flow = "paper2flow.cli:main"
+labmate = "labmate.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/fodorad/paper2flow"
-Repository = "https://github.com/fodorad/paper2flow"
-Issues = "https://github.com/fodorad/paper2flow/issues"
-Changelog = "https://github.com/fodorad/paper2flow/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/fodorad/labmate"
+Repository = "https://github.com/fodorad/labmate"
+Issues = "https://github.com/fodorad/labmate/issues"
+Changelog = "https://github.com/fodorad/labmate/blob/main/CHANGELOG.md"
 
 [tool.ruff]
 line-length = 100
@@ -74,7 +74,7 @@ ignore = ["D203", "D213", "D107"]  # D107: __init__ args are documented on the c
 "docs/**" = ["D"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["paper2flow", "tests"]
+known-first-party = ["labmate", "tests"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -87,10 +87,10 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=paper2flow --cov-report=term-missing --cov-report=xml --cov-fail-under=90"
+addopts = "--cov=labmate --cov-report=term-missing --cov-report=xml --cov-fail-under=90"
 
 [tool.coverage.run]
-source = ["paper2flow"]
+source = ["labmate"]
 
 [tool.coverage.report]
 exclude_lines = [

@@ -12,8 +12,8 @@ import httpx
 import pymupdf
 import pytest
 
-from paper2flow.llm.client import OllamaClient
-from paper2flow.probe import ProbeClaim, solid_png
+from labmate.core.llm.client import OllamaClient
+from labmate.core.probe import ProbeClaim, solid_png
 
 INSTALLED = {
     "qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52,
@@ -141,8 +141,8 @@ def fake() -> FakeOllama:
 @pytest.fixture(autouse=True)
 def fast_unload_polling(monkeypatch: pytest.MonkeyPatch) -> None:
     """Never really sleep while waiting for (fake) unloads."""
-    monkeypatch.setattr("paper2flow.probe.UNLOAD_WAIT_S", 0.2)
-    monkeypatch.setattr("paper2flow.probe.UNLOAD_POLL_S", 0.0)
+    monkeypatch.setattr("labmate.core.probe.UNLOAD_WAIT_S", 0.2)
+    monkeypatch.setattr("labmate.core.probe.UNLOAD_POLL_S", 0.0)
 
 
 # --- M1 helpers: synthetic papers, a fake arXiv, a deck-writing model ---------------------

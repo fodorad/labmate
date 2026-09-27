@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from paper2flow.config import Config, ReplayMode, load_config
+from labmate.config import Config, ReplayMode, load_config
 
 REPO_CONFIG = Path(__file__).parent.parent / "config.toml"
 

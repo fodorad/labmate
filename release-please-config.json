@@ -3,11 +3,11 @@
   "release-type": "python",
   "packages": {
     ".": {
-      "package-name": "paper2flow",
+      "package-name": "labmate",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         "pyproject.toml",
-        "paper2flow/__init__.py"
+        "labmate/__init__.py"
       ]
     }
   }

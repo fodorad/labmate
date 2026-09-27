@@ -567,6 +567,65 @@ wheels = [
 ]
 
 [[package]]
+name = "labmate"
+version = "0.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+    { name = "jinja2" },
+    { name = "pydantic" },
+    { name = "pymupdf" },
+    { name = "pyyaml" },
+    { name = "rapidfuzz" },
+    { name = "typst" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "furo" },
+    { name = "langgraph" },
+    { name = "langgraph-checkpoint-sqlite" },
+    { name = "mypy" },
+    { name = "myst-parser" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "sphinx" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "types-pyyaml" },
+]
+langgraph = [
+    { name = "langgraph" },
+    { name = "langgraph-checkpoint-sqlite" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "furo", marker = "extra == 'dev'", specifier = ">=2024.8" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "jinja2", specifier = ">=3.1" },
+    { name = "labmate", extras = ["langgraph"], marker = "extra == 'dev'" },
+    { name = "langgraph", marker = "extra == 'langgraph'", specifier = ">=1.0" },
+    { name = "langgraph-checkpoint-sqlite", marker = "extra == 'langgraph'", specifier = ">=2.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
+    { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "pydantic", specifier = ">=2.10" },
+    { name = "pymupdf", specifier = ">=1.25" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "rapidfuzz", specifier = ">=3.10" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
+    { name = "sphinx", marker = "extra == 'dev'", specifier = ">=8.1" },
+    { name = "sphinx-autodoc-typehints", marker = "extra == 'dev'", specifier = ">=2.5" },
+    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "typst", specifier = ">=0.13" },
+]
+provides-extras = ["dev", "langgraph"]
+
+[[package]]
 name = "langchain-core"
 version = "1.6.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1030,65 +1089,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce89
 wheels = [
     { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956, upload-time = "2026-08-04T18:15:27.159Z" },
 ]
-
-[[package]]
-name = "paper2flow"
-version = "0.0.0"
-source = { editable = "." }
-dependencies = [
-    { name = "httpx" },
-    { name = "jinja2" },
-    { name = "pydantic" },
-    { name = "pymupdf" },
-    { name = "pyyaml" },
-    { name = "rapidfuzz" },
-    { name = "typst" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "furo" },
-    { name = "langgraph" },
-    { name = "langgraph-checkpoint-sqlite" },
-    { name = "mypy" },
-    { name = "myst-parser" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "sphinx" },
-    { name = "sphinx-autodoc-typehints" },
-    { name = "types-pyyaml" },
-]
-langgraph = [
-    { name = "langgraph" },
-    { name = "langgraph-checkpoint-sqlite" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "furo", marker = "extra == 'dev'", specifier = ">=2024.8" },
-    { name = "httpx", specifier = ">=0.28" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "langgraph", marker = "extra == 'langgraph'", specifier = ">=1.0" },
-    { name = "langgraph-checkpoint-sqlite", marker = "extra == 'langgraph'", specifier = ">=2.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
-    { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "paper2flow", extras = ["langgraph"], marker = "extra == 'dev'" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "pydantic", specifier = ">=2.10" },
-    { name = "pymupdf", specifier = ">=1.25" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "rapidfuzz", specifier = ">=3.10" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
-    { name = "sphinx", marker = "extra == 'dev'", specifier = ">=8.1" },
-    { name = "sphinx-autodoc-typehints", marker = "extra == 'dev'", specifier = ">=2.5" },
-    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
-    { name = "typst", specifier = ">=0.13" },
-]
-provides-extras = ["dev", "langgraph"]
 
 [[package]]
 name = "pathspec"

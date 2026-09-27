@@ -2,10 +2,31 @@
 Keep near-identical to README.md (minus GitHub chrome). Update both in the same PR.
 -->
 
-# paper2flow
+# labmate
 
-> Turn a research paper into a fact-checked overview with data-flow diagrams, and a
-> ready-to-post LinkedIn post. Fully local, fully reproducible.
+> A local research assistant built from agentic patterns. Fully local, fully reproducible.
+
+labmate is a collection of features, each chosen to show a different way of building
+with LLMs, all on one shared core: local models via Ollama, every model call recorded and
+replayable, traced, and evaluated.
+
+| Feature | What it does | How it is built | Status |
+|---|---|---|---|
+| **paper2flow** | A research paper in, a fact-checked overview with data-flow diagrams and a LinkedIn post out | A **workflow**: fixed steps (routing, parallel extraction, an orchestrator, a human gate, chaining, a fact-check loop, orchestrator–workers), in plain Python and, as a second engine, in LangGraph | done |
+| **ask** | Questions about my research, answered from my PhD dissertation and papers, with page citations | An **agent**: agentic RAG in LangGraph (tiered hybrid retrieval, grading and query rewriting loops, conflict checks, self-verification, multi-turn memory), compared against a prebuilt tool-calling agent | planned |
+
+Workflows where the path is known, an agent where it isn't.
+
+## Shared core (`labmate.core`)
+
+- **Local and free:** a Mac mini M4 (32 GB) with Ollama. No paid APIs.
+- **Reproducible:** every model call is recorded to a cassette; `replay` mode reruns a
+  run byte-for-byte without any model installed, and CI does exactly that.
+- **Grounded:** claim cards carry verbatim quotes checked against the source; a
+  fact-check loop (evaluator–optimizer) rewrites or drops unsupported statements.
+- **Observable:** every step and model call is traced (`trace.jsonl`, HTML viewer).
+
+## paper2flow
 
 **Status: pre-alpha, feature-complete for v0.1.** Routing, parallel claim extraction with
 a quote-verification guard, an orchestrated four-block outline, a human approval gate,
@@ -15,7 +36,7 @@ an evaluation suite (run metrics and judge agreement against human labels), an H
 viewer, a static gallery that anyone can replay from cassettes, and two interchangeable
 orchestration engines (plain Python and LangGraph).
 
-## What it does
+### What it does
 
 ```
 paper (arXiv id, PDF or URL) ─▶ ingest ─▶ venue & date ─▶ route ─▶ extract claims
@@ -49,11 +70,7 @@ What makes it trustworthy:
 - **Agentic where it pays off:** routing, parallel extraction, an orchestrator, an
   evaluator–optimizer loop and orchestrator–workers for the diagrams. Everything else is
   plain code.
-- **Local and free:** runs on a Mac mini M4 (32 GB) with Ollama. No paid APIs.
-- **Reproducible:** every model call is recorded to a cassette. `replay` mode reruns a
-  published run byte-for-byte without any model installed; this is also what CI runs.
-
-## How it works
+### How it works
 
 | Step | Pattern | What it does |
 |---|---|---|
@@ -68,6 +85,85 @@ What makes it trustworthy:
 | post | chaining + evaluator | LinkedIn post text drafted from the final blocks; every sentence goes through the same fact-check |
 | flows | orchestrator–workers | the planner draws the end-to-end flow from the method block, its evidence quotes and the text of the sections they come from, and picks 1–3 steps to break down; one worker call per step draws its detail flow. Checked in code: starts at inputs, ends at outputs, grounded labels, no invented numbers, details add new boxes |
 | render | plain code | Graphviz (top to bottom) + Typst → the two PDFs in the adamfodor.com palette, Inter bundled; no creation date, so the same run renders the same bytes |
+
+### Evaluation
+
+```bash
+make eval    # metrics of every finished run -> evals/results.md, results.json
+make labels  # blind labelling sheet -> evals/labels.csv
+make judges  # re-judge your labels with each judge model -> evals/judges.md
+```
+
+- **Run metrics** come from the run artifacts and the trace, no model needed: verified vs
+  rejected claims, the share of first-draft bullets that failed the fact-check, bullets
+  dropped after the loop, *block fit* (the share of bullets citing a claim of their
+  block's kind, e.g. a result under Main results), the size of the flow diagrams,
+  model calls, tokens and compute time (the paused and the approved invocation together).
+- **Judge agreement:** `make labels` samples bullets from every fact-check round, about half
+  of them rejected by the pipeline's judge, and writes them with their evidence but
+  *without* the judge's verdict. You fill the `human` column (`s` / `p` / `u`).
+  `make judges` then re-judges them with each candidate model using the pipeline's own
+  judge prompt and reports accuracy and Cohen's κ, on the three labels and on pass/fail.
+  The default candidates are the critic (`gemma4:26b-mlx`) and the writer judging itself
+  (`qwen3.6:35b-mlx`), which tests whether a separate judge model is worth the swap.
+  Judge calls are recorded to cassettes like everything else, so `--mode replay`
+  reproduces the table.
+
+#### Results on the gallery
+
+RESULTS
+
+### Same pipeline, two ways
+
+The steps know nothing about orchestration. Two engines drive them:
+
+```bash
+make run ARXIV=1706.03762                   # plain Python (default)
+make run ARXIV=1706.03762 ENGINE=langgraph  # LangGraph StateGraph
+```
+
+| | `engine=plain` | `engine=langgraph` |
+|---|---|---|
+| Code (without docstrings) | ~100 lines | ~290 lines |
+| Parallel extraction / writing / detail flows | thread pool (`parallel_map`) | `Send` fan-out + `operator.add` reducer |
+| Fact-check loop | `while` loop | `judge ⇄ rewrite` cycle with a conditional edge |
+| Human gate | pause, re-run with `--approve`, reuse file checkpoints | `interrupt()`, resume from a SQLite checkpoint |
+| Resume after a crash | step artifacts on disk | graph checkpoint per super-step |
+
+Both call the same stage functions (`engines/common.py`) and the same per-item step
+functions, so they send identical model requests. **In replay mode they write
+byte-identical artifacts**; a test runs a paper with a rewrite round through both
+engines and compares every file, so CI fails if they drift apart.
+
+What LangGraph gave for free: checkpointing of the whole state after every node, a clean
+interrupt/resume at the gate, and a graph picture of the pipeline. What it cost: about
+3× the orchestration code, state that must be serializable (the checkpointer's
+deserialization is allow-listed to this package's models), fan-out results that arrive
+in any order (they carry their index and are sorted before assembly), and control flow
+that is harder to step through in a debugger than a `for` loop. For a pipeline this
+linear, the plain engine is the one I'd maintain; LangGraph earns its keep once there
+are real branches, long-running interrupts or several agents sharing state.
+
+### Trace viewer and gallery
+
+```bash
+make trace ARXIV=1706.03762    # runs/1706.03762/trace.html: every step and model call on a timeline
+make publish ARXIV=1706.03762  # copy the finished run + the cassettes of its model calls to gallery/
+make verify                    # replay every gallery entry from cassettes only, compare byte for byte
+make site                      # static gallery -> site/ (GitHub Pages builds it on push to main)
+```
+
+A gallery entry contains the step artifacts, the two PDFs, the trace and the cassettes of
+exactly the model calls in that trace (not the paper, which is fetched again from arXiv or
+its URL). CI runs `make verify`, so a published entry that no
+longer reproduces fails the build.
+
+## ask (planned)
+
+Questions about my research, answered with citations such as "[Dissertation §4.2, p. 57]".
+The PhD dissertation is the source of truth; my papers add detail; the paper2flow gallery
+is outside context only. See the plan in the docs; the commands will be `make index`,
+`make ask Q="…"`, `make eval-rag` and `make dashboard`.
 
 ## Models
 
@@ -109,78 +205,6 @@ make approve PDF=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
 make run PDF=papers/mine.pdf TITLE="My paper"
 ```
 
-## Evaluation
-
-```bash
-make eval    # metrics of every finished run -> evals/results.md, results.json
-make labels  # blind labelling sheet -> evals/labels.csv
-make judges  # re-judge your labels with each judge model -> evals/judges.md
-```
-
-- **Run metrics** come from the run artifacts and the trace, no model needed: verified vs
-  rejected claims, the share of first-draft bullets that failed the fact-check, bullets
-  dropped after the loop, *block fit* (the share of bullets citing a claim of their
-  block's kind, e.g. a result under Main results), the size of the flow diagrams,
-  model calls, tokens and compute time (the paused and the approved invocation together).
-- **Judge agreement:** `make labels` samples bullets from every fact-check round, about half
-  of them rejected by the pipeline's judge, and writes them with their evidence but
-  *without* the judge's verdict. You fill the `human` column (`s` / `p` / `u`).
-  `make judges` then re-judges them with each candidate model using the pipeline's own
-  judge prompt and reports accuracy and Cohen's κ, on the three labels and on pass/fail.
-  The default candidates are the critic (`gemma4:26b-mlx`) and the writer judging itself
-  (`qwen3.6:35b-mlx`), which tests whether a separate judge model is worth the swap.
-  Judge calls are recorded to cassettes like everything else, so `--mode replay`
-  reproduces the table.
-
-### Results on the gallery
-
-RESULTS
-
-## Same pipeline, two ways
-
-The steps know nothing about orchestration. Two engines drive them:
-
-```bash
-make run ARXIV=1706.03762                   # plain Python (default)
-make run ARXIV=1706.03762 ENGINE=langgraph  # LangGraph StateGraph
-```
-
-| | `engine=plain` | `engine=langgraph` |
-|---|---|---|
-| Code (without docstrings) | ~100 lines | ~290 lines |
-| Parallel extraction / writing / detail flows | thread pool (`parallel_map`) | `Send` fan-out + `operator.add` reducer |
-| Fact-check loop | `while` loop | `judge ⇄ rewrite` cycle with a conditional edge |
-| Human gate | pause, re-run with `--approve`, reuse file checkpoints | `interrupt()`, resume from a SQLite checkpoint |
-| Resume after a crash | step artifacts on disk | graph checkpoint per super-step |
-
-Both call the same stage functions (`engines/common.py`) and the same per-item step
-functions, so they send identical model requests. **In replay mode they write
-byte-identical artifacts**; a test runs a paper with a rewrite round through both
-engines and compares every file, so CI fails if they drift apart.
-
-What LangGraph gave for free: checkpointing of the whole state after every node, a clean
-interrupt/resume at the gate, and a graph picture of the pipeline. What it cost: about
-3× the orchestration code, state that must be serializable (the checkpointer's
-deserialization is allow-listed to this package's models), fan-out results that arrive
-in any order (they carry their index and are sorted before assembly), and control flow
-that is harder to step through in a debugger than a `for` loop. For a pipeline this
-linear, the plain engine is the one I'd maintain; LangGraph earns its keep once there
-are real branches, long-running interrupts or several agents sharing state.
-
-## Trace viewer and gallery
-
-```bash
-make trace ARXIV=1706.03762    # runs/1706.03762/trace.html: every step and model call on a timeline
-make publish ARXIV=1706.03762  # copy the finished run + the cassettes of its model calls to gallery/
-make verify                    # replay every gallery entry from cassettes only, compare byte for byte
-make site                      # static gallery -> site/ (GitHub Pages builds it on push to main)
-```
-
-A gallery entry contains the step artifacts, the two PDFs, the trace and the cassettes of
-exactly the model calls in that trace (not the paper, which is fetched again from arXiv or
-its URL). CI runs `make verify`, so a published entry that no
-longer reproduces fails the build.
-
 ## Replay modes
 
 Set `[replay].mode` in `config.toml`:
@@ -194,7 +218,7 @@ Set `[replay].mode` in `config.toml`:
 
 ## License
 
-[AGPL-3.0-or-later](https://github.com/fodorad/paper2flow/blob/main/LICENSE). PyMuPDF, used for PDF parsing, is AGPL-licensed.
+[AGPL-3.0-or-later](https://github.com/fodorad/labmate/blob/main/LICENSE). PyMuPDF, used for PDF parsing, is AGPL-licensed.
 
 ```{toctree}
 :maxdepth: 2

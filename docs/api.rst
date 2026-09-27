@@ -1,111 +1,100 @@
 API Reference
 =============
 
-.. automodule:: paper2flow
+.. automodule:: labmate
    :members:
 
-.. automodule:: paper2flow.config
+.. automodule:: labmate.config
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: paper2flow.llm.types
+.. automodule:: labmate.cli
+   :members:
+
+Core
+----
+
+Shared by every feature: local models with record/replay, tracing, ingest, claim
+extraction and the fact-check loop.
+
+.. automodule:: labmate.core
+.. automodule:: labmate.core.llm.types
+   :members:
+   :show-inheritance:
+.. automodule:: labmate.core.llm.client
+   :members:
+   :show-inheritance:
+.. automodule:: labmate.core.llm.structured
+   :members:
+.. automodule:: labmate.core.llm.replay
+   :members:
+   :show-inheritance:
+.. automodule:: labmate.core.model
+   :members:
+.. automodule:: labmate.core.schemas
+   :members:
+.. automodule:: labmate.core.ingest
+   :members:
+.. automodule:: labmate.core.figures
+   :members:
+.. automodule:: labmate.core.words
+   :members:
+.. automodule:: labmate.core.extract
+   :members:
+.. automodule:: labmate.core.factcheck
+   :members:
+.. automodule:: labmate.core.phases
+   :members:
+.. automodule:: labmate.core.parallel
+   :members:
+.. automodule:: labmate.core.tracing
+   :members:
+   :show-inheritance:
+.. automodule:: labmate.core.traceview
+   :members:
+.. automodule:: labmate.core.theme
+   :members:
+.. automodule:: labmate.core.probe
    :members:
    :show-inheritance:
 
-.. automodule:: paper2flow.llm.client
-   :members:
-   :show-inheritance:
+paper2flow
+----------
 
-.. automodule:: paper2flow.llm.structured
-   :members:
+A paper in, ``overview.pdf`` and ``post.pdf`` out.
 
-.. automodule:: paper2flow.llm.replay
+.. automodule:: labmate.paper2flow
+.. automodule:: labmate.paper2flow.schemas
    :members:
-   :show-inheritance:
-
-.. automodule:: paper2flow.schemas
+   :exclude-members: Bullet, BulletCheck, BulletVerdict, ClaimCard, ClaimDraft, Claims, FactCheckReport, FactChecked, Figure, Paper, Section, SectionClaims, SlideText, SlideVerdicts, WrittenSlides
+.. automodule:: labmate.paper2flow.steps.publication
    :members:
-
-.. automodule:: paper2flow.steps.ingest
+.. automodule:: labmate.paper2flow.steps.route
    :members:
-
-.. automodule:: paper2flow.steps.llm
+.. automodule:: labmate.paper2flow.steps.outline
    :members:
-
-.. automodule:: paper2flow.steps.route
+.. automodule:: labmate.paper2flow.steps.gate
    :members:
-
-.. automodule:: paper2flow.steps.extract
+.. automodule:: labmate.paper2flow.steps.write
    :members:
-
-.. automodule:: paper2flow.steps.outline
+.. automodule:: labmate.paper2flow.steps.post
    :members:
-
-.. automodule:: paper2flow.steps.gate
+.. automodule:: labmate.paper2flow.steps.flow
    :members:
-
-.. automodule:: paper2flow.steps.write
+.. automodule:: labmate.paper2flow.steps.render
    :members:
-
-.. automodule:: paper2flow.steps.factcheck
+.. automodule:: labmate.paper2flow.engines.common
    :members:
-
-.. automodule:: paper2flow.steps.figures
+.. automodule:: labmate.paper2flow.engines.plain
    :members:
-
-.. automodule:: paper2flow.steps.words
+.. automodule:: labmate.paper2flow.engines.langgraph_engine
    :members:
-
-.. automodule:: paper2flow.steps.publication
+.. automodule:: labmate.paper2flow.evals.metrics
    :members:
-
-.. automodule:: paper2flow.steps.post
+.. automodule:: labmate.paper2flow.evals.labels
    :members:
-
-.. automodule:: paper2flow.steps.flow
+.. automodule:: labmate.paper2flow.evals.agreement
    :members:
-
-.. automodule:: paper2flow.steps.render
-   :members:
-
-.. automodule:: paper2flow.evals.metrics
-   :members:
-
-.. automodule:: paper2flow.evals.labels
-   :members:
-
-.. automodule:: paper2flow.evals.agreement
-   :members:
-
-.. automodule:: paper2flow.traceview
-   :members:
-
-.. automodule:: paper2flow.gallery
-   :members:
-
-.. automodule:: paper2flow.engines.common
-   :members:
-
-.. automodule:: paper2flow.engines.plain
-   :members:
-
-.. automodule:: paper2flow.engines.langgraph_engine
-   :members:
-
-.. automodule:: paper2flow.phases
-   :members:
-
-.. automodule:: paper2flow.parallel
-   :members:
-
-.. automodule:: paper2flow.tracing
-   :members:
-   :show-inheritance:
-
-.. automodule:: paper2flow.probe
-   :members:
-   :show-inheritance:
-
-.. automodule:: paper2flow.cli
+.. automodule:: labmate.paper2flow.gallery
    :members:

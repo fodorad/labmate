@@ -3,8 +3,8 @@
 ## Setup
 
 ```bash
-git clone https://github.com/fodorad/paper2flow
-cd paper2flow
+git clone https://github.com/fodorad/labmate
+cd labmate
 make install   # uv sync + pre-commit hooks (incl. commit-msg)
 ```
 
@@ -20,7 +20,7 @@ trivial "does it not crash" placeholders. Target ≥90% coverage
 (`make test-cov`). Fixtures for real-data tests live in `tests/fixtures/`
 and are only added when the underlying data is actually available.
 
-`tests/` mirrors the `paper2flow/` source layout file-for-file.
+`tests/` mirrors the `labmate/` source layout (`core/`, `paper2flow/`).
 
 ## Commit messages
 

@@ -13,7 +13,7 @@ format:
 	uv run ruff check --fix .
 
 type-check:
-	uv run mypy paper2flow
+	uv run mypy labmate
 
 test:
 	uv run pytest
@@ -32,13 +32,15 @@ build:
 
 check: lint type-check test docs
 
-# --- Local model tooling (needs a running Ollama) ---
+# --- Shared: local model tooling (needs a running Ollama) ---
 
 probe:  ## verify model capabilities (structured output, tools, determinism) -> probe/probe_report.md
-	uv run paper2flow probe --out probe
+	uv run labmate probe --out probe
 
 lock:  ## pin installed model digests into models.lock
-	uv run paper2flow lock
+	uv run labmate lock
+
+# --- paper2flow: a paper -> overview.pdf + post.pdf ---
 
 ARXIV ?= 1706.03762
 ENGINE ?= plain
@@ -49,43 +51,43 @@ SRC = $(if $(PDF),--pdf "$(PDF)" $(if $(TITLE),--title "$(TITLE)"),$(ARXIV))
 REF = $(if $(PDF),$(PDF),$(ARXIV))
 
 run:  ## paper -> outline.yaml for review (reuses finished steps), e.g. make run ARXIV=1706.03762
-	uv run paper2flow run $(SRC) --engine $(ENGINE)
+	uv run labmate paper2flow run $(SRC) --engine $(ENGINE)
 
 approve:  ## accept the (edited) outline.yaml and finish: overview.pdf + post.pdf
-	uv run paper2flow run $(SRC) --engine $(ENGINE) --approve
+	uv run labmate paper2flow run $(SRC) --engine $(ENGINE) --approve
 
 replay:  ## re-run the LLM steps from cassettes only (no Ollama needed)
-	uv run paper2flow run $(SRC) --engine $(ENGINE) --mode replay --fresh --approve
+	uv run labmate paper2flow run $(SRC) --engine $(ENGINE) --mode replay --fresh --approve
 
 trace:  ## HTML trace viewer -> runs/$(ARXIV)/trace.html
-	uv run paper2flow trace "$(REF)"
+	uv run labmate trace "$(REF)"
 
-# --- Gallery ---
+# --- paper2flow gallery ---
 
 PAPER ?=
 
 publish:  ## copy a finished run + its cassettes into gallery/$(ARXIV)
-	uv run paper2flow publish "$(REF)"
+	uv run labmate paper2flow publish "$(REF)"
 
 verify:  ## replay gallery entries from their cassettes only and compare every artifact
-	uv run paper2flow verify $(PAPER)
+	uv run labmate paper2flow verify $(PAPER)
 
 site:  ## build the static gallery -> site/
-	uv run paper2flow site
+	uv run labmate paper2flow site
 
 site-serve: site
 	python3 -m http.server 8001 --directory site
 
-# --- Evaluation ---
+# --- paper2flow evaluation ---
 
 eval:  ## metrics of all finished runs -> evals/results.md (no Ollama needed)
-	uv run paper2flow eval
+	uv run labmate paper2flow eval
 
 labels:  ## blind labelling sheet -> evals/labels.csv; fill the `human` column (s / p / u)
-	uv run paper2flow labels
+	uv run labmate paper2flow labels
 
 judges:  ## re-judge your labelled bullets with each judge model -> evals/judges.md (Cohen's kappa)
-	uv run paper2flow judges
+	uv run labmate paper2flow judges
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov dist build docs/_build coverage.xml .coverage
