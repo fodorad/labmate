@@ -17,6 +17,8 @@ from labmate.core.llm.client import Backend
 from labmate.core.llm.types import (
     ChatRequest,
     ChatResponse,
+    EmbedRequest,
+    EmbedResponse,
     ImageRequest,
     ImageResponse,
 )
@@ -131,6 +133,24 @@ class ReplayClient:
         if hit is not None:
             return ChatResponse.model_validate({**hit, "cached": True})
         response = self._live().chat(request)
+        if self.mode is not ReplayMode.LIVE:
+            self.store.put(key, request.to_payload(), response.model_dump(exclude={"cached"}))
+        return response
+
+    def embed(self, request: EmbedRequest) -> EmbedResponse:
+        """Serve an embedding request from the cassette store or the live backend.
+
+        Args:
+            request: The embedding request.
+
+        Returns:
+            The response; ``cached`` is True when it came from a cassette.
+        """
+        key = request.cache_key(self.digests.get(request.model))
+        hit = self._lookup(key)
+        if hit is not None:
+            return EmbedResponse.model_validate({**hit, "cached": True})
+        response = self._live().embed(request)
         if self.mode is not ReplayMode.LIVE:
             self.store.put(key, request.to_payload(), response.model_dump(exclude={"cached"}))
         return response

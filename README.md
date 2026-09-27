@@ -68,6 +68,23 @@ What makes it trustworthy:
   plain code.
 ### How it works
 
+```mermaid
+flowchart TB
+    p([paper]) --> ingest --> publication --> route
+    route --> fan1{{"Send × sections"}} --> extract[extract claims] --> outline
+    outline --> gate{{"✋ human gate<br/>(interrupt)"}}
+    gate --> fan2{{"Send × 4 blocks"}} --> write
+    write --> judge
+    subgraph factcheck ["fact-check loop"]
+        judge -->|unsupported| rewrite --> judge
+    end
+    judge --> post[post text] --> flow_overview["flow: overview<br/>(orchestrator)"]
+    flow_overview --> fan3{{"Send × steps"}} --> flow_detail["flow: details<br/>(workers)"]
+    flow_detail --> render --> out([overview.pdf + post.pdf])
+```
+
+Every LangGraph graph, as LangGraph itself draws it: [docs/graphs.md](docs/graphs.md).
+
 | Step | Pattern | What it does |
 |---|---|---|
 | ingest | plain code | PDF → sections via the PDF outline (references dropped), figures cropped; arXiv metadata incl. the submission date and journal reference |
@@ -154,12 +171,95 @@ exactly the model calls in that trace (not the paper, which is fetched again fro
 its URL). CI runs `make verify`, so a published entry that no
 longer reproduces fails the build.
 
-## ask (planned)
+## ask
 
 Questions about my research, answered with citations such as "[Dissertation §4.2, p. 57]".
 The PhD dissertation is the source of truth; my papers add detail; the paper2flow gallery
-is outside context only. See the plan in the docs; the commands will be `make index`,
-`make ask Q="…"`, `make eval-rag` and `make dashboard`.
+is outside context only.
+
+```mermaid
+flowchart TB
+    q([question]) --> understand
+    understand -->|off topic| abstain
+    understand -->|ambiguous| clarify{{"✋ clarify<br/>(interrupt)"}}
+    understand --> plan
+    clarify --> plan
+    plan -->|"Send × k<br/>(one per query)"| research_retrieve
+    subgraph research ["research (subgraph, per query)"]
+        research_retrieve["retrieve<br/>hybrid: BM25 + dense, RRF<br/>tier 1 first"]
+        research_grade["grade<br/>(judge model)"]
+        research_retrieve --> research_grade
+        research_grade -->|not enough| research_rewrite["rewrite query<br/>+ widen tier"]
+        research_rewrite --> research_retrieve
+    end
+    research_grade -->|enough / budget used| conflicts["conflict check<br/>dissertation vs papers"]
+    conflicts -->|no evidence| abstain
+    conflicts --> answer["answer<br/>cited sentences"]
+    answer --> verify_judge
+    subgraph verify ["verify (fact-check subgraph)"]
+        verify_judge["judge<br/>(critic model)"] -->|unsupported| verify_rewrite[rewrite]
+        verify_rewrite --> verify_judge
+    end
+    verify_judge --> finalize["finalize<br/>numbered citations"]
+    finalize --> a([answer + memory])
+    abstain --> a
+```
+
+### Why it is an agent (and a graph)
+
+The path depends on the question, so it is decided at run time:
+
+- **Routing:** off-topic questions are declined without searching; an ambiguous one
+  pauses the graph and asks which reading is meant (`interrupt`, resumed with `Command`).
+- **Parallel research:** the planner splits a question into 1–4 queries and each runs
+  as its own branch (`Send`), a **subgraph** that retrieves, grades the evidence with the
+  judge model, and rewrites the query and widens the search (dissertation → papers)
+  until the evidence is enough or the loop budget is used.
+- **Conflict check:** numbers that differ between the dissertation and a paper are
+  reported, and the dissertation wins. Each reported value must be written in its chunk.
+- **Self-verification:** the same fact-check subgraph as paper2flow judges every
+  sentence against the chunks it cites; sentences that stay unsupported are dropped.
+- **Memory:** a SQLite checkpointer keeps the conversation per thread, so follow-ups
+  ("and how long does training take?") are rewritten into standalone questions.
+
+The baseline is LangChain's prebuilt tool-calling agent (`create_agent`) with three
+tools (`search_library`, `read_context`, `list_sources`). Both run on the same recorded
+models, the same index and the same judge, so `make eval-answers` compares them fairly.
+LangChain is used for its interfaces only: a chat model, embeddings and a retriever
+over the recorded backend.
+
+### Retrieval
+
+- **Library:** `library/library.toml` lists the PDFs with a tier (1 dissertation,
+  2 own papers, 3 outside) and the thesis points each paper backs.
+- **Chunks:** sections from the PDF outline (chapter › section › subsection),
+  sentence-packed chunks of ~180 words, figure captions, one chunk per thesis point, and
+  chapter summaries; the answer model sees each hit with its neighbours (small-to-big).
+- **Search:** BM25 (SQLite FTS5) and exact dense search (`embeddinggemma`), fused with
+  reciprocal rank fusion; everything lives in one SQLite file.
+- **Evaluation without hand labels:** questions are generated from verified claim cards,
+  so the chunk holding the quote is the gold answer; `make eval-rag` reports recall@k and
+  MRR for BM25, dense, hybrid and hybrid + query rewriting.
+
+### Try it
+
+```bash
+make index                                      # library/*.pdf -> library/index.sqlite
+make ask Q="Which datasets were used to evaluate BlinkLinMulT?"
+make ask Q="and how robust is it to head pose?" THREAD=demo   # follow-up in the same thread
+make ask Q="…" AGENT=prebuilt                   # the tool-calling baseline
+make eval-rag                                   # evals/ask/retrieval.md
+make eval-answers                               # evals/ask/answers.md (library/golden.yaml)
+make dashboard                                  # live UI at http://localhost:8080
+make demo                                       # the UI replaying recorded sessions, no Ollama
+make graphs                                     # docs/graphs.md, drawn from the compiled graphs
+make studio                                     # LangGraph Studio (langgraph.json)
+```
+
+The dashboard shows the diagram above lighting up node by node as the graph streams,
+which model is loaded and what it has cost (calls, tokens, seconds, cache hits), the
+agent's trail, the retrieved chunks with their BM25 and dense ranks, and the answer with
+expandable citations. It can switch between the graph and the prebuilt agent.
 
 ## Models
 
@@ -178,7 +278,7 @@ so the pipeline always sends both and validates with a retry loop.
 ## Quickstart
 
 ```bash
-make install     # uv sync (incl. the LangGraph extra) + pre-commit hooks
+make install     # uv sync (incl. the LangGraph and ask extras) + pre-commit hooks
 make check       # lint + type-check + tests + docs (no Ollama needed)
 
 # with Ollama running:

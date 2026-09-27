@@ -22,6 +22,7 @@ INSTALLED = {
     "gemma4:e4b": "e4be4be4be4b" + "0" * 52,
     "x/z-image-turbo:latest": "77b78ce4e883" + "0" * 52,
     "x/flux2-klein:latest": "50a0c0ab15ac" + "0" * 52,
+    "embeddinggemma:latest": "e3be3be3be3b" + "0" * 52,
 }
 CAPABILITIES = {
     "qwen3.6:35b-mlx": ["completion", "tools", "thinking"],
@@ -63,6 +64,25 @@ def default_chat(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+EMBED_DIM = 64
+
+
+def default_embed(body: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic bag-of-words embeddings: each word (lower-cased, 4+ letters, crude
+    plural stripping) adds to a hashed dimension, so texts sharing words are similar."""
+    import hashlib
+
+    vectors = []
+    for text in body["input"]:
+        vector = [0.0] * EMBED_DIM
+        for word in re.findall(r"[a-z]{4,}", text.lower()):
+            word = word[:-1] if word.endswith("s") else word
+            vector[int(hashlib.md5(word.encode()).hexdigest(), 16) % EMBED_DIM] += 1.0
+        vectors.append(vector)
+    return {"model": body["model"], "embeddings": vectors, "prompt_eval_count": 7,
+            "total_duration": 1_000_000}  # fmt: skip
+
+
 def default_image(body: dict[str, Any]) -> dict[str, Any]:
     """Deterministic image: colour derived from the seed."""
     seed = body.get("options", {}).get("seed", 0)
@@ -87,6 +107,7 @@ class FakeOllama:
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.chat_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_chat
         self.image_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_image
+        self.embed_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_embed
         self.version = "0.24.0"
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -109,6 +130,8 @@ class FakeOllama:
                 return httpx.Response(200, json={"model": model, "done": True})
             self.loaded.add(model)
             return httpx.Response(200, json=self.image_handler(body))
+        if path == "/api/embed":
+            return httpx.Response(200, json=self.embed_handler(body))
         if path == "/api/tags":
             models = [{"name": n, "digest": d} for n, d in self.installed.items()]
             return httpx.Response(200, json={"models": models})

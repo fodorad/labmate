@@ -1,0 +1,8 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "ask": "./labmate/ask/studio.py:make_graph",
+    "ask_prebuilt": "./labmate/ask/studio.py:make_prebuilt"
+  },
+  "python_version": "3.13"
+}

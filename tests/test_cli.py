@@ -16,17 +16,21 @@ def workdir(tmp_path, monkeypatch):
 
 def test_configured_models_are_normalized_and_unique():
     config = Config()
-    assert configured_models(config) == ["qwen3.6:35b-mlx", "gemma4:26b-mlx"]
+    assert configured_models(config) == [
+        "qwen3.6:35b-mlx",
+        "gemma4:26b-mlx",
+        "embeddinggemma:latest",
+    ]
     config.models.critic = "qwen3.6:35b-mlx"
-    config.models.text = "qwen3.6:35b-mlx"
-    assert configured_models(config) == ["qwen3.6:35b-mlx"]
+    config.models.embed = "embeddinggemma"
+    assert configured_models(config) == ["qwen3.6:35b-mlx", "embeddinggemma:latest"]
 
 
 def test_lock_writes_digests(fake, workdir, capsys):
     assert main(["lock"], client=fake.client()) == 0
     lock = json.loads((workdir / "models.lock").read_text())
     assert lock["gemma4:26b-mlx"].startswith("21c59a2eae30")
-    assert len(lock) == 2
+    assert len(lock) == 3
     assert "CHANGED" not in capsys.readouterr().out
 
 

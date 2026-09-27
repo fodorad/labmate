@@ -8,6 +8,7 @@ timeout_s = 900
 # Roles, see plan §2. Tags must match `ollama list`; digests are pinned in models.lock.
 text = "qwen3.6:35b-mlx"
 critic = "gemma4:26b-mlx"
+embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
 
 [generation]
 temperature = 0.0
@@ -29,3 +30,11 @@ lock_file = "models.lock"
 
 [tracing]
 runs_dir = "runs"
+
+[ask]
+library = "library"                 # library.toml + the PDFs (not committed)
+index = "library/index.sqlite"      # sections, chunks, full-text index and vectors
+threads = "library/threads.sqlite"  # conversation memory (LangGraph checkpoints)
+chunk_words = 180
+top_k = 6
+max_loops = 2                       # retrieve -> grade -> rewrite rounds per sub-question

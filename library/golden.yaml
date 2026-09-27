@@ -1,0 +1,29 @@
+# Golden questions for `make eval-answers` (LangGraph agent vs prebuilt agent) and the
+# dashboard's question chips. `sources` are the ids a good answer should cite;
+# `abstain: true` marks questions the agent should decline.
+
+- question: What is LinMulT and why is it cheaper than MulT?
+  sources: [dissertation, linmult]
+- question: Which visual features does LinMulT use and why?
+  sources: [dissertation, linmult]
+- question: How fast is LinMulT at inference on GPU and CPU?
+  sources: [dissertation]
+- question: Does the perceived personality of group members cluster, and in which tasks?
+  sources: [dissertation, group-personality]
+- question: Is perceived or self-reported personality the better predictor of group performance?
+  sources: [dissertation, group-personality]
+- question: Which datasets were used to evaluate BlinkLinMulT?
+  sources: [dissertation, blinklinmult]
+- question: Which features does BlinkLinMulT fuse, and what does the ablation show?
+  sources: [dissertation, blinklinmult]
+- question: How robust is BlinkLinMulT under extreme head poses?
+  sources: [dissertation, blinklinmult]
+- question: How does the cross-modal embedding approach improve personality trait analysis?
+  sources: [cross-modal-personality]
+- question: How does the speech de-identification method remove personal characteristics?
+  sources: [speech-deidentification]
+- question: How does LinMulT's attention differ from the attention in the original Transformer?
+  sources: [dissertation, attention]
+- question: What will the weather be in Budapest tomorrow?
+  sources: []
+  abstain: true

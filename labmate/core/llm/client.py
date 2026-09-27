@@ -7,7 +7,14 @@ from typing import Any, Protocol, runtime_checkable
 
 import httpx
 
-from labmate.core.llm.types import ChatRequest, ChatResponse, ImageRequest, ImageResponse
+from labmate.core.llm.types import (
+    ChatRequest,
+    ChatResponse,
+    EmbedRequest,
+    EmbedResponse,
+    ImageRequest,
+    ImageResponse,
+)
 
 
 class OllamaError(RuntimeError):
@@ -28,6 +35,10 @@ class Backend(Protocol):
 
     def generate_image(self, request: ImageRequest) -> ImageResponse:
         """Run a text-to-image request."""
+        ...
+
+    def embed(self, request: EmbedRequest) -> EmbedResponse:
+        """Embed texts."""
         ...
 
 
@@ -114,6 +125,17 @@ class OllamaClient:
         """
         data = self._request("POST", "/api/generate", request.to_payload())
         return ImageResponse.from_ollama(data)
+
+    def embed(self, request: EmbedRequest) -> EmbedResponse:
+        """Embed texts via ``POST /api/embed``.
+
+        Args:
+            request: The embedding request.
+
+        Returns:
+            One vector per input.
+        """
+        return EmbedResponse.from_ollama(self._request("POST", "/api/embed", request.to_payload()))
 
     def unload(self, model: str, wait_s: float = 0.0, poll_s: float = 0.5) -> bool:
         """Ask Ollama to unload a model (``keep_alive=0``), optionally waiting until it's gone.

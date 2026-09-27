@@ -19,7 +19,14 @@ from pathlib import Path
 from typing import Any
 
 from labmate.core.llm.client import Backend
-from labmate.core.llm.types import ChatRequest, ChatResponse, ImageRequest, ImageResponse
+from labmate.core.llm.types import (
+    ChatRequest,
+    ChatResponse,
+    EmbedRequest,
+    EmbedResponse,
+    ImageRequest,
+    ImageResponse,
+)
 
 _current_span: ContextVar[str | None] = ContextVar("current_span", default=None)
 
@@ -141,6 +148,25 @@ class TracedClient:
                 tokens_out=response.usage.completion_tokens,
                 load_ms=response.usage.load_ms,
                 n_tool_calls=len(response.tool_calls),
+            )
+            return response
+
+    def embed(self, request: EmbedRequest) -> EmbedResponse:
+        """Run and trace an embedding request.
+
+        Args:
+            request: The embedding request.
+
+        Returns:
+            The wrapped backend's response.
+        """
+        key = request.cache_key(self.digests.get(request.model))
+        with self.tracer.span("llm.embed", model=request.model, key=key) as s:
+            response = self.backend.embed(request)
+            s.update(
+                cached=response.cached,
+                n_inputs=len(request.input),
+                tokens_in=response.prompt_tokens,
             )
             return response
 

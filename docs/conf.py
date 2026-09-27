@@ -29,7 +29,7 @@ autodoc_default_options = {
 autodoc_member_order = "bysource"
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "graphs.md"]  # Mermaid, rendered by GitHub
 
 html_theme = "furo"
 html_static_path = ["_static"]
@@ -42,8 +42,26 @@ source_suffix = {
 # Render "Attributes:" sections as :ivar: fields so they don't clash with autodoc's
 # attribute entries for pydantic fields (duplicate object description warnings).
 napoleon_use_ivar = True
-suppress_warnings = ["sphinx_autodoc_typehints.forward_reference"]
+# Mermaid blocks (rendered by GitHub) are shown as plain code here.
+suppress_warnings = ["sphinx_autodoc_typehints.forward_reference", "misc.highlighting_failure"]
 
-# LangGraph's dependency langchain-core does not import cleanly under autodoc's type
-# hint processing; mocking it is enough to document the engine module.
-autodoc_mock_imports = ["langgraph", "langchain_core"]
+# LangChain builds its pydantic models lazily on first attribute access; when that happens
+# inside autodoc the schema generation fails, so load everything the docs touch up front.
+import labmate.ask.dashboard  # noqa: E402,F401
+import labmate.ask.studio  # noqa: E402,F401
+import labmate.paper2flow.engines.langgraph_engine  # noqa: E402,F401
+
+
+def _drop_foreign_docstrings(app, what, name, obj, options, lines):
+    """Blank the docstrings of names a module only imports.
+
+    Autodoc skips them anyway, but only after the type-hint extension has parsed their
+    docstrings, and some third-party docstrings are not valid reStructuredText.
+    """
+    module = getattr(obj, "__module__", None)
+    if what != "module" and isinstance(module, str) and not module.startswith("labmate"):
+        lines[:] = []
+
+
+def setup(app):
+    app.connect("autodoc-process-docstring", _drop_foreign_docstrings, priority=100)

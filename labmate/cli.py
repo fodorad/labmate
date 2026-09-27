@@ -48,7 +48,7 @@ def configured_models(config: Config) -> list[str]:
         Model tags in role order.
     """
     m = config.models
-    tags = [m.text, m.critic]
+    tags = [m.text, m.critic, m.embed]
     return list(dict.fromkeys(normalize_tag(t) for t in tags))
 
 
@@ -472,6 +472,13 @@ def build_parser() -> argparse.ArgumentParser:
     site.add_argument("--gallery", type=Path, default=Path("gallery"))
     site.add_argument("--out", type=Path, default=Path("site"))
     site.add_argument("--judges", type=Path, default=Path("evals/judges.json"))
+
+    from labmate.ask.cli import add_parser as add_ask  # noqa: PLC0415 - light imports only
+
+    add_ask(sub)
+
+    graphs = sub.add_parser("graphs", help="Mermaid diagrams of the LangGraph graphs -> docs/")
+    graphs.add_argument("--out", type=Path, default=Path("docs/graphs.md"))
     return parser
 
 
@@ -492,6 +499,19 @@ def main(
     """
     args = build_parser().parse_args(argv)
     config = load_config(args.config)
+    if args.command == "ask":
+        from labmate.ask.cli import main as ask_main  # noqa: PLC0415 - needs the [ask] extra
+
+        try:
+            return ask_main(config, args, client)
+        except OllamaError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+    if args.command == "graphs":
+        from labmate.diagrams import write_diagrams  # noqa: PLC0415 - needs the [ask] extra
+
+        print(f"Wrote {write_diagrams(args.out)}")
+        return 0
     command = args.command if args.command != "paper2flow" else args.action
     if command == "trace":
         return cmd_trace(config, args.ref, args.all)

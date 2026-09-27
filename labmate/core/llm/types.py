@@ -233,6 +233,82 @@ class ChatResponse(BaseModel):
         )
 
 
+class EmbedRequest(BaseModel):
+    """An embedding request (``POST /api/embed``): one vector per input text.
+
+    Attributes:
+        model: Embedding model tag.
+        input: Texts to embed, in order.
+        truncate: Let Ollama truncate inputs longer than the model's context.
+        keep_alive: How long the model stays loaded (not part of the cache key).
+    """
+
+    model: str
+    input: list[str]
+    truncate: bool = True
+    keep_alive: str | int | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        """Build the JSON body for ``POST /api/embed``.
+
+        Returns:
+            The request payload.
+        """
+        payload: dict[str, Any] = {"model": self.model, "input": self.input}
+        payload["truncate"] = self.truncate
+        if self.keep_alive is not None:
+            payload["keep_alive"] = self.keep_alive
+        return payload
+
+    def cache_key(self, digest: str | None = None) -> str:
+        """Stable key identifying this request's output (see :meth:`ChatRequest.cache_key`).
+
+        Args:
+            digest: Pinned model digest.
+
+        Returns:
+            A sha256 hex digest.
+        """
+        payload = self.to_payload()
+        payload.pop("keep_alive", None)
+        return _cache_key("embed", payload, digest)
+
+
+class EmbedResponse(BaseModel):
+    """Embeddings for an :class:`EmbedRequest`.
+
+    Attributes:
+        model: Model that produced them.
+        embeddings: One vector per input text, in input order.
+        prompt_tokens: Tokens read.
+        total_ms: Wall-clock time reported by Ollama.
+        cached: True if served from the cassette store.
+    """
+
+    model: str
+    embeddings: list[list[float]]
+    prompt_tokens: int = 0
+    total_ms: float = 0.0
+    cached: bool = False
+
+    @classmethod
+    def from_ollama(cls, data: dict[str, Any]) -> EmbedResponse:
+        """Parse a ``/api/embed`` response body.
+
+        Args:
+            data: Raw response JSON.
+
+        Returns:
+            The parsed response.
+        """
+        return cls(
+            model=data.get("model", ""),
+            embeddings=data.get("embeddings", []),
+            prompt_tokens=data.get("prompt_eval_count", 0),
+            total_ms=data.get("total_duration", 0) / NS_PER_MS,
+        )
+
+
 class ImageRequest(BaseModel):
     """A text-to-image request for Ollama's image models (served via ``/api/generate``)."""
 

@@ -44,12 +44,21 @@ dev = [
     "myst-parser>=4.0",
     "sphinx-autodoc-typehints>=2.5",
     "types-pyyaml>=6.0",
-    "labmate[langgraph]",
+    "labmate[langgraph,ask]",
 ]
 # paper2flow's second orchestration engine: same steps, driven by a LangGraph StateGraph.
 langgraph = [
     "langgraph>=1.0",
     "langgraph-checkpoint-sqlite>=2.0",
+]
+# The ask feature: agentic RAG over your research (LangGraph + LangChain interfaces),
+# and its live dashboard.
+ask = [
+    "labmate[langgraph]",
+    "langchain>=1.0",
+    "langchain-core>=1.0",
+    "numpy>=2.0",
+    "nicegui>=2.0",
 ]
 
 [project.scripts]
@@ -91,6 +100,8 @@ addopts = "--cov=labmate --cov-report=term-missing --cov-report=xml --cov-fail-u
 
 [tool.coverage.run]
 source = ["labmate"]
+# UI wiring only; the dashboard's logic is labmate.ask.live, which is tested.
+omit = ["labmate/ask/dashboard.py"]
 
 [tool.coverage.report]
 exclude_lines = [

@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe lock run approve replay eval labels judges trace publish verify site site-serve
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean probe lock run approve replay eval labels judges trace publish verify site site-serve index ask eval-rag eval-answers dashboard demo graphs studio
 
 install:
 	uv sync --extra dev
@@ -88,6 +88,36 @@ labels:  ## blind labelling sheet -> evals/labels.csv; fill the `human` column (
 
 judges:  ## re-judge your labelled bullets with each judge model -> evals/judges.md (Cohen's kappa)
 	uv run labmate paper2flow judges
+
+# --- ask: questions about your research (library/library.toml) ---
+
+Q ?= What are the thesis points of the dissertation?
+THREAD ?= default
+AGENT ?= graph
+
+index:  ## index the library: sections, chunks, summaries, claim cards, embeddings
+	uv run labmate ask index
+
+ask:  ## ask a question, e.g. make ask Q="How does BlinkLinMulT differ from LinMulT?" [AGENT=prebuilt]
+	uv run labmate ask query "$(Q)" --thread $(THREAD) --agent $(AGENT)
+
+eval-rag:  ## retrieval: recall@k / MRR of BM25, dense, hybrid, hybrid+rewrite -> evals/ask/retrieval.md
+	uv run labmate ask eval-retrieval
+
+eval-answers:  ## answers: LangGraph agent vs prebuilt agent on library/golden.yaml -> evals/ask/answers.md
+	uv run labmate ask eval-answers
+
+dashboard:  ## live web UI of the agent at http://localhost:8080
+	uv run labmate ask dashboard
+
+demo:  ## the dashboard replaying recorded sessions (no Ollama needed)
+	uv run labmate ask dashboard --demo
+
+graphs:  ## Mermaid diagrams of every LangGraph graph -> docs/graphs.md
+	uv run labmate graphs
+
+studio:  ## open the graphs in LangGraph Studio (langgraph.json)
+	uvx --from "langgraph-cli[inmem]" langgraph dev
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov dist build docs/_build coverage.xml .coverage

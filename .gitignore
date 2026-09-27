@@ -24,3 +24,9 @@ runs/
 cassettes/
 site/
 probe/images/
+
+# ask: the library's PDFs and derived databases stay local (library.toml and golden.yaml are committed)
+library/**/*.pdf
+library/*.sqlite
+library/*.sqlite-*
+library/cache/

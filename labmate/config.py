@@ -40,6 +40,7 @@ class ModelsConfig(BaseModel):
 
     text: str = "qwen3.6:35b-mlx"
     critic: str = "gemma4:26b-mlx"
+    embed: str = "embeddinggemma:latest"
 
 
 class GenerationConfig(BaseModel):
@@ -55,6 +56,28 @@ class PipelineConfig(BaseModel):
 
     workers: int = 2
     max_rewrite_rounds: int = 2
+
+
+class AskConfig(BaseModel):
+    """Settings of the ask feature (questions about your research).
+
+    Attributes:
+        library: Folder with ``library.toml`` and the source PDFs.
+        index: The search index (SQLite: sections, chunks, full-text index, vectors).
+        threads: Conversation checkpoints (LangGraph ``SqliteSaver``).
+        chunk_words: Target words per chunk (paragraphs are packed up to this size).
+        top_k: Chunks retrieved per search.
+        max_loops: Retrieve-grade-rewrite rounds per sub-question.
+        embed_batch: Texts per embedding call.
+    """
+
+    library: Path = Path("library")
+    index: Path = Path("library/index.sqlite")
+    threads: Path = Path("library/threads.sqlite")
+    chunk_words: int = 180
+    top_k: int = 6
+    max_loops: int = 2
+    embed_batch: int = 32
 
 
 class ReplayConfig(BaseModel):
@@ -80,6 +103,7 @@ class Config(BaseModel):
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     replay: ReplayConfig = Field(default_factory=ReplayConfig)
     tracing: TracingConfig = Field(default_factory=TracingConfig)
+    ask: AskConfig = Field(default_factory=AskConfig)
 
 
 def load_config(path: Path | None = None) -> Config:

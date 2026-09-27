@@ -376,7 +376,7 @@ def build_graph(
         ("assemble_flows", assemble_flow),
         ("render", render),
     ]:
-        g.add_node(name, fn)  # type: ignore[call-overload]
+        g.add_node(name, fn)  # type: ignore[arg-type,call-overload,unused-ignore]
     g.add_edge(START, "ingest")
     g.add_edge("ingest", "publication")
     g.add_edge("publication", "route")
