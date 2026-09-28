@@ -1,5 +1,0 @@
-{
-  "paper_type": "benchmark",
-  "confidence": 0.95,
-  "reason": "The paper introduces a new data and evaluation suite (GameHorizon Suite) comprising an annotation pipeline, a large-scale dataset, and a benchmark for testing AI models, which aligns with the definition of a benchmark paper."
-}

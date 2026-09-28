@@ -11,5 +11,5 @@ Both run on :mod:`labmate.core`: local models via Ollama, every call recorded an
 replayable.
 """
 
-__version__ = "0.0.0"  # x-release-please-version
-"""Package version, managed by release-please."""
+__version__ = "0.0.0"
+"""Package version; kept in step with ``pyproject.toml``."""

@@ -46,9 +46,10 @@ embeddings), and `tests/ask/conftest.py` a fake model that plays every ask role.
 - Google-style docstrings everywhere, including module constants (Sphinx autodoc).
 - Line length 100, ruff + ruff-format, mypy on `labmate/` (pydantic plugin, `warn_unused_ignores`).
 - TDD with ≥90% coverage. `labmate/ask/dashboard.py` is omitted from coverage.
-- Conventional Commits (release-please builds the changelog). **No AI co-author
+- Conventional Commits (the history is the changelog). **No AI co-author
   trailers or AI attribution in commits**; a commit-msg hook rejects them.
-- Branches: feature → `dev` → `main`. Adam pushes and opens PRs himself.
+- GitHub Flow: short-lived `feat/*`/`fix/*` branch → PR into `main` → green CI → merge.
+  CI only (lint, types, tests, docs, gallery replay); no CD, since labmate runs locally.
 - Prompts are Markdown files next to the code (`*/prompts/*.md`), loaded with `load_prompt`.
 - Model roles live in `config.toml` and digests in `models.lock` (`make lock`). A new
   model digest invalidates its cassettes.

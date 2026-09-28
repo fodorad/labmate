@@ -122,10 +122,6 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
   Judge calls are recorded to cassettes like everything else, so `--mode replay`
   reproduces the table.
 
-#### Results on the gallery
-
-RESULTS
-
 ### Same pipeline, two ways
 
 The steps know nothing about orchestration. Two engines drive them:
@@ -163,7 +159,7 @@ are real branches, long-running interrupts or several agents sharing state.
 make trace ARXIV=1706.03762    # runs/1706.03762/trace.html: every step and model call on a timeline
 make publish ARXIV=1706.03762  # copy the finished run + the cassettes of its model calls to gallery/
 make verify                    # replay every gallery entry from cassettes only, compare byte for byte
-make site                      # static gallery -> site/ (GitHub Pages builds it on push to main)
+make site                      # static gallery -> site/ (make site-serve to browse it)
 ```
 
 A gallery entry contains the step artifacts, the two PDFs, the trace and the cassettes of
