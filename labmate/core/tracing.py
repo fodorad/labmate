@@ -9,6 +9,7 @@ mapping exercise, not a redesign.
 from __future__ import annotations
 
 import json
+import threading
 import time
 import uuid
 from collections.abc import Iterator, Mapping
@@ -45,6 +46,7 @@ class Tracer:
         self.path = path
         self.trace_id = trace_id or _new_id()
         self.spans: list[dict[str, Any]] = []
+        self._lock = threading.Lock()  # parallel branches finish spans concurrently
         if path is not None:
             path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -91,10 +93,12 @@ class Tracer:
             )
 
     def _emit(self, span: dict[str, Any]) -> None:
-        self.spans.append(span)
-        if self.path is not None:
-            with self.path.open("a") as f:
-                f.write(json.dumps(span, ensure_ascii=False, default=str) + "\n")
+        line = json.dumps(span, ensure_ascii=False, default=str) + "\n"
+        with self._lock:
+            self.spans.append(span)
+            if self.path is not None:
+                with self.path.open("a") as f:
+                    f.write(line)
 
 
 def read_trace(path: Path) -> list[dict[str, Any]]:

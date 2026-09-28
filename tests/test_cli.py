@@ -7,6 +7,7 @@ import pytest
 
 from labmate.cli import main
 from labmate.config import load_config
+from labmate.core.ingest import slugify, url_stem
 from labmate.core.llm.client import OllamaClient
 from tests.conftest import agentic_chat, make_pdf
 
@@ -89,6 +90,14 @@ def test_run_pauses_then_approve_finishes(fake, arxiv, workdir, capsys):
     )
     out = capsys.readouterr().out
     assert "runs/2401.00001/overview.pdf" in out and "runs/2401.00001/post.pdf" in out
+
+
+def test_replay_without_recordings_explains_what_to_do(fake, arxiv, workdir, capsys):
+    argv = ["paper2flow", "run", "2401.00001", "--mode", "replay", "--fresh", "--approve"]
+    assert main(argv, client=fake.client(), http=arxiv.client()) == 2
+    err = capsys.readouterr().err
+    assert "No cassette" in err and "run in auto mode" in err
+    assert fake.paths().count("/api/chat") == 0
 
 
 def test_run_without_paper_is_an_error(fake, workdir, capsys):
@@ -208,7 +217,9 @@ def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
     url = "https://example.org/pdf/2023_My_Paper.pdf"
     argv = ["paper2flow", "run", "--pdf", url, "--auto-approve"]
     assert main(argv, client=fake.client(), http=http) == 0
-    run_dir = workdir / "runs" / "2023-my-paper"
+    run_id = slugify(url_stem(url))
+    assert run_id.startswith("2023-my-paper-")
+    run_dir = workdir / "runs" / run_id
     paper = json.loads((run_dir / "00_paper.json").read_text())
     assert paper["url"] == url and paper["title"] == "A Test Paper"
     with pymupdf.open(run_dir / "post.pdf") as doc:
@@ -217,7 +228,7 @@ def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
     assert main(["trace", url]) == 0
     assert main(["paper2flow", "publish", url], http=http) == 0
     capsys.readouterr()
-    assert not (workdir / "gallery" / "2023-my-paper" / "2023-my-paper.pdf").exists()
+    assert not (workdir / "gallery" / run_id / f"{run_id}.pdf").exists()
     assert main(["paper2flow", "verify"], http=http) == 0  # re-downloads the PDF from its URL
-    assert "OK   2023-my-paper" in capsys.readouterr().out
+    assert f"OK   {run_id}" in capsys.readouterr().out
     assert len(downloads) == 3  # run, publish's replay check, verify

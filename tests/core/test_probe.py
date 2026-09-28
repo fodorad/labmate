@@ -1,4 +1,4 @@
-from labmate.core.probe import PROBE_MAX_TOKENS, probe_chat_model, run_probe
+from labmate.core.probe import PROBE_MAX_TOKENS, UnloadWait, probe_chat_model, run_probe
 
 TEXT, CRITIC = "qwen3.6:35b-mlx", "gemma4:26b-mlx"
 
@@ -80,8 +80,9 @@ def test_nondeterminism_is_detected(fake):
 
 def test_model_that_stays_resident_fails_unload(fake):
     fake.sticky.add(TEXT)
-    result = by_check(probe_chat_model(fake.client(), TEXT))["cold load + unload"]
-    assert result.passed is False
+    wait = UnloadWait(timeout_s=0.05, poll_s=0.0)
+    result = by_check(probe_chat_model(fake.client(), TEXT, wait))["cold load + unload"]
+    assert result.passed is False and "still resident 0.05s" in result.detail
 
 
 def test_exceptions_become_failed_checks_not_crashes(fake):

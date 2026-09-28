@@ -11,6 +11,7 @@ with Graphviz, top to bottom, in a fixed house style.
 from __future__ import annotations
 
 import html
+import shutil
 import subprocess
 from collections import Counter
 from pathlib import Path
@@ -453,8 +454,10 @@ def render_flow(graph: FlowGraph, out: Path, markers: dict[str, str] | None = No
         ``out``.
 
     Raises:
-        RuntimeError: If Graphviz fails.
+        RuntimeError: If Graphviz is not installed or fails.
     """
+    if shutil.which("dot") is None:
+        raise RuntimeError("Graphviz is not installed: the `dot` command is needed to draw flows")
     out.parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
         ["dot", "-Tpng", f"-Gdpi={DPI}", "-o", str(out.resolve())],

@@ -29,7 +29,7 @@ models (Ollama on a Mac mini M4, 32 GB), and every model call is recorded and re
 
 ```bash
 make install        # uv sync --extra dev + pre-commit hooks
-make check          # ruff + mypy + pytest (>=90% coverage, currently ~99%) + sphinx -W
+make check          # ruff + mypy + pytest (>=90% coverage, currently ~99%) + sphinx -W + gallery verify
 make run ARXIV=…    # paper2flow; make approve ARXIV=… after editing outline.yaml
 make index          # ask: index library/ (library.toml + PDFs)
 make ask Q="…"      # [THREAD=… AGENT=prebuilt]

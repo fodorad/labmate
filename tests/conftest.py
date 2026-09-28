@@ -140,13 +140,6 @@ def no_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LABMATE_OLLAMA_HOST", raising=False)
 
 
-@pytest.fixture(autouse=True)
-def fast_unload_polling(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Never really sleep while waiting for (fake) unloads."""
-    monkeypatch.setattr("labmate.core.probe.UNLOAD_WAIT_S", 0.2)
-    monkeypatch.setattr("labmate.core.probe.UNLOAD_POLL_S", 0.0)
-
-
 # --- M1 helpers: synthetic papers, a fake arXiv, a deck-writing model ---------------------
 
 

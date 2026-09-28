@@ -1,5 +1,4 @@
 import json
-import shutil
 
 import pytest
 
@@ -30,8 +29,6 @@ from labmate.paper2flow.steps.flow import (
     plan_overview,
     render_flow,
 )
-
-needs_dot = pytest.mark.skipif(shutil.which("dot") is None, reason="Graphviz not installed")
 
 EVIDENCE = (
     "We present a modified multi-modal transformer with linear attention, which considers "
@@ -169,10 +166,15 @@ def test_dot_is_top_to_bottom_escaped_and_marks_expanded_steps():
     assert [e["name"] for e in legend(g)] == ["Input", "Model component", "Output"]
 
 
-@needs_dot
 def test_render_flow_writes_a_png(tmp_path):
     out = render_flow(overview(), tmp_path / "f.png", {"x": "A"})
     assert out.read_bytes().startswith(b"\x89PNG")
+
+
+def test_render_flow_explains_a_missing_graphviz(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", str(tmp_path))  # an environment without the `dot` command
+    with pytest.raises(RuntimeError, match="Graphviz is not installed"):
+        render_flow(overview(), tmp_path / "f.png")
 
 
 CARDS = [

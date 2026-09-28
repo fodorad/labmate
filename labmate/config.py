@@ -73,6 +73,8 @@ class AskConfig(BaseModel):
         top_k: Chunks retrieved per search.
         max_loops: Retrieve-grade-rewrite rounds per sub-question.
         embed_batch: Texts per embedding call.
+        summary_min_words: Chapters shorter than this are not summarised (their chunks
+            already say it all).
     """
 
     library: Path = Path("library")
@@ -82,6 +84,7 @@ class AskConfig(BaseModel):
     top_k: int = 6
     max_loops: int = 2
     embed_batch: int = 32
+    summary_min_words: int = 300
 
 
 class ReplayConfig(BaseModel):
