@@ -13,7 +13,7 @@ replayable, traced, and evaluated.
 | Feature | What it does | How it is built | Status |
 |---|---|---|---|
 | **paper2flow** | A research paper in, a fact-checked overview with data-flow diagrams and a LinkedIn post out | A **workflow**: fixed steps (routing, parallel extraction, an orchestrator, a human gate, chaining, a fact-check loop, orchestrator–workers), in plain Python and, as a second engine, in LangGraph | done |
-| **ask** | Questions about my research, answered from my PhD dissertation and papers, with page citations | An **agent**: agentic RAG in LangGraph (tiered hybrid retrieval, grading and query rewriting loops, conflict checks, self-verification, multi-turn memory), compared against a prebuilt tool-calling agent | planned |
+| **ask** | Questions about my research, answered from my PhD dissertation and papers, with page citations | An **agent**: agentic RAG in LangGraph (tiered hybrid retrieval, grading and query rewriting loops, conflict checks, self-verification, multi-turn memory), compared against a prebuilt tool-calling agent | done |
 
 Workflows where the path is known, an agent where it isn't.
 
@@ -33,8 +33,8 @@ a quote-verification guard, an orchestrated four-block outline, a human approval
 grounded writing, a fact-check loop, and flow diagrams planned by an orchestrator and
 drawn by workers, every label checked against the paper. All traced and replayable, with
 an evaluation suite (run metrics and judge agreement against human labels), an HTML trace
-viewer, a static gallery that anyone can replay from cassettes, and two interchangeable
-orchestration engines (plain Python and LangGraph).
+viewer, gallery tooling that publishes runs anyone can replay from cassettes, and two
+interchangeable orchestration engines (plain Python and LangGraph).
 
 ### What it does
 
@@ -169,13 +169,14 @@ make site                      # static gallery -> site/ (make site-serve to bro
 A gallery entry contains the step artifacts, the two PDFs, the trace and the cassettes of
 exactly the model calls in that trace (not the paper, which is fetched again from arXiv or
 its URL). CI runs `make verify`, so a published entry that no
-longer reproduces fails the build.
+longer reproduces fails the build. The gallery is empty for now: the entries recorded
+before the paper2flow rewrite no longer replayed and were removed.
 
 ## ask
 
 Questions about my research, answered with citations such as "[Dissertation §4.2, p. 57]".
-The PhD dissertation is the source of truth; my papers add detail; the paper2flow gallery
-is outside context only.
+The PhD dissertation is the source of truth; my papers add detail; outside papers (such as the
+ones run through paper2flow) are context only.
 
 ```mermaid
 flowchart TB

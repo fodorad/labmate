@@ -18,7 +18,7 @@
     theses = ["II"]          # thesis points of the dissertation this paper backs
 
 Tier 1 is the source of truth (the dissertation), tier 2 your papers, tier 3 outside
-context (e.g. the paper2flow gallery). Retrieval starts at tier 1 and widens only when
+context (e.g. papers run through paper2flow). Retrieval starts at tier 1 and widens only when
 the evidence is not enough.
 """
 
