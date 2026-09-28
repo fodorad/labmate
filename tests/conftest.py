@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -11,9 +12,8 @@ import httpx
 import pymupdf
 import pytest
 
-from paper2carousel.llm.client import OllamaClient
-from paper2carousel.probe import ProbeClaim, solid_png
-from paper2carousel.schemas import Deck, DraftSlide
+from labmate.core.llm.client import OllamaClient
+from labmate.core.probe import ProbeClaim, solid_png
 
 INSTALLED = {
     "qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52,
@@ -22,6 +22,7 @@ INSTALLED = {
     "gemma4:e4b": "e4be4be4be4b" + "0" * 52,
     "x/z-image-turbo:latest": "77b78ce4e883" + "0" * 52,
     "x/flux2-klein:latest": "50a0c0ab15ac" + "0" * 52,
+    "embeddinggemma:latest": "e3be3be3be3b" + "0" * 52,
 }
 CAPABILITIES = {
     "qwen3.6:35b-mlx": ["completion", "tools", "thinking"],
@@ -63,6 +64,25 @@ def default_chat(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+EMBED_DIM = 64
+
+
+def default_embed(body: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic bag-of-words embeddings: each word (lower-cased, 4+ letters, crude
+    plural stripping) adds to a hashed dimension, so texts sharing words are similar."""
+    import hashlib
+
+    vectors = []
+    for text in body["input"]:
+        vector = [0.0] * EMBED_DIM
+        for word in re.findall(r"[a-z]{4,}", text.lower()):
+            word = word[:-1] if word.endswith("s") else word
+            vector[int(hashlib.md5(word.encode()).hexdigest(), 16) % EMBED_DIM] += 1.0
+        vectors.append(vector)
+    return {"model": body["model"], "embeddings": vectors, "prompt_eval_count": 7,
+            "total_duration": 1_000_000}  # fmt: skip
+
+
 def default_image(body: dict[str, Any]) -> dict[str, Any]:
     """Deterministic image: colour derived from the seed."""
     seed = body.get("options", {}).get("seed", 0)
@@ -87,6 +107,7 @@ class FakeOllama:
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.chat_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_chat
         self.image_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_image
+        self.embed_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_embed
         self.version = "0.24.0"
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -109,6 +130,8 @@ class FakeOllama:
                 return httpx.Response(200, json={"model": model, "done": True})
             self.loaded.add(model)
             return httpx.Response(200, json=self.image_handler(body))
+        if path == "/api/embed":
+            return httpx.Response(200, json=self.embed_handler(body))
         if path == "/api/tags":
             models = [{"name": n, "digest": d} for n, d in self.installed.items()]
             return httpx.Response(200, json={"models": models})
@@ -139,38 +162,84 @@ def fake() -> FakeOllama:
 
 
 @pytest.fixture(autouse=True)
+def no_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never follow the developer's LABMATE_OLLAMA_HOST."""
+    monkeypatch.delenv("LABMATE_OLLAMA_HOST", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def fast_unload_polling(monkeypatch: pytest.MonkeyPatch) -> None:
     """Never really sleep while waiting for (fake) unloads."""
-    monkeypatch.setattr("paper2carousel.probe.UNLOAD_WAIT_S", 0.2)
-    monkeypatch.setattr("paper2carousel.probe.UNLOAD_POLL_S", 0.0)
+    monkeypatch.setattr("labmate.core.probe.UNLOAD_WAIT_S", 0.2)
+    monkeypatch.setattr("labmate.core.probe.UNLOAD_POLL_S", 0.0)
 
 
 # --- M1 helpers: synthetic papers, a fake arXiv, a deck-writing model ---------------------
 
 
 SECTIONS = [
-    ("Introduction", "Transformers are everywhere. We study attention cost."),
-    ("Method", "We propose LinAttn with linear complexity in sequence length."),
-    ("Results", "LinAttn reaches 84.6% accuracy, up from 82.1%, with 38% less memory."),
+    (
+        "Introduction",
+        "Transformers are everywhere in modern machine learning systems. Their attention "
+        "cost grows quadratically with the sequence length, which limits long inputs. "
+        "We study how to remove this bottleneck without losing accuracy on benchmarks.",
+    ),
+    (
+        "Method",
+        "We propose LinAttn with linear complexity in sequence length. It replaces the "
+        "softmax kernel with a feature map that can be computed incrementally. The model "
+        "keeps the same number of layers and parameters as the baseline transformer.",
+    ),
+    (
+        "Results",
+        "LinAttn reaches 84.6% accuracy, up from 82.1%, with 38% less memory. Training is "
+        "twice as fast on sequences of length 4096. The gains grow with sequence length "
+        "while short sequences show no measurable difference.",
+    ),
 ]
 
 
-def make_pdf(path, sections=SECTIONS, toc=True, references=True, title="A Test Paper"):
-    """Write a small multi-page PDF with numbered headings and (optionally) an outline."""
+def make_pdf(
+    path,
+    sections=SECTIONS,
+    toc=True,
+    references=True,
+    title="A Test Paper",
+    figure=False,
+    metadata=None,
+):
+    """Write a small multi-page PDF with numbered headings and (optionally) an outline.
+
+    With ``figure=True`` the first page also gets a raster image with a "Figure 1:" caption
+    and a vector drawing with a "Figure 2:" caption.
+    """
     doc = pymupdf.open()
     entries = []
     for i, (heading, body) in enumerate(sections, start=1):
         page = doc.new_page()
         page.insert_text((72, 72), f"{i} {heading}", fontsize=14)
-        page.insert_text((72, 100), body, fontsize=10)
+        page.insert_textbox(pymupdf.Rect(72, 90, 520, 300), body, fontsize=10)
+        if figure and i == 1:
+            png = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 120, 80), False)
+            png.set_rect(png.irect, (40, 90, 200))
+            page.insert_text((150, 318), "Encoder", fontsize=9)
+            page.insert_image(pymupdf.Rect(150, 320, 390, 480), pixmap=png)
+            page.insert_text((72, 500), "Figure 1: A synthetic architecture diagram.", fontsize=9)
+            shape = page.new_shape()
+            shape.draw_rect(pymupdf.Rect(150, 530, 390, 680))
+            shape.draw_line((150, 530), (390, 680))
+            shape.finish(color=(0, 0, 0), width=1)
+            shape.commit()
+            page.insert_text((72, 700), "Figure 2: Vector-only drawing.", fontsize=9)
         entries.append([1, heading, i])
     if references:
         page = doc.new_page()
         page.insert_text((72, 72), "References", fontsize=14)
         page.insert_text((72, 100), "[1] Someone. A cited paper. 2020.", fontsize=10)
+        entries.append([1, "References", doc.page_count])
     if toc:
         doc.set_toc(entries)
-    doc.set_metadata({"title": title})
+    doc.set_metadata({"title": title, **(metadata or {})})
     doc.save(path)
     doc.close()
     return path
@@ -216,18 +285,102 @@ def arxiv(tmp_path):
     return FakeArxiv(make_pdf(tmp_path / "src.pdf").read_bytes())
 
 
-DECK = Deck(
-    title="Linear attention, same accuracy",
-    slides=[
-        DraftSlide(title="The problem", bullets=["Attention cost grows quadratically."]),
-        DraftSlide(title="The idea", bullets=["LinAttn is linear in sequence length."]),
-        DraftSlide(title="Results", bullets=["84.6% accuracy, up from 82.1%.", "38% less memory."]),
-    ],
-)
+# --- M2: a fake model that plays router, extractor, planner and writer ---------------------
+
+ALL_IDS = re.compile(r"^(c\d{2}) ", re.MULTILINE)
 
 
-def deck_chat(body: dict[str, Any]) -> dict[str, Any]:
-    """A model that answers deck requests with DECK and everything else like default_chat."""
-    if "slides" in body.get("format", {}).get("properties", {}):
-        return {"model": body["model"], "message": {"content": DECK.model_dump_json()}}
-    return default_chat(body)
+def _last_user(body: dict[str, Any]) -> str:
+    return next(m["content"] for m in reversed(body["messages"]) if m["role"] == "user")
+
+
+def _first_sentences(text: str, n: int) -> list[str]:
+    sentences = [s.strip() for s in text.replace("\n", " ").split(". ") if len(s.split()) >= 4]
+    return sentences[:n]
+
+
+def _flow_words(prompt: str) -> list[str]:
+    """Distinct words of the section text a flow prompt shows, to use as grounded labels."""
+    text = prompt.split("Section text:", 1)[-1]
+    return list(dict.fromkeys(w.lower() for w in re.findall(r"[A-Za-z]{6,}", text)))
+
+
+def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
+    """Answer each pipeline step's schema with plausible, grounded content."""
+    props = body.get("format", {}).get("properties", {})
+    prompt = _last_user(body)
+    conversation = "\n".join(m["content"] for m in body["messages"] if m["role"] == "user")
+    if "takeaways" in props:
+        ids = re.findall(r"\[(c\d{2})", prompt)
+        content = {
+            "hook": "Linear attention without the accuracy tax",
+            "takeaways": [
+                {"text": "A grounded takeaway.", "claim_ids": [ids[i % len(ids)]]} for i in range(3)
+            ],
+            "question": "Where would linear attention help your models?",
+        }
+    elif "venue" in props:
+        content = {"venue": "", "date": ""}
+    elif "expand" in props:
+        words = _flow_words(prompt)[:4]
+        kinds = ["input", "process", "component", "output"]
+        content = {
+            "title": "The method end to end",
+            "nodes": [{"id": f"n{i}", "label": w, "kind": kinds[i]} for i, w in enumerate(words)],
+            "edges": [{"source": f"n{i}", "target": f"n{i + 1}"} for i in range(len(words) - 1)],
+            "caption": "The method in one flow.",
+            "expand": ["n1", "n2"],
+        }
+    elif "nodes" in props:
+        words = _flow_words(prompt)[4:7]
+        kinds = ["data", "process", "output"]
+        content = {
+            "title": "Inside one step",
+            "nodes": [{"id": f"d{i}", "label": w, "kind": kinds[i]} for i, w in enumerate(words)],
+            "edges": [{"source": f"d{i}", "target": f"d{i + 1}"} for i in range(len(words) - 1)],
+            "caption": "What happens inside the step.",
+        }
+    elif "paper_type" in props:
+        content: Any = {"paper_type": "method", "confidence": 0.9, "reason": "new model"}
+    elif "claims" in props:
+        text = prompt.split("SECTION TEXT:", 1)[1]
+        content = {
+            "claims": [
+                {"claim": f"Claim: {q}.", "evidence_quote": q, "kind": "result"}
+                for q in _first_sentences(text, 2)
+            ]
+        }
+    elif "hook" in props:
+        ids = ALL_IDS.findall(conversation)
+        purposes = ["task", "challenges", "method", "results"]
+        content = {
+            "hook": "Linear attention, same accuracy",
+            "slides": [
+                {"title": f"Slide about {p}", "purpose": p, "claim_ids": [ids[i % len(ids)]]}
+                for i, p in enumerate(purposes)
+            ],
+        }
+    elif "verdicts" in props:
+        bullets = re.findall(r"^Bullet (\d+): (.*)$", prompt, re.MULTILINE)
+        content = {
+            "verdicts": [
+                {
+                    "bullet": int(n),
+                    "verdict": "unsupported" if "WRONG" in text else "supported",
+                    "reason": "made up" if "WRONG" in text else "stated in the evidence",
+                }
+                for n, text in bullets
+            ]
+        }
+    elif "bullets" in props:
+        ids = ALL_IDS.findall(conversation)
+        content = {
+            "title": "A written slide",
+            "bullets": [
+                {"text": "A grounded bullet on the architecture drawing.", "claim_ids": [cid]}
+                for cid in ids
+            ],
+        }
+    else:
+        return default_chat(body)
+    return {"model": body["model"], "message": {"content": json.dumps(content)}}

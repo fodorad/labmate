@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "paper2carousel"
+name = "labmate"
 version = "0.0.0"
-description = "Local agentic pipeline that turns an arXiv paper into a fact-checked LinkedIn carousel."
+description = "A local research assistant built from agentic patterns: paper2flow turns a paper into a fact-checked overview and a LinkedIn post; ask answers questions about your research with citations."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -24,8 +24,11 @@ classifiers = [
 ]
 dependencies = [
     "httpx>=0.28",
+    "jinja2>=3.1",
     "pydantic>=2.10",
     "pymupdf>=1.25",
+    "pyyaml>=6.0",
+    "rapidfuzz>=3.10",
     "typst>=0.13",
 ]
 
@@ -40,16 +43,32 @@ dev = [
     "furo>=2024.8",
     "myst-parser>=4.0",
     "sphinx-autodoc-typehints>=2.5",
+    "types-pyyaml>=6.0",
+    "labmate[langgraph,ask]",
+]
+# paper2flow's second orchestration engine: same steps, driven by a LangGraph StateGraph.
+langgraph = [
+    "langgraph>=1.0",
+    "langgraph-checkpoint-sqlite>=2.0",
+]
+# The ask feature: agentic RAG over your research (LangGraph + LangChain interfaces),
+# and its live dashboard.
+ask = [
+    "labmate[langgraph]",
+    "langchain>=1.0",
+    "langchain-core>=1.0",
+    "numpy>=2.0",
+    "nicegui>=2.0",
 ]
 
 [project.scripts]
-paper2carousel = "paper2carousel.cli:main"
+labmate = "labmate.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/fodorad/paper2carousel"
-Repository = "https://github.com/fodorad/paper2carousel"
-Issues = "https://github.com/fodorad/paper2carousel/issues"
-Changelog = "https://github.com/fodorad/paper2carousel/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/fodorad/labmate"
+Repository = "https://github.com/fodorad/labmate"
+Issues = "https://github.com/fodorad/labmate/issues"
+Changelog = "https://github.com/fodorad/labmate/blob/main/CHANGELOG.md"
 
 [tool.ruff]
 line-length = 100
@@ -63,6 +82,9 @@ ignore = ["D203", "D213", "D107"]  # D107: __init__ args are documented on the c
 "tests/**" = ["D"]
 "docs/**" = ["D"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["labmate", "tests"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
@@ -74,10 +96,12 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=paper2carousel --cov-report=term-missing --cov-report=xml --cov-fail-under=90"
+addopts = "--cov=labmate --cov-report=term-missing --cov-report=xml --cov-fail-under=90"
 
 [tool.coverage.run]
-source = ["paper2carousel"]
+source = ["labmate"]
+# UI wiring only; the dashboard's logic is labmate.ask.live, which is tested.
+omit = ["labmate/ask/dashboard.py"]
 
 [tool.coverage.report]
 exclude_lines = [

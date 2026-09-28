@@ -1,0 +1,140 @@
+# The documents "ask my research" answers from. PDFs are not committed (see .gitignore):
+# copy them next to this file, keeping the paths below.
+#
+# tier 1 = source of truth (the dissertation), 2 = own papers, 3 = outside context.
+# theses = the dissertation's thesis points a paper backs.
+
+[[source]]
+id = "dissertation"
+file = "pdf/2025_Fodor_Adam_PhD_Thesis.pdf"
+title = "Affective behavior and social interaction analysis (PhD thesis)"
+label = "Dissertation"
+tier = 1
+year = 2025
+venue = "Eötvös Loránd University (ELTE)"
+
+# --- own papers: thesis points ------------------------------------------------------
+
+[[source]]
+id = "linmult"
+file = "pdf/2021_Fodor_Adam_PMLR_Personality_LinMulT.pdf"
+title = "Multimodal Sentiment and Personality Perception Under Speech: A Comparison of Transformer-based Architectures"
+label = "LinMulT"
+year = 2021
+venue = "DYAD@ICCV 2021 (PMLR)"
+theses = ["1"]
+
+[[source]]
+id = "group-personality"
+file = "pdf/2022_Fodor_Adam_Group_Personality.pdf"
+title = "Perceived Personality State Estimation in Dyadic and Small Group Interaction with Deep Learning Methods"
+label = "Group personality"
+year = 2022
+venue = "arXiv:2211.04979"
+theses = ["2"]
+
+[[source]]
+id = "blinklinmult"
+file = "pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf"
+title = "BlinkLinMulT: Transformer-Based Eye Blink Detection"
+label = "BlinkLinMulT"
+year = 2023
+venue = "Journal of Imaging (MDPI)"
+theses = ["3"]
+
+# --- own papers: related ------------------------------------------------------------
+
+[[source]]
+id = "cross-modal-personality"
+file = "pdf/2020_Fodor_Adam_MACS_Multimodal.pdf"
+title = "Enhancing Apparent Personality Trait Analysis with Cross-Modal Embeddings"
+label = "Cross-modal personality"
+year = 2020
+
+[[source]]
+id = "skeleton-superpixel"
+file = "pdf/2019_Fodor_Adam_IJCNN_Skeleton.pdf"
+title = "Skeletonization Combined with Deep Neural Networks for Superpixel Temporal Propagation"
+label = "Skeleton superpixels"
+year = 2019
+venue = "IJCNN 2019"
+
+[[source]]
+id = "supervoxel-segmentation"
+file = "pdf/2019_Fodor_Adam_IJCNN_SuperVoxel_OF.pdf"
+title = "Common Fate Based Episodic Segmentation by Combining Supervoxels with Deep Neural Networks"
+label = "Supervoxel segmentation"
+year = 2019
+venue = "IJCNN 2019"
+
+[[source]]
+id = "speech-deidentification"
+file = "pdf/2021_Fodor_Adam_CSCS_Deidentification.pdf"
+title = "Speech De-identification with Deep Neural Networks"
+label = "Speech de-identification"
+year = 2021
+venue = "Acta Cybernetica"
+
+[[source]]
+id = "asd-behavior"
+file = "pdf/2025_Fodor_Adam_CC_ASD.pdf"
+title = "Multimodal Framework for Automatic Behavior Analysis of Children with Autism During ADOS-2"
+label = "ADOS-2 behavior analysis"
+year = 2025
+venue = "Cognitive Computation"
+
+[[source]]
+id = "ahfs"
+file = "pdf/2021_Fodor_Adam_PR_AHFS.pdf"
+title = "Adaptive, Hybrid Feature Selection (AHFS)"
+label = "AHFS"
+year = 2021
+venue = "Pattern Recognition"
+
+[[source]]
+id = "production-trend"
+file = "pdf/2016_Fodor_Adam_IMEKO_Production_Trend.pdf"
+title = "Production trend identification and forecast for shop-floor business intelligence"
+label = "Production trends"
+year = 2016
+venue = "Acta IMEKO"
+
+# Left out: the 2018 student-conference thesis (Hungarian) and the CV.
+
+# --- outside context (the paper2flow gallery) ---------------------------------------
+
+[[source]]
+id = "attention"
+file = "outside/1706.03762.pdf"
+title = "Attention Is All You Need"
+label = "Transformer (Vaswani et al.)"
+tier = 3
+year = 2017
+venue = "NeurIPS 2017"
+
+[[source]]
+id = "agent-eval-survey"
+file = "outside/2503.16416.pdf"
+title = "A Survey on Evaluation of LLM-based Agents"
+label = "Agent evaluation survey"
+tier = 3
+year = 2025
+venue = "arXiv:2503.16416"
+
+[[source]]
+id = "rrsi"
+file = "outside/2609.24972.pdf"
+title = "RRSI: Regularized Recursive Self-Improvement of Agent Harnesses"
+label = "RRSI"
+tier = 3
+year = 2026
+venue = "arXiv:2609.24972"
+
+[[source]]
+id = "gamehorizon"
+file = "outside/2609.25001.pdf"
+title = "GameHorizon Suite: Multi-Horizon Data and Evaluation in Gameplay"
+label = "GameHorizon"
+tier = 3
+year = 2026
+venue = "arXiv:2609.25001"

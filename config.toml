@@ -1,4 +1,5 @@
-# paper2carousel configuration. Paths are relative to the repo root.
+# labmate configuration. Paths are relative to the repo root.
+# LABMATE_OLLAMA_HOST overrides [ollama].host (e.g. Ollama on another machine).
 
 [ollama]
 host = "http://localhost:11434"
@@ -8,14 +9,16 @@ timeout_s = 900
 # Roles, see plan §2. Tags must match `ollama list`; digests are pinned in models.lock.
 text = "qwen3.6:35b-mlx"
 critic = "gemma4:26b-mlx"
-vision = "gemma4:e4b"  # the MLX builds ignore images (probe, 2026-09-26); small non-MLX VLM
-image = "x/z-image-turbo:latest"  # provisional until `make probe` decides (Q5)
-image_candidates = ["x/z-image-turbo:latest", "x/flux2-klein:latest"]
+embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
 
 [generation]
 temperature = 0.0
 seed = 42
 num_ctx = 16384  # Ollama's default window would silently truncate the paper
+
+[pipeline]
+workers = 2  # concurrent calls for parallel steps; Ollama queues beyond OLLAMA_NUM_PARALLEL
+max_rewrite_rounds = 2  # fact-check loop budget; bullets still unsupported after it are dropped
 
 [replay]
 # live   : always call Ollama, store nothing
@@ -28,3 +31,11 @@ lock_file = "models.lock"
 
 [tracing]
 runs_dir = "runs"
+
+[ask]
+library = "library"                 # library.toml + the PDFs (not committed)
+index = "library/index.sqlite"      # sections, chunks, full-text index and vectors
+threads = "library/threads.sqlite"  # conversation memory (LangGraph checkpoints)
+chunk_words = 180
+top_k = 6
+max_loops = 2                       # retrieve -> grade -> rewrite rounds per sub-question
