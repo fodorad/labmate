@@ -6,7 +6,6 @@ derive a stable cache key, which the replay layer uses to record and replay call
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 from typing import Any, Literal
@@ -72,14 +71,12 @@ class Message(BaseModel):
     Attributes:
         role: Speaker role.
         content: Text content.
-        images: Optional base64-encoded images (for vision models).
         tool_calls: Tool calls made by the assistant in this message.
         tool_name: For ``role="tool"``: the tool whose result this message carries.
     """
 
     role: Literal["system", "user", "assistant", "tool"]
     content: str = ""
-    images: list[str] | None = None
     tool_calls: list[ToolCall] | None = None
     tool_name: str | None = None
 
@@ -305,105 +302,5 @@ class EmbedResponse(BaseModel):
             model=data.get("model", ""),
             embeddings=data.get("embeddings", []),
             prompt_tokens=data.get("prompt_eval_count", 0),
-            total_ms=data.get("total_duration", 0) / NS_PER_MS,
-        )
-
-
-class ImageRequest(BaseModel):
-    """A text-to-image request for Ollama's image models (served via ``/api/generate``)."""
-
-    model: str
-    prompt: str
-    width: int = 1080
-    height: int = 1350
-    steps: int | None = None
-    seed: int | None = 42
-    keep_alive: str | int | None = None
-
-    def to_payload(self) -> dict[str, Any]:
-        """Build the JSON body for ``POST /api/generate``.
-
-        Returns:
-            The request payload (non-streaming).
-        """
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "prompt": self.prompt,
-            "width": self.width,
-            "height": self.height,
-            "stream": False,
-        }
-        if self.steps is not None:
-            payload["steps"] = self.steps
-        if self.seed is not None:
-            payload["options"] = {"seed": self.seed}
-        if self.keep_alive is not None:
-            payload["keep_alive"] = self.keep_alive
-        return payload
-
-    def cache_key(self, digest: str | None = None) -> str:
-        """Stable key identifying this request's output (see :meth:`ChatRequest.cache_key`).
-
-        Args:
-            digest: Pinned model digest.
-
-        Returns:
-            A sha256 hex digest.
-        """
-        payload = self.to_payload()
-        payload.pop("keep_alive", None)
-        return _cache_key("image", payload, digest)
-
-
-class ImageResponse(BaseModel):
-    """A generated image.
-
-    Attributes:
-        model: Model that produced the image.
-        image_b64: Base64-encoded image bytes (PNG).
-        total_ms: Wall-clock generation time reported by Ollama.
-        cached: True if served from the cassette store.
-    """
-
-    model: str
-    image_b64: str
-    total_ms: float = 0.0
-    cached: bool = False
-
-    def image_bytes(self) -> bytes:
-        """Decode the image.
-
-        Returns:
-            Raw image bytes.
-        """
-        return base64.b64decode(self.image_b64)
-
-    def sha256(self) -> str:
-        """Hash of the decoded image, used to compare outputs across runs.
-
-        Returns:
-            A sha256 hex digest.
-        """
-        return hashlib.sha256(self.image_bytes()).hexdigest()
-
-    @classmethod
-    def from_ollama(cls, data: dict[str, Any]) -> ImageResponse:
-        """Parse a ``/api/generate`` response from an image model.
-
-        Args:
-            data: Raw response JSON.
-
-        Returns:
-            The parsed response.
-
-        Raises:
-            ValueError: If the response carries no image.
-        """
-        image = data.get("image")
-        if not image:
-            raise ValueError("Response contains no 'image' field; is this an image model?")
-        return cls(
-            model=data.get("model", ""),
-            image_b64=image,
             total_ms=data.get("total_duration", 0) / NS_PER_MS,
         )

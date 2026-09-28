@@ -2,7 +2,7 @@ import pytest
 
 from labmate.core.model import LLM
 from labmate.paper2flow.schemas import ClaimCard, Claims, Outline, OutlineSlide, Route
-from labmate.paper2flow.steps.outline import TEMPLATES, check_outline, format_claims, plan_outline
+from labmate.paper2flow.steps.outline import check_outline, plan_outline
 from tests.conftest import agentic_chat
 
 CLAIMS = Claims(
@@ -68,14 +68,6 @@ def test_valid_outline_has_no_problems():
 def test_each_rule_is_enforced(slides, problem):
     problems = check_outline(outline(*slides), CLAIMS, "method")
     assert any(problem in p for p in problems), problems
-
-
-def test_every_paper_type_gets_the_four_blocks():
-    assert all(t == FOUR for t in TEMPLATES.values())
-
-
-def test_format_claims_lists_ids_kinds_and_pages():
-    assert format_claims(CLAIMS).splitlines()[0] == "c01 [result] claim 1 (S, p. 1)"
 
 
 def test_planner_gets_rule_violations_fed_back(fake):

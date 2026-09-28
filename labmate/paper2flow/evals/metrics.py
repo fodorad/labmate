@@ -90,7 +90,7 @@ def distinct_calls(spans: list[Span], cassettes: Path | None = None) -> list[Spa
         cassettes: The entry's cassette directory, if published.
 
     Returns:
-        The chosen ``llm.chat`` / ``llm.image`` spans.
+        The chosen ``llm.chat`` spans.
     """
     keep = (
         {p.stem for p in cassettes.glob("*/*.json")}
@@ -99,7 +99,7 @@ def distinct_calls(spans: list[Span], cassettes: Path | None = None) -> list[Spa
     )
     chosen: dict[str, Span] = {}
     for s in spans:
-        if s["name"] not in ("llm.chat", "llm.image"):
+        if s["name"] != "llm.chat":
             continue
         key = str(s.get("key"))
         if keep is not None and key not in keep:

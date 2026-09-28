@@ -100,8 +100,9 @@ addopts = "--cov=labmate --cov-report=term-missing --cov-report=xml --cov-fail-u
 
 [tool.coverage.run]
 source = ["labmate"]
-# UI wiring only; the dashboard's logic is labmate.ask.live, which is tested.
-omit = ["labmate/ask/dashboard.py"]
+# UI wiring only: the dashboard's logic is labmate.ask.live, which is tested, and studio.py
+# only hands the tested graphs to LangGraph Studio.
+omit = ["labmate/ask/dashboard.py", "labmate/ask/studio.py"]
 
 [tool.coverage.report]
 exclude_lines = [

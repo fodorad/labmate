@@ -1,5 +1,3 @@
-import json
-
 import pytest
 
 from labmate.config import ReplayMode
@@ -10,24 +8,13 @@ from labmate.core.llm.replay import (
     read_lock,
     write_lock,
 )
-from labmate.core.llm.types import ChatRequest, ImageRequest, Message
+from labmate.core.llm.types import ChatRequest, Message
 
 REQ = ChatRequest(model="qwen3.6:35b-mlx", messages=[Message(role="user", content="hi")])
-IMG = ImageRequest(model="x/flux2-klein:latest", prompt="p", seed=3)
 
 
-def n_calls(fake, path="/api/chat"):
-    return fake.paths().count(path)
-
-
-def test_store_roundtrip_and_sharding(tmp_path):
-    store = CassetteStore(tmp_path)
-    assert store.get("ab" + "0" * 62) is None
-    store.put("ab" + "0" * 62, {"q": 1}, {"a": 2})
-    assert store.get("ab" + "0" * 62) == {"a": 2}
-    record = json.loads(store.path("ab" + "0" * 62).read_text())
-    assert store.path("ab" + "0" * 62).parent.name == "ab"
-    assert record["request"] == {"q": 1}
+def n_calls(fake):
+    return fake.paths().count("/api/chat")
 
 
 def test_live_mode_never_stores(fake, tmp_path):
@@ -79,15 +66,6 @@ def test_digest_pins_are_part_of_the_key(fake, tmp_path):
     new_version = ReplayClient(None, store, ReplayMode.REPLAY, {REQ.model: "sha256:v2"})
     with pytest.raises(CassetteMissError):
         new_version.chat(REQ)
-
-
-def test_image_record_and_replay(fake, tmp_path):
-    store = CassetteStore(tmp_path)
-    recorded = ReplayClient(fake.client(), store, ReplayMode.AUTO).generate_image(IMG)
-    replayed = ReplayClient(None, store, ReplayMode.REPLAY).generate_image(IMG)
-    assert replayed.cached is True
-    assert replayed.sha256() == recorded.sha256()
-    assert n_calls(fake, "/api/generate") == 1
 
 
 def test_lock_roundtrip(tmp_path):

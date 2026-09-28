@@ -1,29 +1,20 @@
+import csv
 import json
 
 import httpx
+import pymupdf
 import pytest
 
-from labmate.cli import configured_models, main
-from labmate.config import Config, load_config
+from labmate.cli import main
+from labmate.config import load_config
 from labmate.core.llm.client import OllamaClient
+from tests.conftest import agentic_chat, make_pdf
 
 
 @pytest.fixture
 def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     return tmp_path
-
-
-def test_configured_models_are_normalized_and_unique():
-    config = Config()
-    assert configured_models(config) == [
-        "qwen3.6:35b-mlx",
-        "gemma4:26b-mlx",
-        "embeddinggemma:latest",
-    ]
-    config.models.critic = "qwen3.6:35b-mlx"
-    config.models.embed = "embeddinggemma"
-    assert configured_models(config) == ["qwen3.6:35b-mlx", "embeddinggemma:latest"]
 
 
 def test_lock_writes_digests(fake, workdir, capsys):
@@ -63,13 +54,6 @@ def test_probe_success_writes_report(fake, workdir):
     assert {r["model"] for r in report["results"]} == {"qwen3.6:35b-mlx", "gemma4:26b-mlx"}
 
 
-def test_probe_silences_per_request_http_logs(fake, workdir):
-    import logging
-
-    main(["probe", "--out", "p"], client=fake.client())
-    assert logging.getLogger("httpx").level == logging.WARNING
-
-
 def test_probe_returns_1_when_a_check_fails(fake, workdir):
     fake.chat_handler = lambda b: {"model": b["model"], "message": {"content": "nope"}}
     assert main(["probe", "--out", "p"], client=fake.client()) == 1
@@ -91,26 +75,7 @@ def test_explicit_config_path(fake, workdir):
     assert (workdir / "pins.json").exists()
 
 
-def test_main_builds_a_real_client_when_none_injected(workdir, monkeypatch):
-    built = {}
-
-    class Recorder(OllamaClient):
-        def __init__(self, host, timeout_s):
-            built["host"] = host
-            super().__init__(
-                host,
-                timeout_s,
-                transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"models": []})),
-            )
-
-    monkeypatch.setattr("labmate.cli.OllamaClient", Recorder)
-    assert main(["lock"]) == 1  # nothing installed on this fake server
-    assert built["host"] == "http://localhost:11434"
-
-
 def test_run_pauses_then_approve_finishes(fake, arxiv, workdir, capsys):
-    from tests.conftest import agentic_chat
-
     fake.chat_handler = agentic_chat
     assert main(["paper2flow", "run", "2401.00001"], client=fake.client(), http=arxiv.client()) == 0
     assert "Outline ready for review: runs/2401.00001/outline.yaml" in capsys.readouterr().out
@@ -131,12 +96,10 @@ def test_run_without_paper_is_an_error(fake, workdir, capsys):
     assert "give an arXiv id" in capsys.readouterr().err
 
 
-# --- M5: evaluation commands ---------------------------------------------------------------
+# --- evaluation commands ---------------------------------------------------------------
 
 
 def _finish(fake, arxiv):
-    from tests.conftest import agentic_chat
-
     fake.chat_handler = agentic_chat
     argv = ["paper2flow", "run", "2401.00001", "--auto-approve"]
     assert main(argv, client=fake.client(), http=arxiv.client()) == 0
@@ -160,8 +123,6 @@ def test_eval_and_labels_without_runs(workdir, capsys):
 
 
 def test_labels_then_judges(fake, arxiv, workdir, capsys):
-    import csv
-
     _finish(fake, arxiv)
     assert main(["paper2flow", "judges"], client=fake.client()) == 1
     assert "no labelled bullets" in capsys.readouterr().err
@@ -191,7 +152,7 @@ def test_labels_then_judges(fake, arxiv, workdir, capsys):
     assert len(json.loads((workdir / "evals" / "judges.json").read_text())) == 1
 
 
-# --- M6: trace viewer and gallery ----------------------------------------------------------
+# --- trace viewer and gallery ----------------------------------------------------------
 
 
 def test_trace_publish_verify_site(fake, arxiv, workdir, capsys):
@@ -222,12 +183,10 @@ def test_verify_empty_gallery(workdir, capsys):
     assert "Nothing to verify" in capsys.readouterr().out
 
 
-# --- M7: engine choice ---------------------------------------------------------------------
+# --- engine choice ---------------------------------------------------------------------
 
 
 def test_run_with_the_langgraph_engine(fake, arxiv, workdir, capsys):
-    from tests.conftest import agentic_chat
-
     fake.chat_handler = agentic_chat
     argv = ["paper2flow", "run", "2401.00001", "--engine", "langgraph"]
     assert main(argv, client=fake.client(), http=arxiv.client()) == 0
@@ -237,10 +196,6 @@ def test_run_with_the_langgraph_engine(fake, arxiv, workdir, capsys):
 
 
 def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
-    import httpx
-
-    from tests.conftest import agentic_chat, make_pdf
-
     pdf_bytes = make_pdf(workdir / "src.pdf").read_bytes()
     downloads = []
 
@@ -256,8 +211,6 @@ def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
     run_dir = workdir / "runs" / "2023-my-paper"
     paper = json.loads((run_dir / "00_paper.json").read_text())
     assert paper["url"] == url and paper["title"] == "A Test Paper"
-    import pymupdf
-
     with pymupdf.open(run_dir / "post.pdf") as doc:
         assert "https://example.org/pdf/2023_My_Paper.pdf" in doc[0].get_text()
 

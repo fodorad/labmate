@@ -39,7 +39,7 @@ class Row(BaseModel):
     """One span, laid out for the waterfall.
 
     Attributes:
-        kind: ``run``, ``step``, ``chat`` or ``image`` (drives the colour).
+        kind: ``run``, ``step`` or ``chat`` (drives the colour).
         label: Short name, e.g. ``factcheck`` or the model tag.
         detail: Key attributes inline, e.g. ``cards=6 rejected=0``.
         depth: Nesting level (0 = root).
@@ -92,7 +92,7 @@ def _kind(name: str) -> str:
         return "run"
     if name.startswith("step."):
         return "step"
-    return "image" if name == "llm.image" else "chat"
+    return "chat"
 
 
 def _label(span: dict[str, Any]) -> str:

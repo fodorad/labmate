@@ -29,7 +29,6 @@ summary:hover { background: var(--bg); }
 .bar.run { background: var(--text); }
 .bar.step { background: var(--accent); }
 .bar.chat { background: var(--chat); }
-.bar.image { background: var(--image); }
 .bar.cached { opacity: 0.35; }
 .bar.error { outline: 2px solid #c0392b; }
 .ms { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
@@ -50,7 +49,6 @@ summary:hover { background: var(--bg); }
     <span><i style="background:var(--text)"></i>run</span>
     <span><i style="background:var(--accent)"></i>step</span>
     <span><i style="background:var(--chat)"></i>chat call</span>
-    <span><i style="background:var(--image)"></i>image call</span>
     <span><i style="background:var(--chat);opacity:.35"></i>served from cassette</span>
   </div>
   {% for t in traces %}

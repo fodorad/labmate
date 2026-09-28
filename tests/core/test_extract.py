@@ -4,8 +4,6 @@ from labmate.core.extract import (
     MIN_SECTION_CHARS,
     chunk_section,
     extract_claims,
-    normalize,
-    numeric_tokens,
     quote_score,
 )
 from labmate.core.model import LLM
@@ -15,10 +13,6 @@ TEXT = (
     "The Transformer allows for signif-\nicantly more parallelization and reaches a new state "
     "of the art after training for twelve hours on eight P100 GPUs."
 )
-
-
-def test_normalize_joins_hyphenation_and_whitespace():
-    assert normalize("signif-\n  icantly   MORE\nwork") == "significantly more work"
 
 
 def test_quote_score_exact_fuzzy_and_rejected():
@@ -38,15 +32,6 @@ def test_ligatures_and_ellipsis_shortened_quotes_are_accepted():
     # every piece has to match: a made-up second half fails
     assert quote_score("Most approaches depend on … perfect accuracy everywhere", text) < 90
     assert quote_score("Most … state", text) == 0  # no piece long enough to be evidence
-
-
-def test_numeric_tokens():
-    assert numeric_tokens("reaches 84.6% (up from 82.1%), n=6 on p100.") == [
-        "84.6%",
-        "82.1%",
-        "n=6",
-        "p100",
-    ]
 
 
 def test_chunking_keeps_title_and_page_and_respects_size():

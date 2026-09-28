@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import re
 from collections.abc import Callable
@@ -13,31 +12,23 @@ import pymupdf
 import pytest
 
 from labmate.core.llm.client import OllamaClient
-from labmate.core.probe import ProbeClaim, solid_png
+from labmate.core.probe import ProbeClaim
 
 INSTALLED = {
     "qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52,
     "gemma4:26b-mlx": "21c59a2eae30" + "0" * 52,
     "no-tools:latest": "f0ad3edce8e4" + "0" * 52,
-    "gemma4:e4b": "e4be4be4be4b" + "0" * 52,
-    "x/z-image-turbo:latest": "77b78ce4e883" + "0" * 52,
-    "x/flux2-klein:latest": "50a0c0ab15ac" + "0" * 52,
     "embeddinggemma:latest": "e3be3be3be3b" + "0" * 52,
 }
 CAPABILITIES = {
     "qwen3.6:35b-mlx": ["completion", "tools", "thinking"],
     "gemma4:26b-mlx": ["completion", "tools", "vision"],
     "no-tools:latest": ["completion", "thinking"],
-    "gemma4:e4b": ["completion", "vision"],
-    "x/z-image-turbo:latest": ["image"],
-    "x/flux2-klein:latest": ["image"],
 }
-IMAGE_MODELS = {"x/z-image-turbo:latest", "x/flux2-klein:latest"}
 
 
 def default_chat(body: dict[str, Any]) -> dict[str, Any]:
-    """A well-behaved model: valid JSON, correct tool call, sees red, deterministic."""
-    last = body["messages"][-1]
+    """A well-behaved model: valid JSON, correct tool call, deterministic."""
     message: dict[str, Any] = {"role": "assistant", "content": ""}
     if "format" in body:
         message["content"] = ProbeClaim(
@@ -47,8 +38,6 @@ def default_chat(body: dict[str, Any]) -> dict[str, Any]:
         message["tool_calls"] = [
             {"function": {"name": "use_paper_figure", "arguments": {"figure_id": "fig3"}}}
         ]
-    elif last.get("images"):
-        message["content"] = "Red."
     else:
         message["content"] = f"OK seed={body['options'].get('seed')}"
     return {
@@ -83,18 +72,6 @@ def default_embed(body: dict[str, Any]) -> dict[str, Any]:
             "total_duration": 1_000_000}  # fmt: skip
 
 
-def default_image(body: dict[str, Any]) -> dict[str, Any]:
-    """Deterministic image: colour derived from the seed."""
-    seed = body.get("options", {}).get("seed", 0)
-    png = solid_png(((seed * 40) % 256, 100, 100), size=8)
-    return {
-        "model": body["model"],
-        "image": base64.b64encode(png).decode(),
-        "done": True,
-        "total_duration": 5_000_000_000,
-    }
-
-
 class FakeOllama:
     """In-memory stand-in for an Ollama server, served through ``httpx.MockTransport``."""
 
@@ -106,7 +83,6 @@ class FakeOllama:
         self._pending_unload: dict[str, int] = {}
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.chat_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_chat
-        self.image_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_image
         self.embed_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_embed
         self.version = "0.24.0"
 
@@ -120,16 +96,13 @@ class FakeOllama:
         if path == "/api/chat":
             self.loaded.add(model)
             return httpx.Response(200, json=self.chat_handler(body))
-        if path == "/api/generate":
-            if body.get("keep_alive") == 0 and "prompt" not in body:
-                if model in self.loaded and model not in self.sticky:
-                    if self.unload_delay_polls:
-                        self._pending_unload[model] = self.unload_delay_polls
-                    else:
-                        self.loaded.discard(model)
-                return httpx.Response(200, json={"model": model, "done": True})
-            self.loaded.add(model)
-            return httpx.Response(200, json=self.image_handler(body))
+        if path == "/api/generate":  # only used to unload (keep_alive=0)
+            if model in self.loaded and model not in self.sticky:
+                if self.unload_delay_polls:
+                    self._pending_unload[model] = self.unload_delay_polls
+                else:
+                    self.loaded.discard(model)
+            return httpx.Response(200, json={"model": model, "done": True})
         if path == "/api/embed":
             return httpx.Response(200, json=self.embed_handler(body))
         if path == "/api/tags":

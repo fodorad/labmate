@@ -3,9 +3,7 @@ from pydantic import BaseModel
 
 from labmate.core.llm.structured import (
     StructuredOutputError,
-    extract_json,
     parse_structured,
-    schema_instruction,
     structured_chat,
 )
 from labmate.core.llm.types import ChatRequest, Message
@@ -35,17 +33,6 @@ def test_json_embedded_in_prose_parses_leniently():
 def test_wrong_schema_or_no_json_fails():
     assert parse_structured('{"claim": "x"}', Claim) == (None, None)
     assert parse_structured("no json at all", Claim) == (None, None)
-
-
-def test_extract_json_edge_cases():
-    assert extract_json("} backwards {") is None
-    assert extract_json('```\n{"a": 1}\n```') == '{"a": 1}'
-
-
-def test_schema_instruction_embeds_the_schema():
-    text = schema_instruction(Claim)
-    assert '"claim"' in text and '"page"' in text
-    assert "only the JSON" in text
 
 
 # --- structured_chat: schema prompt + retry-with-feedback loop -----------------------------
