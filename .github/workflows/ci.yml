@@ -1,9 +1,8 @@
 name: CI
 
+# Remote CI is manual-only for now; the gate is `make check` run locally.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   check:

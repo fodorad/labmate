@@ -49,7 +49,7 @@ embeddings), and `tests/ask/conftest.py` a fake model that plays every ask role.
 - Conventional Commits (the history is the changelog). **No AI co-author
   trailers or AI attribution in commits**; a commit-msg hook rejects them.
 - GitHub Flow: short-lived `feat/*`/`fix/*` branch → PR into `main` → green CI → merge.
-  CI only (lint, types, tests, docs, gallery replay); no CD, since labmate runs locally.
+  The gate is `make check` run locally; remote CI (`.github/workflows/ci.yml`) is manual-only for now. No CD, since labmate runs locally.
 - Prompts are Markdown files next to the code (`*/prompts/*.md`), loaded with `load_prompt`.
 - Model roles live in `config.toml` and digests in `models.lock` (`make lock`). A new
   model digest invalidates its cassettes.
