@@ -1,4 +1,5 @@
-# paper2flow configuration. Paths are relative to the repo root.
+# labmate configuration. Paths are relative to the repo root.
+# LABMATE_OLLAMA_HOST overrides [ollama].host (e.g. Ollama on another machine).
 
 [ollama]
 host = "http://localhost:11434"

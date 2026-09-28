@@ -20,7 +20,7 @@ trivial "does it not crash" placeholders. Target ≥90% coverage
 (`make test-cov`). Fixtures for real-data tests live in `tests/fixtures/`
 and are only added when the underlying data is actually available.
 
-`tests/` mirrors the `labmate/` source layout (`core/`, `paper2flow/`).
+`tests/` mirrors the `labmate/` source layout (`core/`, `paper2flow/`, `ask/`).
 
 ## Commit messages
 

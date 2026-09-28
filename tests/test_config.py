@@ -36,3 +36,10 @@ def test_invalid_mode_is_rejected(tmp_path):
     path.write_text('[replay]\nmode = "sometimes"\n')
     with pytest.raises(ValueError):
         load_config(path)
+
+
+def test_environment_overrides_the_ollama_host(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LABMATE_OLLAMA_HOST", "http://192.168.0.2:11434")
+    assert load_config().ollama.host == "http://192.168.0.2:11434"
+    assert load_config(REPO_CONFIG).ollama.host == "http://192.168.0.2:11434"

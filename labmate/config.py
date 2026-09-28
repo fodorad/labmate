@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tomllib
 from enum import StrEnum
 from pathlib import Path
@@ -9,6 +10,9 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 DEFAULT_CONFIG_PATH = Path("config.toml")
+
+HOST_ENV = "LABMATE_OLLAMA_HOST"
+"""Environment variable that overrides ``[ollama].host`` (e.g. Ollama on another machine)."""
 """Config file used when no explicit path is given (relative to the working directory)."""
 
 
@@ -118,10 +122,14 @@ def load_config(path: Path | None = None) -> Config:
 
     Raises:
         FileNotFoundError: If an explicit ``path`` is given but does not exist.
+
+    ``LABMATE_OLLAMA_HOST`` overrides the Ollama host.
     """
-    if path is None:
-        if not DEFAULT_CONFIG_PATH.exists():
-            return Config()
-        path = DEFAULT_CONFIG_PATH
-    with path.open("rb") as f:
-        return Config.model_validate(tomllib.load(f))
+    if path is None and not DEFAULT_CONFIG_PATH.exists():
+        config = Config()
+    else:
+        with (path or DEFAULT_CONFIG_PATH).open("rb") as f:
+            config = Config.model_validate(tomllib.load(f))
+    if host := os.environ.get(HOST_ENV):
+        config.ollama.host = host
+    return config

@@ -23,7 +23,7 @@ import pymupdf
 from pydantic import BaseModel
 
 from labmate.ask.library import Source
-from labmate.core.ingest import _REFERENCES, IngestError, _find_heading
+from labmate.core.ingest import _REFERENCES, IngestError
 
 ChunkKind = Literal["text", "caption", "thesis", "summary"]
 """What a chunk holds (summaries are written by the model at index time)."""
@@ -99,6 +99,36 @@ def _clean(text: str) -> str:
     return " ".join(text.split())
 
 
+_FRONT_MATTER = re.compile(
+    r"^(table of )?contents$|^list of \w+$|^(kivonat|zusammenfassung|résumé)$", re.IGNORECASE
+)
+"""Outline entries that are not content: contents, lists of figures, tables, acronyms, and
+the abstract in a second language."""
+
+
+def find_heading(text: str, title: str, start: int) -> int:
+    """Offset of a heading line at or after ``start``.
+
+    Tolerates the section number being on its own line or missing, and letter-spaced
+    headings ("I N T R O D U C T I O N") as LaTeX thesis classes set them.
+
+    Args:
+        text: Document text.
+        title: Outline title, with or without its number ("2.1 Transformers").
+        start: Where to start looking.
+
+    Returns:
+        The offset, or -1 if the heading is not found.
+    """
+    words = _NUMBER.sub("", title.strip()).split()
+    if not words:
+        return -1
+    body = r"\s+".join(r"\s?".join(re.escape(ch) for ch in word) for word in words)
+    pattern = re.compile(r"^\s*(\d+(\.\d+)*\.?\s+)?" + body, re.IGNORECASE | re.MULTILINE)
+    match = pattern.search(text, start)
+    return match.start() if match else -1
+
+
 def outline_sections(pdf: Path, source_id: str, max_level: int = 3) -> list[DocSection]:
     """The document's section tree, from its PDF outline (one section per page without one).
 
@@ -115,21 +145,41 @@ def outline_sections(pdf: Path, source_id: str, max_level: int = 3) -> list[DocS
     """
     with pymupdf.open(pdf) as doc:
         pages = [page.get_text() for page in doc]
-        toc = [(lvl, t, p) for lvl, t, p in doc.get_toc() if lvl <= max_level]
+        outline = [(lvl, t.strip(), p) for lvl, t, p in doc.get_toc()]
     if not any(p.strip() for p in pages):
         raise IngestError(f"No extractable text in {pdf} (scanned PDF?)")
     text, offsets = "", []
     for page_text in pages:
         offsets.append(len(text))
         text += page_text + "\n"
-    refs = _REFERENCES.search(text)
-    end = refs.start() if refs else len(text)
+    # the bibliography: its outline entry if there is one, else the last "References"
+    # heading (a thesis names it in its contents too)
+    listed = [p for _, t, p in outline if _REFERENCES.search(f"\n{t}\n") and 1 <= p <= len(pages)]
+    refs = list(_REFERENCES.finditer(text))
+    if listed:
+        start = offsets[listed[-1] - 1]
+        found = [
+            o for t in ("References", "Bibliography") if (o := find_heading(text, t, start)) >= 0
+        ]
+        end = min(found) if found else start
+    else:
+        end = refs[-1].start() if refs else len(text)
+    # books and theses group chapters into unnumbered parts: count levels from the chapters
+    shift = int(
+        not any(_NUMBER.match(t) for lvl, t, _ in outline if lvl == 1)
+        and any(_NUMBER.match(t) for lvl, t, _ in outline if lvl == 2)
+    )
+    toc = [(lvl - shift or 1, t, p) for lvl, t, p in outline if lvl <= max_level + shift]
 
     starts: list[tuple[int, str, int, int]] = []  # level, title, page, offset
     for level, title, page in toc:
-        if not 1 <= page <= len(pages) or _REFERENCES.search(f"\n{title.strip()}\n"):
+        if (
+            not 1 <= page <= len(pages)
+            or _REFERENCES.search(f"\n{title}\n")
+            or _FRONT_MATTER.match(title)
+        ):
             continue
-        offset = _find_heading(text, title, offsets[page - 1])
+        offset = find_heading(text, title, offsets[page - 1])
         if 0 <= offset < end and (not starts or offset > starts[-1][3]):
             starts.append((level, title.strip(), page, offset))
     if not starts:
@@ -301,6 +351,10 @@ def thesis_chunks(sections: list[DocSection], source: Source, start_index: int) 
     return chunks
 
 
+MIN_SECTION_WORDS = 12
+"""Sections shorter than this (a heading followed by its first subsection) get no chunk."""
+
+
 def chunk_document(
     sections: list[DocSection], source: Source, chunk_words: int = 180
 ) -> list[Chunk]:
@@ -316,7 +370,9 @@ def chunk_document(
     """
     chunks: list[Chunk] = []
     for section in sections:
-        chunks += chunk_section(section, source, chunk_words, len(chunks))
+        words = [w for w in section.text.split() if len(w) > 1]  # letter-spaced titles: none
+        if len(words) >= MIN_SECTION_WORDS:  # not a bare heading
+            chunks += chunk_section(section, source, chunk_words, len(chunks))
     if source.tier == 1:
         chunks += thesis_chunks(sections, source, len(chunks))
     return chunks

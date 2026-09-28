@@ -71,7 +71,7 @@ def cmd_lock(config: Config, client: OllamaClient) -> int:
     lock_path = config.replay.lock_file
     old = read_lock(lock_path)
     new = {t: installed[t] for t in wanted}
-    write_lock(lock_path, new)
+    write_lock(lock_path, {**old, **new})  # keeps other pinned models (extra judges)
     for tag, digest in new.items():
         flag = "" if old.get(tag) in (None, digest) else "  (CHANGED: old cassettes won't match)"
         print(f"{tag:32s} {digest[:12]}{flag}")

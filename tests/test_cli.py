@@ -34,6 +34,13 @@ def test_lock_writes_digests(fake, workdir, capsys):
     assert "CHANGED" not in capsys.readouterr().out
 
 
+def test_lock_keeps_other_pinned_models(fake, workdir):
+    (workdir / "models.lock").write_text('{"phi4-reasoning:plus": "abc"}')
+    assert main(["lock"], client=fake.client()) == 0
+    lock = json.loads((workdir / "models.lock").read_text())
+    assert lock["phi4-reasoning:plus"] == "abc" and len(lock) == 4
+
+
 def test_lock_flags_changed_digests(fake, workdir, capsys):
     main(["lock"], client=fake.client())
     fake.installed["qwen3.6:35b-mlx"] = "ffff" + "0" * 60

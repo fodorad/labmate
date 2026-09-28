@@ -3,9 +3,11 @@ import pytest
 
 from labmate.ask.build import build_index, chapter_text
 from labmate.ask.chunk import (
+    MIN_SECTION_WORDS,
     THESIS_MAX_WORDS,
     DocSection,
     chunk_document,
+    find_heading,
     outline_sections,
     section_number,
     sentences,
@@ -249,3 +251,45 @@ def test_index_remove_source(tmp_path, indexed):
     index.remove_source("outside")
     assert not index.has_source("outside") and index.bm25("attention tokens", [3], 3) == []
     index.close()
+
+
+def test_find_heading_tolerates_letter_spacing_and_numbers():
+    text = (
+        "intro\n1\nI N T R O D U C T I O N\nbody\n2.1\nHuman Factors\n"
+        "P S Y C H O L O G I C A L A N D\nF O U N D AT I O N S\n"
+    )
+    assert find_heading(text, "1 Introduction", 0) == text.index("1\nI N T")
+    assert find_heading(text, "2.1 Human Factors", 0) == text.index("2.1")
+    assert find_heading(text, "Psychological and Foundations", 0) == text.index("P S Y")
+    assert find_heading(text, "Missing", 0) == -1
+    assert find_heading(text, "  ", 0) == -1
+
+
+def test_thesis_layout_parts_front_matter_and_listed_bibliography(tmp_path):
+    import pymupdf
+
+    doc = pymupdf.open()
+    pages = [
+        "C O N T E N T S\n1 Introduction 3\nBibliography 5",
+        "P A R T I\nI N T R O D U C T I O N",
+        "1\nI N T R O D U C T I O N\n" + "The thesis studies blinks in long videos. " * 5
+        + "\n1.1\nM O T I V A T I O N\n" + "Blinks tell a lot about attention. " * 5,
+        "2\nR E S U L T S\n" + "The model reaches 0.912 F1 on the benchmark. " * 5,
+        "B I B L I O G R A P H Y\n[1] Someone. A paper. 2020.",
+    ]  # fmt: skip
+    for body in pages:
+        doc.new_page().insert_textbox(pymupdf.Rect(40, 40, 560, 800), body, fontsize=9)
+    doc.set_toc([
+        [1, "Contents", 1], [1, " Introduction", 2], [2, "1 Introduction", 3],
+        [3, "1.1 Motivation", 3], [2, "2 Results", 4], [1, " Bibliography", 5],
+    ])  # fmt: skip
+    doc.save(tmp_path / "thesis.pdf")
+    sections = outline_sections(tmp_path / "thesis.pdf", "t")
+    assert [(s.level, s.number, s.title) for s in sections] == [
+        (1, "", "Introduction"), (1, "1", "Introduction"), (2, "1.1", "Motivation"),
+        (1, "2", "Results"),
+    ]  # fmt: skip
+    assert "Someone" not in sections[-1].text and "0.912" in sections[-1].text
+    chunks = chunk_document(sections, Source(id="t", file="", tier=2), 180)
+    assert {c.section_id for c in chunks} == {"t:s001", "t:s002", "t:s003"}  # bare part: none
+    assert len(sections[0].text.split()) >= MIN_SECTION_WORDS  # letter-spaced, still no chunk

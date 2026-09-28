@@ -1,4 +1,5 @@
 {
+  "embeddinggemma:latest": "85462619ee721b466c5927d109d4cb765861907d5417b9109caebc4e614679f1",
   "gemma4:26b-mlx": "21c59a2eae301d2b4ee734f0930728ddc284b4cbf9856b8ad7c3f1c11e056832",
   "gemma4:e4b": "c6eb396dbd5992bbe3f5cdb947e8bbc0ee413d7c17e2beaae69f5d569cf982eb",
   "phi4-reasoning:plus": "f0ad3edce8e497d8c209d2ccb3f3ea6adf98944a5b9fd944a6c54e1786c361bd",
