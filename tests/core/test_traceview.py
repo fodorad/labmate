@@ -22,15 +22,14 @@ SPANS = [
     span("c1", "llm.chat", "s1", 1.0, 500, model="qwen3.6:35b-mlx", tokens_in=100, tokens_out=40),
     span("c2", "llm.chat", "s1", 1.5, 500, model="gemma4:26b-mlx", cached=True, tokens_in=5),
     span("s1", "step.extract", "r", 1.0, 1000, cards=6, rejected=1),
-    span("i1", "llm.image", "s2", 2.0, 1000, model="x/z-image-turbo:latest"),
-    span("s2", "step.cover", "r", 2.0, 1000, status="error", error="boom"),
+    span("s2", "step.render", "r", 2.0, 1000, status="error", error="boom"),
     span("r", "run", None, 0.0, 4000, paper="2401.00001", mode="auto"),
 ]
 
 
 def test_trace_view_lays_out_spans_on_one_axis():
     view = trace_view(SPANS)
-    assert view.total_ms == 4000 and view.llm_calls == 3 and view.cached_calls == 1
+    assert view.total_ms == 4000 and view.llm_calls == 2 and view.cached_calls == 1
     assert (view.tokens_in, view.tokens_out) == (105, 40)
     root, extract, chat = view.rows[:3]
     assert (root.kind, root.depth, root.left, root.width) == ("run", 0, 0, 100)
@@ -38,8 +37,8 @@ def test_trace_view_lays_out_spans_on_one_axis():
     assert (chat.kind, chat.label, chat.depth, chat.left) == ("chat", "qwen3.6:35b-mlx", 2, 25)
     assert "100→40 tok" in chat.detail
     kinds = {r.label: r.kind for r in view.rows}
-    assert kinds["x/z-image-turbo:latest"] == "image" and kinds["cover"] == "step"
-    assert "error" in next(r for r in view.rows if r.label == "cover").attrs
+    assert kinds["render"] == "step"
+    assert "error" in next(r for r in view.rows if r.label == "render").attrs
 
 
 def test_trace_view_needs_spans():

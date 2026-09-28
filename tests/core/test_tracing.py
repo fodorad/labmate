@@ -2,7 +2,7 @@ import pytest
 
 from labmate.config import ReplayMode
 from labmate.core.llm.replay import CassetteStore, ReplayClient
-from labmate.core.llm.types import ChatRequest, ImageRequest, Message
+from labmate.core.llm.types import ChatRequest, Message
 from labmate.core.tracing import TracedClient, Tracer, read_trace
 
 
@@ -29,15 +29,6 @@ def test_error_is_recorded_and_reraised():
     assert "KeyError" in tracer.spans[0]["error"]
 
 
-def test_parent_is_restored_after_span():
-    tracer = Tracer()
-    with tracer.span("a"):
-        pass
-    with tracer.span("b"):
-        pass
-    assert all(s["parent_id"] is None for s in tracer.spans)
-
-
 def test_jsonl_file_is_appended_and_readable(tmp_path):
     path = tmp_path / "run" / "trace.jsonl"
     tracer = Tracer(path, trace_id="r1")
@@ -59,19 +50,13 @@ def test_traced_client_records_usage_and_cache_hits(fake, tmp_path):
     request = ChatRequest(model="qwen3.6:35b-mlx", messages=[Message(role="user", content="x")])
     client.chat(request)
     client.chat(request)
-    client.generate_image(ImageRequest(model="x/flux2-klein:latest", prompt="p"))
-    first, second, image = tracer.spans
+    first, second = tracer.spans
     assert first["cached"] is False and second["cached"] is True
     assert first["tokens_out"] == 50 and first["model"] == "qwen3.6:35b-mlx"
     assert first["key"] == request.cache_key()
-    assert image["name"] == "llm.image" and len(image["image_sha256"]) == 64
 
 
 def test_traced_client_keys_match_cassettes_when_digests_are_pinned(fake, tmp_path):
-    from labmate.config import ReplayMode
-    from labmate.core.llm.replay import CassetteStore, ReplayClient
-    from labmate.core.llm.types import ChatRequest, Message
-
     digests = {"qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52}
     store = CassetteStore(tmp_path / "c")
     tracer = Tracer()

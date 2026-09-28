@@ -12,8 +12,6 @@ from labmate.core.llm.types import (
     ChatResponse,
     EmbedRequest,
     EmbedResponse,
-    ImageRequest,
-    ImageResponse,
 )
 
 
@@ -23,7 +21,7 @@ class OllamaError(RuntimeError):
 
 @runtime_checkable
 class Backend(Protocol):
-    """Anything that can serve chat and image requests.
+    """Anything that can serve chat and embedding requests.
 
     Implemented by :class:`OllamaClient` and by the wrappers in
     :mod:`labmate.core.llm.replay` and :mod:`labmate.core.tracing`, so they compose.
@@ -31,10 +29,6 @@ class Backend(Protocol):
 
     def chat(self, request: ChatRequest) -> ChatResponse:
         """Run a chat request."""
-        ...
-
-    def generate_image(self, request: ImageRequest) -> ImageResponse:
-        """Run a text-to-image request."""
         ...
 
     def embed(self, request: EmbedRequest) -> EmbedResponse:
@@ -113,18 +107,6 @@ class OllamaClient:
             The model's response.
         """
         return ChatResponse.from_ollama(self._request("POST", "/api/chat", request.to_payload()))
-
-    def generate_image(self, request: ImageRequest) -> ImageResponse:
-        """Generate an image via ``POST /api/generate`` (experimental in Ollama).
-
-        Args:
-            request: The image request.
-
-        Returns:
-            The generated image.
-        """
-        data = self._request("POST", "/api/generate", request.to_payload())
-        return ImageResponse.from_ollama(data)
 
     def embed(self, request: EmbedRequest) -> EmbedResponse:
         """Embed texts via ``POST /api/embed``.

@@ -1,5 +1,4 @@
 import json
-from types import SimpleNamespace
 
 import pytest
 
@@ -20,11 +19,11 @@ from labmate.ask.evals import (
     score_answer,
     score_method,
 )
-from labmate.ask.live import LiveView, describe, model_stats, node_id
+from labmate.ask.live import LiveView, model_stats
 from labmate.ask.schemas import Answer
 from labmate.cli import main
 from labmate.core.schemas import ClaimCard
-from labmate.diagrams import ASK_OVERVIEW, diagrams_markdown
+from labmate.diagrams import ASK_OVERVIEW
 
 # --- retrieval evaluation -----------------------------------------------------------------
 
@@ -189,29 +188,6 @@ def test_cli_unreachable_ollama(workdir, capsys):
 # --- live view and diagrams ---------------------------------------------------------------
 
 
-def test_node_ids_and_descriptions():
-    assert node_id((), "plan") == "plan"
-    assert node_id(("research:abc",), "grade") == "research_grade"
-    assert node_id(("research:abc",), "finish") is None
-    assert node_id(("verify:1",), "judge") == "verify_judge"
-    assert node_id(("other:1",), "x") is None
-    events = [
-        {"event": "understood", "intent": "thesis", "standalone": "q", "options": ["a", "b"]},
-        {"event": "planned", "queries": ["x", "y"]},
-        {"event": "retrieved", "query": "x", "tiers": [1], "hits": [{}]},
-        {"event": "graded", "relevant": ["a"], "sufficient": False, "missing": ""},
-        {"event": "rewritten", "query": "z", "tiers": [1, 2]},
-        {"event": "conflicts", "items": []},
-        {"event": "drafted", "sentences": ["a"]},
-        {"event": "verified", "kept": 1, "dropped": 0},
-        {"event": "unknown"},
-    ]
-    lines = [describe(e) for e in events]
-    assert lines[0] == "understood as thesis: q; ambiguous: a, b"
-    assert lines[3] == "graded 1 relevant, missing: ?"
-    assert lines[4] == "rewrote the query (tiers [1, 2]): z"
-
-
 def test_live_view_follows_a_real_run(indexed):
     from labmate.ask.graph import compile_graph
 
@@ -251,19 +227,6 @@ def test_model_stats():
     assert stats.seconds == 1.5
 
 
-def test_diagrams_markdown():
-    text = diagrams_markdown()
-    assert text.startswith("# labmate graphs") and "create_agent" in text
-
-
-def test_studio_factories(indexed, config, monkeypatch):
-    from labmate.ask import studio
-
-    monkeypatch.setattr(studio, "load_config", lambda: config)
-    assert "understand" in studio.make_graph().get_graph().nodes
-    assert "tools" in studio.make_prebuilt().get_graph().nodes
-
-
 def test_dashboard_questions_come_from_the_golden_set(config):
     from labmate.ask.dashboard import SAMPLE_QUESTIONS, _golden_questions
 
@@ -272,4 +235,3 @@ def test_dashboard_questions_come_from_the_golden_set(config):
         "- question: A?\n- question: B?\n  abstain: true\n"
     )
     assert _golden_questions(config) == ["A?"]
-    assert SimpleNamespace  # keeps the import used

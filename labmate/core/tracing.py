@@ -24,8 +24,6 @@ from labmate.core.llm.types import (
     ChatResponse,
     EmbedRequest,
     EmbedResponse,
-    ImageRequest,
-    ImageResponse,
 )
 
 _current_span: ContextVar[str | None] = ContextVar("current_span", default=None)
@@ -170,28 +168,13 @@ class TracedClient:
             )
             return response
 
-    def generate_image(self, request: ImageRequest) -> ImageResponse:
-        """Run and trace an image request.
-
-        Args:
-            request: The image request.
-
-        Returns:
-            The wrapped backend's response.
-        """
-        key = request.cache_key(self.digests.get(request.model))
-        with self.tracer.span("llm.image", model=request.model, key=key) as s:
-            response = self.backend.generate_image(request)
-            s.update(cached=response.cached, image_sha256=response.sha256())
-            return response
-
 
 Span = dict[str, Any]
 """A span as read back from ``trace.jsonl``."""
 
 
 def _is_live(chain: list[Span]) -> bool:
-    return any(s["name"] in ("llm.chat", "llm.image") and not s.get("cached") for s in chain)
+    return any(s["name"] == "llm.chat" and not s.get("cached") for s in chain)
 
 
 def latest_completed(trace: Path) -> list[Span]:

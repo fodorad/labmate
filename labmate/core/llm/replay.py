@@ -19,8 +19,6 @@ from labmate.core.llm.types import (
     ChatResponse,
     EmbedRequest,
     EmbedResponse,
-    ImageRequest,
-    ImageResponse,
 )
 
 
@@ -151,24 +149,6 @@ class ReplayClient:
         if hit is not None:
             return EmbedResponse.model_validate({**hit, "cached": True})
         response = self._live().embed(request)
-        if self.mode is not ReplayMode.LIVE:
-            self.store.put(key, request.to_payload(), response.model_dump(exclude={"cached"}))
-        return response
-
-    def generate_image(self, request: ImageRequest) -> ImageResponse:
-        """Serve an image request from the cassette store or the live backend.
-
-        Args:
-            request: The image request.
-
-        Returns:
-            The response; ``cached`` is True when it came from a cassette.
-        """
-        key = request.cache_key(self.digests.get(request.model))
-        hit = self._lookup(key)
-        if hit is not None:
-            return ImageResponse.model_validate({**hit, "cached": True})
-        response = self._live().generate_image(request)
         if self.mode is not ReplayMode.LIVE:
             self.store.put(key, request.to_payload(), response.model_dump(exclude={"cached"}))
         return response

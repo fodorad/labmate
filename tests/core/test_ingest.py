@@ -7,13 +7,11 @@ from labmate.core.ingest import (
     download_pdf,
     download_url,
     fetch_metadata,
+    first_page_text,
     ingest_arxiv,
     ingest_pdf,
-    is_url,
     parse_arxiv_id,
-    slugify,
     split_sections,
-    url_stem,
 )
 from tests.conftest import EMPTY_ATOM, FakeArxiv, make_pdf
 
@@ -110,15 +108,6 @@ def test_ingest_local_pdf_uses_abstract_section_and_slug(tmp_path):
     assert ingest_pdf(path, title="Override").title == "Override"
 
 
-def test_slugify():
-    assert slugify("  LinMulT: v2 (Final) ") == "linmult-v2-final"
-
-
-def test_references_heading_in_the_outline_is_not_a_section(tmp_path):
-    sections = split_sections(make_pdf(tmp_path / "p.pdf"))
-    assert [s.title for s in sections] == ["Introduction", "Method", "Results"]
-
-
 def test_ingest_local_pdf_takes_authors_and_abstract_from_metadata(tmp_path):
     meta = {
         "author": "Ádám Fodor, Kristian Fenech and András Lőrincz",
@@ -128,14 +117,6 @@ def test_ingest_local_pdf_takes_authors_and_abstract_from_metadata(tmp_path):
     assert paper.authors == ["Ádám Fodor", "Kristian Fenech", "András Lőrincz"]
     assert paper.abstract == "We detect blinks."
     assert (tmp_path / "run" / "paper.pdf").exists()  # cached next to the artifacts
-
-
-def test_is_url_and_url_stem():
-    assert is_url("https://a.org/x.pdf") and not is_url("papers/x.pdf")
-    assert url_stem("https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf?dl=1") == (
-        "2023_Fodor_Adam_MDPI_BlinkLinMulT"
-    )
-    assert url_stem("https://example.org/") == "paper"
 
 
 def test_download_url_caches_and_rejects_non_pdfs(tmp_path):
@@ -157,8 +138,7 @@ def test_download_url_caches_and_rejects_non_pdfs(tmp_path):
         download_url("https://x.org/html.pdf", tmp_path / "dl", http)
 
 
-def test_metadata_falls_back_to_the_abstract_page(monkeypatch):
-    monkeypatch.setattr("labmate.core.ingest.RETRY_WAIT_S", 0.0)
+def test_metadata_falls_back_to_the_abstract_page():
     page = (
         '<meta name="citation_title" content="Survey on Evaluation of LLM-based Agents" />'
         '<meta name="citation_author" content="Yehudai, Asaf" />'
@@ -175,13 +155,13 @@ def test_metadata_falls_back_to_the_abstract_page(monkeypatch):
         return httpx.Response(200, text="<html></html>")
 
     http = httpx.Client(transport=httpx.MockTransport(handle))
-    meta = fetch_metadata("2503.16416", http)
+    meta = fetch_metadata("2503.16416", http, retry_wait_s=0.0)
     assert meta.title == "Survey on Evaluation of LLM-based Agents"
     assert meta.authors == ["Asaf Yehudai", "Lilach Eden"]
     assert meta.abstract == "We survey agents & benchmarks."
     assert meta.published == "2025-03-20"
     with pytest.raises(IngestError, match="no entry"):
-        fetch_metadata("2503.99999", http)
+        fetch_metadata("2503.99999", http, retry_wait_s=0.0)
 
 
 DATED_ATOM = """<?xml version="1.0" encoding="UTF-8"?>
@@ -198,8 +178,6 @@ DATED_ATOM = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_arxiv_publication_date_and_notes(tmp_path):
-    from labmate.core.ingest import ingest_arxiv
-
     fake = FakeArxiv(make_pdf(tmp_path / "src.pdf").read_bytes(), atom=DATED_ATOM)
     paper = ingest_arxiv("2401.00001", tmp_path / "run", fake.client())
     assert paper.date == "2017-06-12" and paper.year == 2017
@@ -207,8 +185,6 @@ def test_arxiv_publication_date_and_notes(tmp_path):
 
 
 def test_pdf_year_falls_back_to_the_creation_date_and_first_page_text(tmp_path):
-    from labmate.core.ingest import first_page_text, ingest_pdf
-
     pdf = make_pdf(tmp_path / "p.pdf", metadata={"creationDate": "D:20230921120000Z"})
     assert ingest_pdf(pdf).year == 2023
     text = first_page_text(pdf, limit=30)

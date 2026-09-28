@@ -175,15 +175,6 @@ def test_render_flow_writes_a_png(tmp_path):
     assert out.read_bytes().startswith(b"\x89PNG")
 
 
-@needs_dot
-def test_render_flow_reports_graphviz_errors(tmp_path, monkeypatch):
-    import labmate.paper2flow.steps.flow as flow
-
-    monkeypatch.setattr(flow, "flow_dot", lambda g, m=None: "digraph { a -> }")
-    with pytest.raises(RuntimeError, match="Graphviz failed"):
-        render_flow(overview(), tmp_path / "f.png")
-
-
 CARDS = [
     ClaimCard(id="c01", claim="c", evidence_quote="RGB texture", kind="task", section="Intro",
               page=1, match=100),

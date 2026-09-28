@@ -90,8 +90,6 @@ def cmd_probe(config: Config, client: OllamaClient, out: Path) -> int:
     Returns:
         Exit code: 0 if no check failed, 1 otherwise.
     """
-    m = config.models
-    chat_models = [(m.text, False), (m.critic, False)]
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per request is noise
     print(
@@ -99,7 +97,7 @@ def cmd_probe(config: Config, client: OllamaClient, out: Path) -> int:
         "cold-loaded once; a 20 GB model can take a minute before the first check finishes.",
         flush=True,
     )
-    report = run_probe(client, client.version(), chat_models, [], out)
+    report = run_probe(client, client.version(), [config.models.text, config.models.critic], out)
     print(report.to_markdown())
     print(f"Report written to {out}/probe_report.md")
     return 1 if any(r.passed is False for r in report.results) else 0

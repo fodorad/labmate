@@ -67,14 +67,14 @@ def parse_arxiv_id(ref: str) -> str:
     return match.group(1)
 
 
-def _get_with_retry(http: httpx.Client, url: str) -> httpx.Response:
+def _get_with_retry(http: httpx.Client, url: str, wait_s: float) -> httpx.Response:
     """GET with a few retries: the arXiv API answers 406/429/5xx now and then."""
     for attempt in range(API_ATTEMPTS):
         response = http.get(url)
         if response.status_code not in (406, 429) and response.status_code < 500:
             break
         if attempt + 1 < API_ATTEMPTS:
-            time.sleep(RETRY_WAIT_S * (attempt + 1))
+            time.sleep(wait_s * (attempt + 1))
     response.raise_for_status()
     return response
 
@@ -97,12 +97,15 @@ class ArxivMetadata(BaseModel):
     notes: str = ""
 
 
-def fetch_metadata(arxiv_id: str, http: httpx.Client) -> ArxivMetadata:
+def fetch_metadata(
+    arxiv_id: str, http: httpx.Client, retry_wait_s: float = RETRY_WAIT_S
+) -> ArxivMetadata:
     """Fetch title, authors and abstract from the arXiv API.
 
     Args:
         arxiv_id: Bare arXiv id.
         http: HTTP client.
+        retry_wait_s: Base wait between API tries (see :data:`RETRY_WAIT_S`).
 
     Returns:
         Title, authors and abstract.
@@ -111,7 +114,7 @@ def fetch_metadata(arxiv_id: str, http: httpx.Client) -> ArxivMetadata:
         IngestError: If the API returns no entry for the id.
     """
     try:
-        response = _get_with_retry(http, ARXIV_API.format(id=arxiv_id))
+        response = _get_with_retry(http, ARXIV_API.format(id=arxiv_id), retry_wait_s)
     except httpx.HTTPStatusError:
         # the export API sometimes refuses single ids (406) for good; the abstract page
         # carries the same metadata in its citation_* tags

@@ -6,8 +6,6 @@ from labmate.core.llm.structured import extract_json, parse_structured
 from labmate.core.llm.types import (
     ChatRequest,
     ChatResponse,
-    ImageRequest,
-    ImageResponse,
     Message,
     ToolCall,
     ToolFunction,
@@ -20,8 +18,6 @@ __all__ = [
     "CassetteStore",
     "ChatRequest",
     "ChatResponse",
-    "ImageRequest",
-    "ImageResponse",
     "Message",
     "OllamaClient",
     "OllamaError",

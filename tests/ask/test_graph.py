@@ -7,15 +7,13 @@ from labmate.ask.graph import (
     OFF_TOPIC,
     ask,
     build_research,
-    check_understanding,
-    collect,
     compile_graph,
     compose,
     evidence_ids,
     find_conflicts,
     widen,
 )
-from labmate.ask.schemas import Finding, Sentence, Understanding
+from labmate.ask.schemas import Finding, Sentence
 from labmate.ask.session import open_ask
 from labmate.config import ReplayMode
 from labmate.core.tracing import read_trace
@@ -151,8 +149,9 @@ def test_unsupported_sentences_are_dropped_by_the_verify_subgraph(indexed, graph
     assert names.count("llm.chat") > 5
 
 
-def test_no_evidence_means_no_answer(indexed, graph, monkeypatch):
-    monkeypatch.setattr("labmate.ask.graph.retrieve", lambda *a, **k: [])
+def test_no_evidence_means_no_answer(indexed, graph):
+    for source in indexed.index.sources():
+        indexed.index.remove_source(source.id)
     answer = ask(indexed, graph, "Which datasets are used?", thread="empty")
     assert answer.abstained and answer.text == NOT_FOUND
 
@@ -166,11 +165,7 @@ def test_replay_reproduces_the_answer_without_a_model(indexed, graph, config):
     again_session.close()
 
 
-def test_helpers(indexed):
-    assert collect([Finding(query="a")], None) == []
-    assert [f.query for f in collect(None, [Finding(query="b")])] == ["b"]
-    assert check_understanding(Understanding(standalone=" ", intent="own_work", options=["a"]))
-    assert check_understanding(Understanding(standalone="q", intent="own_work")) == []
+def test_citations_are_numbered_with_the_dissertation_first(indexed):
     paper = next(c.id for c in indexed.index.chunks("blinklinmult"))
     diss = next(c.id for c in indexed.index.chunks("dissertation"))
     assert evidence_ids(indexed, [Finding(query="q", chunk_ids=[paper, diss])]) == [diss, paper]
