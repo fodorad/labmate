@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "labmate"
 version = "0.0.0"
-description = "A local research assistant built from agentic patterns: paper2flow turns a paper into a fact-checked overview and a LinkedIn post; ask answers questions about your research with citations."
+description = "A local research assistant built from agentic patterns: paper2flow and paper2post turn a paper into a fact-checked overview and a LinkedIn post (LangChain chains); ask answers questions about your research with citations (a LangGraph agent)."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
     "httpx>=0.28",
     "jinja2>=3.1",
+    "langchain-core>=1.0",
     "pydantic>=2.10",
     "pymupdf>=1.25",
     "pyyaml>=6.0",
@@ -44,19 +45,13 @@ dev = [
     "myst-parser>=4.0",
     "sphinx-autodoc-typehints>=2.5",
     "types-pyyaml>=6.0",
-    "labmate[langgraph,ask]",
+    "labmate[ask]",
 ]
-# paper2flow's second orchestration engine: same steps, driven by a LangGraph StateGraph.
-langgraph = [
+# The ask feature: a LangGraph agent over your research, and its live dashboard.
+ask = [
     "langgraph>=1.0",
     "langgraph-checkpoint-sqlite>=2.0",
-]
-# The ask feature: agentic RAG over your research (LangGraph + LangChain interfaces),
-# and its live dashboard.
-ask = [
-    "labmate[langgraph]",
     "langchain>=1.0",
-    "langchain-core>=1.0",
     "numpy>=2.0",
     "nicegui>=2.0",
 ]

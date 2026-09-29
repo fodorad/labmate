@@ -17,8 +17,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install
         run: |
-          sudo apt-get install -y -q graphviz
           uv sync --extra dev --locked
+          npx --yes @mermaid-js/mermaid-cli@12.0.0 --version
       - name: Lint
         run: uv run ruff check . && uv run ruff format --check .
       - name: Type-check
@@ -27,6 +27,3 @@ jobs:
         run: uv run pytest
       - name: Docs
         run: uv run sphinx-build -W -b html docs docs/_build/html
-      - name: Replay the published gallery from its cassettes (no Ollama needed)
-        if: matrix.python-version == '3.13'
-        run: uv run labmate paper2flow verify

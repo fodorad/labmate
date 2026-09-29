@@ -369,7 +369,7 @@ def ingest_pdf(
     Args:
         pdf: PDF path.
         title: Title override; defaults to the PDF metadata title or the file name.
-        url: Link to show on the slides.
+        url: Link to show in the outputs.
         run_dir: Where the PDF is cached (``paper.pdf``) and figure crops go
             (``run_dir/figures``); no figures if omitted.
 

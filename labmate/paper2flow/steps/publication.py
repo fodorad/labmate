@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import re
 
-from labmate.core.llm.structured import StructuredOutputError, structured_chat
-from labmate.core.model import LLM
+from langchain_core.runnables import RunnableConfig
+
+from labmate.core.lc import RecordedChatModel, prompt, structured
+from labmate.core.llm.structured import StructuredOutputError
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Paper, PublicationDraft
 
@@ -44,13 +46,19 @@ def check_publication(draft: PublicationDraft, source: str) -> list[str]:
     return problems
 
 
-def read_publication(paper: Paper, first_page: str, llm: LLM) -> PublicationDraft:
+def read_publication(
+    paper: Paper,
+    first_page: str,
+    model: RecordedChatModel,
+    config: RunnableConfig | None = None,
+) -> PublicationDraft:
     """Ask the model for the venue and publication date, checked against the source text.
 
     Args:
         paper: The paper (title and arXiv notes).
         first_page: Text of the PDF's first page.
-        llm: Model settings.
+        model: The writer model.
+        config: The calling step's config (callbacks).
 
     Returns:
         The checked answer; empty fields if the model never gave an acceptable one.
@@ -58,13 +66,10 @@ def read_publication(paper: Paper, first_page: str, llm: LLM) -> PublicationDraf
     source = "\n".join(t for t in (paper.notes, first_page) if t)
     if not source.strip():
         return PublicationDraft(venue="", date="")
-    prompt = load_prompt("publication").format(title=paper.title, source=source)
+    reader = structured(model, PublicationDraft, check=lambda d: check_publication(d, source))
     try:
-        return structured_chat(
-            llm.backend,
-            llm.request(prompt),
-            PublicationDraft,
-            check=lambda d: check_publication(d, source),
+        return (prompt(load_prompt("publication")) | reader).invoke(
+            {"title": paper.title, "source": source}, config
         )
     except StructuredOutputError:
         return PublicationDraft(venue="", date="")

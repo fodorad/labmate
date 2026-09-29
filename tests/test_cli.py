@@ -7,8 +7,8 @@ import pytest
 
 from labmate.cli import main
 from labmate.config import load_config
-from labmate.core.ingest import slugify, url_stem
 from labmate.core.llm.client import OllamaClient
+from labmate.paper2flow.chain import run_id_for
 from tests.conftest import agentic_chat, make_pdf
 
 
@@ -76,33 +76,36 @@ def test_explicit_config_path(fake, workdir):
     assert (workdir / "pins.json").exists()
 
 
-def test_run_pauses_then_approve_finishes(fake, arxiv, workdir, capsys):
+def test_paper2flow_and_paper2post_write_their_pdfs(fake, arxiv, workdir, capsys):
     fake.chat_handler = agentic_chat
-    assert main(["paper2flow", "run", "2401.00001"], client=fake.client(), http=arxiv.client()) == 0
-    assert "Outline ready for review: runs/2401.00001/outline.yaml" in capsys.readouterr().out
-    assert (
-        main(
-            ["paper2flow", "run", "2401.00001", "--approve"],
-            client=fake.client(),
-            http=arxiv.client(),
-        )
-        == 0
-    )
+    transport = arxiv.transport()
+    assert main(["paper2flow", "2401.00001"], client=fake.client(), transport=transport) == 0
+    assert "runs/2401.00001/overview.pdf" in capsys.readouterr().out
+    assert main(["paper2post", "2401.00001"], client=fake.client(), transport=transport) == 0
     out = capsys.readouterr().out
-    assert "runs/2401.00001/overview.pdf" in out and "runs/2401.00001/post.pdf" in out
+    assert "runs/2401.00001/post.pdf" in out and "runs/2401.00001/trace.html" in out
 
 
-def test_replay_without_recordings_explains_what_to_do(fake, arxiv, workdir, capsys):
-    argv = ["paper2flow", "run", "2401.00001", "--mode", "replay", "--fresh", "--approve"]
-    assert main(argv, client=fake.client(), http=arxiv.client()) == 2
+def test_a_paper_from_a_url_gets_its_link_in_the_post(fake, workdir, capsys):
+    pdf_bytes = make_pdf(workdir / "src.pdf").read_bytes()
+    site = httpx.MockTransport(lambda r: httpx.Response(200, content=pdf_bytes))
+    fake.chat_handler = agentic_chat
+    url = "https://example.org/pdf/2023_My_Paper.pdf"
+    assert main(["paper2post", url], client=fake.client(), transport=site) == 0
+    with pymupdf.open(workdir / "runs" / run_id_for(url) / "post.pdf") as doc:
+        assert url in " ".join(doc[0].get_text().split())
+
+
+def test_replay_without_recordings_explains_what_to_do(fake, workdir, capsys):
+    assert main(["paper2flow", "2401.00001", "--mode", "replay"], client=fake.client()) == 2
     err = capsys.readouterr().err
     assert "No cassette" in err and "run in auto mode" in err
     assert fake.paths().count("/api/chat") == 0
 
 
-def test_run_without_paper_is_an_error(fake, workdir, capsys):
-    assert main(["paper2flow", "run"], client=fake.client()) == 1
-    assert "give an arXiv id" in capsys.readouterr().err
+def test_a_missing_pdf_is_an_error(fake, workdir, capsys):
+    assert main(["paper2flow", "missing.pdf"], client=fake.client()) == 1
+    assert "error:" in capsys.readouterr().err
 
 
 # --- evaluation commands ---------------------------------------------------------------
@@ -110,33 +113,33 @@ def test_run_without_paper_is_an_error(fake, workdir, capsys):
 
 def _finish(fake, arxiv):
     fake.chat_handler = agentic_chat
-    argv = ["paper2flow", "run", "2401.00001", "--auto-approve"]
-    assert main(argv, client=fake.client(), http=arxiv.client()) == 0
+    argv = ["paper2flow", "2401.00001"]
+    assert main(argv, client=fake.client(), transport=arxiv.transport()) == 0
 
 
 def test_eval_writes_results(fake, arxiv, workdir, capsys):
     _finish(fake, arxiv)
-    (workdir / "runs" / "paused-only").mkdir()
-    assert main(["paper2flow", "eval"]) == 0
+    (workdir / "runs" / "never-finished").mkdir()
+    assert main(["eval"]) == 0
     assert "| A Test Paper |" in (workdir / "evals" / "results.md").read_text()
     results = json.loads((workdir / "evals" / "results.json").read_text())
     assert [r["paper_id"] for r in results] == ["2401.00001"]
-    assert main(["paper2flow", "eval", "runs/2401.00001", "--out", "e2"]) == 0
+    assert main(["eval", "runs/2401.00001", "--out", "e2"]) == 0
     assert (workdir / "e2" / "results.md").exists()
 
 
 def test_eval_and_labels_without_runs(workdir, capsys):
-    assert main(["paper2flow", "eval"]) == 1
-    assert main(["paper2flow", "labels"]) == 1
+    assert main(["eval"]) == 1
+    assert main(["labels"]) == 1
     assert "no finished runs" in capsys.readouterr().err
 
 
 def test_labels_then_judges(fake, arxiv, workdir, capsys):
     _finish(fake, arxiv)
-    assert main(["paper2flow", "judges"], client=fake.client()) == 1
+    assert main(["judges"], client=fake.client()) == 1
     assert "no labelled bullets" in capsys.readouterr().err
 
-    assert main(["paper2flow", "labels", "-n", "3"]) == 0
+    assert main(["labels", "-n", "3"]) == 0
     assert "Added" in capsys.readouterr().out
     path = workdir / "evals" / "labels.csv"
     with path.open() as f:
@@ -148,7 +151,7 @@ def test_labels_then_judges(fake, arxiv, workdir, capsys):
         writer.writeheader()
         writer.writerows(rows)
 
-    assert main(["paper2flow", "judges"], client=fake.client()) == 0
+    assert main(["judges"], client=fake.client()) == 0
     out = capsys.readouterr().out
     assert "`gemma4:26b-mlx`" in out and "`qwen3.6:35b-mlx`" in out
     judged = json.loads((workdir / "evals" / "judges.json").read_text())
@@ -156,79 +159,15 @@ def test_labels_then_judges(fake, arxiv, workdir, capsys):
     assert (workdir / "evals" / "judges_trace.jsonl").exists()
 
     # the same verdicts come back from cassettes alone
-    argv = ["paper2flow", "judges", "--mode", "replay", "--models", "gemma4:26b-mlx"]
+    argv = ["judges", "--mode", "replay", "--models", "gemma4:26b-mlx"]
     assert main(argv, client=fake.client()) == 0
     assert len(json.loads((workdir / "evals" / "judges.json").read_text())) == 1
 
 
-# --- trace viewer and gallery ----------------------------------------------------------
-
-
-def test_trace_publish_verify_site(fake, arxiv, workdir, capsys):
+def test_trace_viewer_for_a_run(fake, arxiv, workdir, capsys):
     _finish(fake, arxiv)
-    assert (workdir / "runs" / "2401.00001" / "trace.html").exists()  # written by `run`
     assert main(["trace", "arXiv:2401.00001", "--all"]) == 0
     assert main(["trace", "runs/2401.00001"]) == 0
+    assert "runs/2401.00001/trace.html" in capsys.readouterr().out
     assert main(["trace", "no-such-paper"]) == 1
     assert "no trace.jsonl" in capsys.readouterr().err
-
-    assert main(["paper2flow", "publish", "2401.00001"], http=arxiv.client()) == 0
-    assert "Published gallery/2401.00001: replays exactly" in capsys.readouterr().out
-    assert main(["paper2flow", "publish", "missing"]) == 1
-
-    assert main(["paper2flow", "verify"], http=arxiv.client()) == 0
-    assert "OK   2401.00001: 9 identical" in capsys.readouterr().out
-    (workdir / "gallery" / "2401.00001" / "04_slides.json").write_text("{}")
-    assert main(["paper2flow", "verify", "2401.00001"], http=arxiv.client()) == 1
-    assert "different: 04_slides.json" in capsys.readouterr().out
-
-    assert main(["paper2flow", "site"]) == 0
-    assert (workdir / "site" / "2401.00001" / "index.html").exists()
-    assert "1 paper(s)" in capsys.readouterr().out
-
-
-def test_verify_empty_gallery(workdir, capsys):
-    assert main(["paper2flow", "verify"]) == 0
-    assert "Nothing to verify" in capsys.readouterr().out
-
-
-# --- engine choice ---------------------------------------------------------------------
-
-
-def test_run_with_the_langgraph_engine(fake, arxiv, workdir, capsys):
-    fake.chat_handler = agentic_chat
-    argv = ["paper2flow", "run", "2401.00001", "--engine", "langgraph"]
-    assert main(argv, client=fake.client(), http=arxiv.client()) == 0
-    assert "Outline ready for review" in capsys.readouterr().out
-    assert main([*argv, "--approve"], client=fake.client(), http=arxiv.client()) == 0
-    assert "overview.pdf" in capsys.readouterr().out
-
-
-def test_run_publish_and_verify_a_pdf_from_a_url(fake, workdir, capsys):
-    pdf_bytes = make_pdf(workdir / "src.pdf").read_bytes()
-    downloads = []
-
-    def serve(request):
-        downloads.append(str(request.url))
-        return httpx.Response(200, content=pdf_bytes)
-
-    http = httpx.Client(transport=httpx.MockTransport(serve))
-    fake.chat_handler = agentic_chat
-    url = "https://example.org/pdf/2023_My_Paper.pdf"
-    argv = ["paper2flow", "run", "--pdf", url, "--auto-approve"]
-    assert main(argv, client=fake.client(), http=http) == 0
-    run_id = slugify(url_stem(url))
-    assert run_id.startswith("2023-my-paper-")
-    run_dir = workdir / "runs" / run_id
-    paper = json.loads((run_dir / "00_paper.json").read_text())
-    assert paper["url"] == url and paper["title"] == "A Test Paper"
-    with pymupdf.open(run_dir / "post.pdf") as doc:
-        assert "https://example.org/pdf/2023_My_Paper.pdf" in doc[0].get_text()
-
-    assert main(["trace", url]) == 0
-    assert main(["paper2flow", "publish", url], http=http) == 0
-    capsys.readouterr()
-    assert not (workdir / "gallery" / run_id / f"{run_id}.pdf").exists()
-    assert main(["paper2flow", "verify"], http=http) == 0  # re-downloads the PDF from its URL
-    assert f"OK   {run_id}" in capsys.readouterr().out
-    assert len(downloads) == 3  # run, publish's replay check, verify

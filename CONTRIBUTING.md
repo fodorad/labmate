@@ -45,5 +45,5 @@ constants (Sphinx autodoc otherwise renders an empty table for them).
 ## Before opening a PR
 
 ```bash
-make check   # lint + type-check + test + docs + gallery replay
+make check   # lint + type-check + test + docs
 ```

@@ -17,9 +17,9 @@ def test_bullets_are_distinct_with_evidence_and_pipeline_verdict(tmp_path):
     texts = [b.text for b in bullets]
     assert len(texts) == len(set(texts)) == 11  # 6 good + 4 wrong + 1 fixed
     wrong = next(b for b in bullets if b.text == "WRONG bullet 0")
-    assert wrong.id == "p1/r0s2b1" and wrong.pipeline == "unsupported"
+    assert wrong.id == "p1/r0c2b1" and wrong.pipeline == "unsupported"
     assert wrong.evidence == ["Accuracy is 84.6%.", "Memory drops by 38%."]
-    assert next(b for b in bullets if b.text == "Fixed bullet").id == "p1/r1s2b1"
+    assert next(b for b in bullets if b.text == "Fixed bullet").id == "p1/r1c2b1"
 
 
 def test_sample_is_stratified_and_seeded(tmp_path):

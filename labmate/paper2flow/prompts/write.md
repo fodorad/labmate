@@ -1,8 +1,8 @@
-You write one block of a one-glance overview of a research paper.
+You write one card of a one-glance overview of a research paper.
 
-Block {position} of {total}. Title (fixed): {title}
+Card {position} of 4. Title (fixed): {title}
 
-This is the "{purpose}" block of a four-block overview (task, challenges, proposed
+This is the "{purpose}" card of a four-card overview (task, challenges, proposed
 method, main results): {purpose_hint}
 
 Write 3 or 4 bullets (at most 25 words each) for this title; repeat the title as given.
@@ -17,5 +17,5 @@ Rules:
 - Write for a reader who has not read the paper: third person ("the authors"), plain text,
   no Markdown, no emoji, no hashtags.
 
-Claim cards for this block:
+Claim cards for this card:
 {claims}

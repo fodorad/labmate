@@ -11,11 +11,10 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from langchain_core.runnables import RunnableConfig
 from rapidfuzz import fuzz
 
-from labmate.core.llm.structured import structured_chat
-from labmate.core.model import LLM
-from labmate.core.parallel import parallel_map
+from labmate.core.lc import RecordedChatModel, batch_map, prompt, structured
 from labmate.core.prompts import load_prompt
 from labmate.core.schemas import ClaimCard, ClaimDraft, Claims, Paper, Section, SectionClaims
 
@@ -132,25 +131,29 @@ def extraction_units(paper: Paper) -> list[Section]:
     ]
 
 
-def extract_unit(title: str, unit: Section, llm: LLM) -> list[ClaimDraft]:
+def extract_unit(
+    title: str, unit: Section, model: RecordedChatModel, config: RunnableConfig | None = None
+) -> list[ClaimDraft]:
     """Draft claims for one unit (one model call).
 
     Args:
         title: Paper title.
         unit: Section chunk.
-        llm: Model settings.
+        model: The writer model.
+        config: The calling step's config (callbacks).
 
     Returns:
         Claim drafts, not yet verified.
     """
-    prompt = load_prompt("extract").format(
-        max_claims=MAX_CLAIMS,
-        title=title,
-        section=unit.title,
-        page=unit.page,
-        text=unit.text,
-    )
-    return structured_chat(llm.backend, llm.request(prompt), SectionClaims).claims
+    chain = prompt(load_prompt("extract")) | structured(model, SectionClaims)
+    values = {
+        "max_claims": MAX_CLAIMS,
+        "title": title,
+        "section": unit.title,
+        "page": unit.page,
+        "text": unit.text,
+    }
+    return chain.invoke(values, config).claims
 
 
 def assemble_claims(units: list[Section], drafts: list[list[ClaimDraft]]) -> Claims:
@@ -185,17 +188,22 @@ def assemble_claims(units: list[Section], drafts: list[list[ClaimDraft]]) -> Cla
     return Claims(cards=cards, rejected=rejected)
 
 
-def extract_claims(paper: Paper, llm: LLM, workers: int = 2) -> Claims:
+def extract_claims(
+    paper: Paper, model: RecordedChatModel, workers: int = 2, config: RunnableConfig | None = None
+) -> Claims:
     """Extract and verify claim cards for the whole paper (parallel over units).
 
     Args:
         paper: Ingested paper.
-        llm: Model settings.
+        model: The writer model.
         workers: Concurrent extraction calls.
+        config: The calling step's config (callbacks).
 
     Returns:
         Verified claim cards (ids ``c01``... in reading order) and the rejected drafts.
     """
     units = extraction_units(paper)
-    drafts = parallel_map(lambda u: extract_unit(paper.title, u, llm), units, workers)
+    drafts = batch_map(
+        lambda u, cfg: extract_unit(paper.title, u, model, cfg), units, config, workers
+    )
     return assemble_claims(units, drafts)

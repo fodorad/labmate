@@ -1,29 +1,30 @@
 """Run metrics computed from a finished run's artifacts and trace. No model needed.
 
-Because the artifacts are reproducible from cassettes (``make replay``), so are these
-numbers, which is what makes the published results checkable.
+Because the artifacts are reproducible from cassettes (``--mode replay``), so are these
+numbers, which is what makes the results checkable.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
 
-from labmate.core.tracing import read_trace
-from labmate.paper2flow.schemas import Claims, FactChecked, Flows, Outline
+from labmate.core.tracing import latest_completed, read_trace
+from labmate.paper2flow.chain import ARTIFACTS
+from labmate.paper2flow.schemas import Claims, FactChecked, Flows, Outline, Paper
 
 Span = dict[str, Any]
+"""A span as read back from ``trace.jsonl``."""
 
-BLOCK_KINDS = {
+CARD_KINDS = {
     "task": {"task"},
     "challenges": {"challenge", "limitation"},
     "method": {"method", "contribution"},
     "results": {"result"},
 }
-"""Claim kinds that belong in each of the four blocks."""
+"""Claim kinds that belong on each of the four cards."""
 
 
 class RunMetrics(BaseModel):
@@ -36,21 +37,20 @@ class RunMetrics(BaseModel):
         claims_rejected: Claims dropped because their quote wasn't in the paper.
         bullets_first: Bullets in the writer's first draft.
         unsupported_first: First-draft bullets failing the fact-check.
-        bullets_final: Bullets on the published slides.
+        bullets_final: Bullets on the final cards.
         dropped: Bullets removed after the rewrite budget.
         rounds: Fact-check rounds used.
-        block_fit: Share of final bullets that cite at least one claim of their block's
-            kind (a task claim in Task, a result in Main results, ...): whether the
+        card_fit: Share of final bullets that cite at least one claim of their card's
+            kind (a task claim on Task, a result on Main results, ...): whether the
             orchestrator put the paper's claims in the right place.
-        slides: Blocks in the overview (four).
+        cards: Cards in the overview (four, unless one lost all its bullets).
         flow_nodes: Boxes in the end-to-end flow diagram.
         flow_details: Detail diagrams that break down its steps.
         llm_calls: Distinct model requests the run needed.
         tokens_in: Prompt tokens of those requests.
         tokens_out: Generated tokens of those requests.
-        swaps: Model swaps during the fact-check loop.
-        wall_s: Seconds spent in those model calls when they ran live (excludes the time
-            the outline waited for review, and replays).
+        swaps: Times the loaded model changed during the latest run (each costs a load).
+        wall_s: Seconds spent in those model calls when they ran live (replays excluded).
     """
 
     paper_id: str
@@ -62,8 +62,8 @@ class RunMetrics(BaseModel):
     bullets_final: int
     dropped: int
     rounds: int
-    block_fit: float
-    slides: int
+    card_fit: float
+    cards: int
     flow_nodes: int
     flow_details: int
     llm_calls: int
@@ -78,58 +78,69 @@ class RunMetrics(BaseModel):
         return 100 * self.unsupported_first / self.bullets_first if self.bullets_first else 0.0
 
 
-def distinct_calls(spans: list[Span], cassettes: Path | None = None) -> list[Span]:
+def distinct_calls(spans: list[Span]) -> list[Span]:
     """One span per distinct model request, preferring the live (uncached) call.
 
-    A run is often several invocations (pause, approve, re-runs); a request answered live
-    once and replayed later counts once, with its live latency. For a published gallery
-    entry only the requests whose cassettes it ships (the ones replay needs) count.
+    A paper is often run several times; a request answered live once and replayed later
+    counts once, with its live latency.
 
     Args:
-        spans: All spans of a run's trace.
-        cassettes: The entry's cassette directory, if published.
+        spans: All spans of a run directory's trace.
 
     Returns:
         The chosen ``llm.chat`` spans.
     """
-    keep = (
-        {p.stem for p in cassettes.glob("*/*.json")}
-        if cassettes is not None and cassettes.exists()
-        else None
-    )
     chosen: dict[str, Span] = {}
     for s in spans:
         if s["name"] != "llm.chat":
             continue
         key = str(s.get("key"))
-        if keep is not None and key not in keep:
-            continue
         if key not in chosen or (chosen[key].get("cached") and not s.get("cached")):
             chosen[key] = s
     return list(chosen.values())
 
 
-def paper_title(run_dir: Path) -> str:
-    """Paper title from ``00_paper.json``, or from ``meta.json`` for published gallery runs.
+def model_swaps(spans: list[Span]) -> int:
+    """How often consecutive model calls used a different model.
 
     Args:
-        run_dir: Run directory or gallery entry.
+        spans: Spans of one run.
 
     Returns:
-        The title, or the directory name if neither file exists.
+        The number of swaps.
     """
-    for name in ("00_paper.json", "meta.json"):
-        path = run_dir / name
-        if path.exists():
-            return str(json.loads(path.read_text())["title"])
-    return run_dir.name
+    models = [s.get("model") for s in sorted(spans, key=lambda s: s["start_ts"])
+              if s["name"] == "llm.chat"]  # fmt: skip
+    return sum(a != b for a, b in zip(models, models[1:], strict=False))
+
+
+def card_fit(claims: Claims, outline: Outline, checked: FactChecked) -> float:
+    """Share of final bullets citing a claim of their card's kind.
+
+    Args:
+        claims: Claim cards.
+        outline: The outline (each card's purpose).
+        checked: The final cards (a card that lost all bullets is not among them).
+
+    Returns:
+        The share, from 0 to 1 (0 without bullets).
+    """
+    kinds = {c.id: c.kind for c in claims.cards}
+    dropped = set(checked.report.dropped_cards)
+    kept = [p for i, p in enumerate(outline.cards, start=1) if i not in dropped]
+    placed = [
+        any(kinds.get(cid) in CARD_KINDS.get(planned.purpose, set()) for cid in b.claim_ids)
+        for card, planned in zip(checked.cards.cards, kept, strict=True)
+        for b in card.bullets
+    ]
+    return round(sum(placed) / len(placed), 3) if placed else 0.0
 
 
 def run_metrics(run_dir: Path) -> RunMetrics:
-    """Compute metrics for a finished agentic run.
+    """Compute metrics for a finished run.
 
     Args:
-        run_dir: The run directory (``runs/<paper_id>``) or a published gallery entry.
+        run_dir: The run directory (``runs/<paper id>``).
 
     Returns:
         The metrics.
@@ -137,41 +148,34 @@ def run_metrics(run_dir: Path) -> RunMetrics:
     Raises:
         FileNotFoundError: If the run hasn't reached the fact-check step.
     """
-    claims = Claims.model_validate_json((run_dir / "02_claims.json").read_text())
-    checked = FactChecked.model_validate_json((run_dir / "05_factcheck.json").read_text())
-    report, final = checked.report, checked.slides
 
-    outline = Outline.model_validate_json((run_dir / "03_outline.json").read_text())
-    kinds = {c.id: c.kind for c in claims.cards}
-    placed = [
-        any(kinds.get(cid) in BLOCK_KINDS.get(planned.purpose, set()) for cid in b.claim_ids)
-        for slide, planned in zip(final.slides, outline.slides, strict=False)
-        for b in slide.bullets
-    ]
-    flows_file = run_dir / "09_flows.json"
-    flows = Flows.model_validate_json(flows_file.read_text()) if flows_file.exists() else None
+    def load[M: BaseModel](field: str, model: type[M]) -> M:
+        return model.model_validate_json((run_dir / ARTIFACTS[field]).read_text())
+
+    claims, outline = load("claims", Claims), load("outline", Outline)
+    checked = load("checked", FactChecked)
+    flows = load("flows", Flows) if (run_dir / ARTIFACTS["flows"]).exists() else None
     trace = run_dir / "trace.jsonl"
-    spans = read_trace(trace) if trace.exists() else []
-    llm = distinct_calls(spans, run_dir / "cassettes")
-    factchecks = [s for s in spans if s["name"] == "step.factcheck" and s.get("rounds")]
+    llm = distinct_calls(read_trace(trace) if trace.exists() else [])
+    report = checked.report
     return RunMetrics(
         paper_id=run_dir.name,
-        title=paper_title(run_dir),
+        title=load("paper", Paper).title,
         claims_verified=len(claims.cards),
         claims_rejected=len(claims.rejected),
         bullets_first=report.total_first,
         unsupported_first=report.failed_first,
-        bullets_final=sum(len(s.bullets) for s in final.slides),
+        bullets_final=sum(len(c.bullets) for c in checked.cards.cards),
         dropped=len(report.dropped),
         rounds=len(report.rounds),
-        block_fit=round(sum(placed) / len(placed), 3) if placed else 0.0,
-        slides=len(final.slides),
+        card_fit=card_fit(claims, outline, checked),
+        cards=len(checked.cards.cards),
         flow_nodes=len(flows.overview.nodes) if flows else 0,
         flow_details=len(flows.details) if flows else 0,
         llm_calls=len(llm),
         tokens_in=sum(int(s.get("tokens_in") or 0) for s in llm),
         tokens_out=sum(int(s.get("tokens_out") or 0) for s in llm),
-        swaps=max((int(s.get("swaps") or 0) for s in factchecks), default=0),
+        swaps=model_swaps(latest_completed(trace)),
         wall_s=round(
             sum(float(s.get("latency_ms") or 0) for s in llm if not s.get("cached")) / 1000, 1
         ),
@@ -179,7 +183,7 @@ def run_metrics(run_dir: Path) -> RunMetrics:
 
 
 def results_markdown(metrics: list[RunMetrics]) -> str:
-    """Results table for the README / gallery.
+    """Results table for the README.
 
     Args:
         metrics: One entry per run.
@@ -189,7 +193,7 @@ def results_markdown(metrics: list[RunMetrics]) -> str:
     """
     rows = [
         "| Paper | Claims (verified / rejected) | Unsupported in first draft | "
-        "Dropped after loop | Final bullets | Block fit | Flow diagrams | LLM calls | "
+        "Dropped after loop | Final bullets | Card fit | Flow diagrams | LLM calls | "
         "Wall time |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
@@ -197,7 +201,7 @@ def results_markdown(metrics: list[RunMetrics]) -> str:
         rows.append(
             f"| {m.title} | {m.claims_verified} / {m.claims_rejected} | "
             f"{m.unsupported_first}/{m.bullets_first} ({m.unsupported_first_pct:.0f}%) | "
-            f"{m.dropped} | {m.bullets_final} | {100 * m.block_fit:.0f}% | "
+            f"{m.dropped} | {m.bullets_final} | {100 * m.card_fit:.0f}% | "
             f"{m.flow_nodes} boxes + {m.flow_details} details | {m.llm_calls} | {m.wall_s:.0f} s |"
         )
     first = sum(m.bullets_first for m in metrics)

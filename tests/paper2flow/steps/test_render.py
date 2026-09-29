@@ -3,7 +3,8 @@ import pytest
 
 from labmate.paper2flow.schemas import (
     Bullet,
-    FactCheckReport,
+    Card,
+    Cards,
     FlowDetail,
     FlowEdge,
     FlowGraph,
@@ -11,21 +12,16 @@ from labmate.paper2flow.schemas import (
     FlowOverview,
     Flows,
     Paper,
-    Post,
-    SlideText,
-    WrittenSlides,
 )
 from labmate.paper2flow.steps.flow import render_flows
 from labmate.paper2flow.steps.render import (
     Theme,
     author_line,
-    blocks,
+    card_blocks,
     diagrams,
     natural_size,
-    post_text,
     publication_line,
     render_overview,
-    render_post,
 )
 
 
@@ -73,30 +69,21 @@ def flows() -> Flows:
     return Flows(overview=overview, details=[FlowDetail(node_id="b", graph=detail)])
 
 
-def slides() -> WrittenSlides:
-    return WrittenSlides(
-        hook="Linear attention, same accuracy",
-        slides=[
-            SlideText(
+def cards() -> Cards:
+    return Cards(
+        cards=[
+            Card(
                 title=f"About {label}", bullets=[Bullet(text=f"{label} bullet.", claim_ids=["c01"])]
             )
             for label in LABELS
-        ],
+        ]
     )
 
 
-POST = Post(
-    hook="Linear attention without the accuracy tax",
-    takeaways=[Bullet(text="It reaches 84.6% accuracy.", claim_ids=["c01"])],
-    question="Where would it help you?",
-    report=FactCheckReport(rounds=[]),
-)
-
-
-def test_overview_has_paper_blocks_flow_and_details(tmp_path):
+def test_overview_has_cover_cards_flow_and_details(tmp_path):
     f = flows()
     pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
-    out = render_overview(PAPER, blocks(slides(), LABELS), pages, tmp_path / "overview.pdf")
+    out = render_overview(PAPER, card_blocks(cards(), LABELS), pages, tmp_path / "overview.pdf")
     with pymupdf.open(out) as doc:
         assert doc.page_count == 4
         assert round(doc[0].rect.width) == 595  # A4 portrait
@@ -110,19 +97,6 @@ def test_overview_has_paper_blocks_flow_and_details(tmp_path):
     assert not (tmp_path / "overview.typ").exists()
 
 
-def test_post_is_the_text_then_one_image_per_diagram(tmp_path):
-    f = flows()
-    pages = diagrams(f, render_flows(f, tmp_path), "survey", tmp_path)
-    with pymupdf.open(render_post(POST, PAPER, pages, tmp_path / "post.pdf")) as doc:
-        assert doc.page_count == 3
-        assert doc[0].rect.width / doc[0].rect.height == 0.8
-        text = flat(doc[0])
-        assert "Linear attention without the accuracy tax" in text
-        assert "It reaches 84.6% accuracy." in text and "arxiv.org/abs/2401.00001" in text
-        assert "HOW THE SURVEY MAPS THE FIELD" in flat(doc[1]) and doc[1].get_images()
-        assert "Inside linear attention" in flat(doc[2])
-
-
 def test_small_diagrams_are_not_blown_up(tmp_path):
     f = flows()
     names = render_flows(f, tmp_path)
@@ -134,7 +108,7 @@ def test_without_a_figure_the_first_page_shows_the_abstract(tmp_path):
     f = flows()
     pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
     paper = PAPER.model_copy(update={"abstract": "We study attention."})
-    out = render_overview(paper, blocks(slides(), LABELS), pages, tmp_path / "o.pdf")
+    out = render_overview(paper, card_blocks(cards(), LABELS), pages, tmp_path / "o.pdf")
     with pymupdf.open(out) as doc:
         assert "We study attention." in flat(doc[0])
 
@@ -144,7 +118,9 @@ def test_paper_text_cannot_inject_typst_markup(tmp_path):
     f = flows()
     pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
     paper = PAPER.model_copy(update={"title": nasty})
-    out = render_overview(paper, blocks(slides(), LABELS), pages, tmp_path / "o.pdf", theme=Theme())
+    out = render_overview(
+        paper, card_blocks(cards(), LABELS), pages, tmp_path / "o.pdf", theme=Theme()
+    )
     with pymupdf.open(out) as doc:
         assert "#set page(fill: red)" in flat(doc[0])
 
@@ -166,11 +142,6 @@ def test_publication_line(update, expected):
     assert publication_line(PAPER.model_copy(update=update)) == expected
 
 
-def test_author_line_and_post_text():
+def test_author_line_shortens_long_author_lists():
     assert author_line(["A", "B", "C", "D", "E"]) == "A, B, C, D et al."
-    assert post_text(POST, PAPER) == [
-        POST.hook,
-        "It reaches 84.6% accuracy.",
-        POST.question,
-        "Paper: A Test Paper https://arxiv.org/abs/2401.00001",
-    ]
+    assert author_line(["A", "B"]) == "A, B"

@@ -1,8 +1,8 @@
 """Static HTML trace viewer: a waterfall of the spans in ``trace.jsonl``.
 
-No server and no JavaScript framework: one self-contained HTML file per run, which also
-ships in the gallery. Each row is a span (run, step or model call) placed on a shared
-time axis; clicking a row shows all of its attributes.
+No server and no JavaScript framework: one self-contained HTML file per run. Each row is
+a span (run, step or model call) placed on a shared time axis; clicking a row shows all
+of its attributes.
 """
 
 from __future__ import annotations
@@ -20,19 +20,10 @@ from labmate.core.tracing import latest_completed, read_trace
 HIDDEN = {"trace_id", "span_id", "parent_id", "name", "start_ts", "latency_ms", "status"}
 """Span fields shown in the row itself rather than in the attribute list."""
 
-INLINE = {
-    "step.ingest": ["sections", "figures"],
-    "step.route": ["paper_type", "confidence"],
-    "step.extract": ["cards", "rejected"],
-    "step.outline": ["slides"],
-    "step.write": ["slides"],
-    "step.factcheck": ["rounds", "failed_first", "total_first", "dropped", "swaps"],
-    "step.post": ["takeaways", "dropped"],
-    "step.visuals": ["tool_calls"],
-    "step.critic": ["dropped_visuals"],
-    "run": ["paper", "mode"],
-}
-"""Attributes summarised next to the span name, per span name."""
+SPAN_FIELDS = frozenset(
+    {"trace_id", "span_id", "parent_id", "name", "start_ts", "latency_ms", "status", "error"}
+)
+"""Fields every span has; the rest are its summary attributes."""
 
 
 class Row(BaseModel):
@@ -103,11 +94,12 @@ def _label(span: dict[str, Any]) -> str:
 
 
 def _detail(span: dict[str, Any]) -> str:
-    keys = INLINE.get(str(span["name"]), [])
-    parts = [f"{k}={span[k]}" for k in keys if k in span and span[k] not in (None, [], "")]
-    if span["name"] == "llm.chat" and span.get("tokens_out"):
-        parts.append(f"{span.get('tokens_in', 0)}→{span['tokens_out']} tok")
-    return " ".join(parts)
+    if span["name"] == "llm.chat":
+        return (
+            f"{span.get('tokens_in', 0)}→{span['tokens_out']} tok" if span.get("tokens_out") else ""
+        )
+    attrs = {k: v for k, v in span.items() if k not in SPAN_FIELDS and v not in (None, [], "")}
+    return " ".join(f"{k}={v}" for k, v in attrs.items())
 
 
 def trace_view(spans: list[dict[str, Any]]) -> TraceView:
@@ -187,7 +179,7 @@ def render_trace(spans: list[dict[str, Any]], title: str, theme: Theme | None = 
     """Render spans (one or more traces) as a standalone HTML page.
 
     Args:
-        spans: Spans, possibly from several traces (e.g. paused + approved run).
+        spans: Spans, possibly from several traces (every invocation of a paper).
         title: Page title.
         theme: Colours.
 

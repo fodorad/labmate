@@ -49,6 +49,8 @@ class LLM:
         seed: Sampling seed.
         temperature: Sampling temperature.
         num_ctx: Context window.
+        digest: Pinned digest of ``model`` (from ``models.lock``); part of every cache key,
+            so a new model version never replays an old answer.
     """
 
     backend: Backend
@@ -56,6 +58,7 @@ class LLM:
     seed: int = 42
     temperature: float = 0.0
     num_ctx: int = 16384
+    digest: str | None = None
 
     def request(self, prompt: str) -> ChatRequest:
         """Build a single-turn request with thinking disabled.

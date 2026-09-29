@@ -11,7 +11,9 @@ import httpx
 import pymupdf
 import pytest
 
+from labmate.core.lc import RecordedChatModel
 from labmate.core.llm.client import OllamaClient
+from labmate.core.model import LLM
 from labmate.core.probe import ProbeClaim
 
 INSTALLED = {
@@ -134,13 +136,18 @@ def fake() -> FakeOllama:
     return FakeOllama()
 
 
+def chat_model(fake: FakeOllama, model: str = "qwen3.6:35b-mlx") -> RecordedChatModel:
+    """A chat model talking straight to the fake server (no cassettes)."""
+    return RecordedChatModel(llm=LLM(fake.client(), model))
+
+
 @pytest.fixture(autouse=True)
 def no_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests never follow the developer's LABMATE_OLLAMA_HOST."""
     monkeypatch.delenv("LABMATE_OLLAMA_HOST", raising=False)
 
 
-# --- M1 helpers: synthetic papers, a fake arXiv, a deck-writing model ---------------------
+# --- synthetic papers and a fake arXiv ----------------------------------------------------
 
 
 SECTIONS = [
@@ -242,8 +249,11 @@ class FakeArxiv:
             return httpx.Response(200, content=self.pdf_bytes)
         return httpx.Response(404)
 
+    def transport(self) -> httpx.MockTransport:
+        return httpx.MockTransport(self.handle)
+
     def client(self) -> httpx.Client:
-        return httpx.Client(transport=httpx.MockTransport(self.handle))
+        return httpx.Client(transport=self.transport())
 
 
 @pytest.fixture
@@ -251,7 +261,7 @@ def arxiv(tmp_path):
     return FakeArxiv(make_pdf(tmp_path / "src.pdf").read_bytes())
 
 
-# --- M2: a fake model that plays router, extractor, planner and writer ---------------------
+# --- a fake model that plays every step of the paper chains ---------------------------------
 
 ALL_IDS = re.compile(r"^(c\d{2}) ", re.MULTILINE)
 
@@ -316,16 +326,19 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
                 for q in _first_sentences(text, 2)
             ]
         }
-    elif "hook" in props:
+    elif "cards" in props:
         ids = ALL_IDS.findall(conversation)
         purposes = ["task", "challenges", "method", "results"]
         content = {
-            "hook": "Linear attention, same accuracy",
-            "slides": [
-                {"title": f"Slide about {p}", "purpose": p, "claim_ids": [ids[i % len(ids)]]}
+            "cards": [
+                {"title": f"Card about {p}", "purpose": p, "claim_ids": [ids[i % len(ids)]]}
                 for i, p in enumerate(purposes)
             ],
         }
+    elif "icons" in props:
+        sentences = re.findall(r"^\d+\. ", prompt, re.MULTILINE)
+        content = {"icons": [["target", "bulb", "cpu", "chart-bar", "rocket"][i % 5]
+                             for i in range(len(sentences))]}  # fmt: skip
     elif "verdicts" in props:
         bullets = re.findall(r"^Bullet (\d+): (.*)$", prompt, re.MULTILINE)
         content = {
@@ -341,7 +354,7 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
     elif "bullets" in props:
         ids = ALL_IDS.findall(conversation)
         content = {
-            "title": "A written slide",
+            "title": "A written card",
             "bullets": [
                 {"text": "A grounded bullet on the architecture drawing.", "claim_ids": [cid]}
                 for cid in ids

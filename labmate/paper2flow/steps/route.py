@@ -1,17 +1,20 @@
-"""Step 1 (ROUTING): classify the paper so the outline can use the right narrative."""
+"""ROUTING: classify the paper, so the cards and the flow are read the right way."""
 
 from __future__ import annotations
 
-from labmate.core.llm.structured import structured_chat
-from labmate.core.model import LLM
+from langchain_core.runnables import RunnableConfig
+
+from labmate.core.lc import RecordedChatModel, prompt, structured
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Paper, Route
 
 MIN_CONFIDENCE = 0.6
-"""Below this the router falls back to the most general template (``method``)."""
+"""Below this the router falls back to the most general paper type (``method``)."""
 
 
-def route_paper(paper: Paper, llm: LLM) -> Route:
+def route_paper(
+    paper: Paper, model: RecordedChatModel, config: RunnableConfig | None = None
+) -> Route:
     """Classify a paper as method, benchmark, survey or position.
 
     Only the title and abstract are sent: routing is cheap by design. Low-confidence
@@ -19,13 +22,14 @@ def route_paper(paper: Paper, llm: LLM) -> Route:
 
     Args:
         paper: Ingested paper.
-        llm: Model settings.
+        model: The writer model.
+        config: The calling step's config (callbacks).
 
     Returns:
         The routing decision.
     """
-    prompt = load_prompt("route").format(title=paper.title, abstract=paper.abstract)
-    route = structured_chat(llm.backend, llm.request(prompt), Route)
+    chain = prompt(load_prompt("route")) | structured(model, Route)
+    route = chain.invoke({"title": paper.title, "abstract": paper.abstract}, config)
     if route.confidence < MIN_CONFIDENCE and route.paper_type != "method":
         return Route(
             paper_type="method",

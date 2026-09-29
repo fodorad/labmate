@@ -530,7 +530,7 @@ def build_graph(s: AskSession) -> StateGraph:
         The graph builder.
     """
     research = build_research(s)
-    verifier = build_verifier(s.llm, s.judge, s.switcher, max_rounds=1, workers=s.workers)
+    verifier = build_verifier(s.writer_model, s.judge_model, max_rounds=1, workers=s.workers)
 
     def understand_node(state: AskState) -> AskState:
         with s.tracer.span("step.ask.understand") as span:

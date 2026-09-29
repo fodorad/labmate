@@ -2,16 +2,16 @@ import json
 
 import pytest
 
-from labmate.core.model import LLM
 from labmate.paper2flow.schemas import (
     ClaimCard,
+    FlowDetail,
     FlowEdge,
     FlowGraph,
     FlowNode,
     FlowOverview,
     Outline,
-    OutlineSlide,
     Paper,
+    PlannedCard,
     Section,
 )
 from labmate.paper2flow.steps.flow import (
@@ -21,14 +21,15 @@ from labmate.paper2flow.steps.flow import (
     check_overview,
     detail_order,
     flow_cards,
-    flow_dot,
+    flow_mermaid,
     flow_sections,
     image_names,
     legend,
     plan_detail,
     plan_overview,
-    render_flow,
+    render_flows,
 )
+from tests.conftest import chat_model
 
 EVIDENCE = (
     "We present a modified multi-modal transformer with linear attention, which considers "
@@ -148,33 +149,36 @@ def test_detail_order_and_assembly():
         expand=["x", "p"],
     )
     assert detail_order(ov) == ["p", "x"]  # in overview order, not expand order
-    from labmate.paper2flow.schemas import FlowDetail
-
     parts = [FlowDetail(node_id="x", graph=detail()), FlowDetail(node_id="p", graph=detail())]
     flows = assemble_flows(ov, parts)
     assert [d.node_id for d in flows.details] == ["p", "x"]
     assert image_names(flows) == ["flow.png", "flow-a.png", "flow-b.png"]
 
 
-def test_dot_is_top_to_bottom_escaped_and_marks_expanded_steps():
-    g = overview(nodes=[node("rgb", 'RGB "texture" & <more>', "input"), *overview().nodes[1:]])
-    dot = flow_dot(g, {"x": "A"})
-    assert "rankdir=TB" in dot
-    assert "RGB &quot;texture&quot; &amp;<BR/>&lt;more&gt;" in dot  # escaped, wrapped
-    assert "detail A" in dot and "peripheries=2" in dot
-    assert 'label="  landmark features  "' in dot
+def test_mermaid_is_top_to_bottom_and_paper_text_cannot_inject_syntax():
+    g = overview(nodes=[node("end", 'RGB "texture" <b>#1</b>', "input"), *overview().nodes[1:]],
+                 edges=[edge("end", "x"), *overview().edges[1:]])  # fmt: skip
+    source = flow_mermaid(g, {"x": "A"})
+    assert source.startswith("flowchart TB\n")
+    assert 'n0("RGB #quot;texture#quot; #lt;b#gt;#35;1#lt;/b#gt;"):::input' in source
+    assert " end " not in source and "n0 --> n2" in source  # model ids never reach Mermaid
+    assert "<b>detail A</b>" in source and ":::component,expanded" in source
+    assert '-->|"landmark features"|' in source
     assert [e["name"] for e in legend(g)] == ["Input", "Model component", "Output"]
 
 
-def test_render_flow_writes_a_png(tmp_path):
-    out = render_flow(overview(), tmp_path / "f.png", {"x": "A"})
-    assert out.read_bytes().startswith(b"\x89PNG")
+def test_all_diagrams_of_a_paper_render_to_png(tmp_path):
+    flows = assemble_flows(overview(), [FlowDetail(node_id="x", graph=detail())])
+    assert render_flows(flows, tmp_path) == ["flow.png", "flow-a.png"]
+    assert all(
+        (tmp_path / n).read_bytes().startswith(b"\x89PNG") for n in ("flow.png", "flow-a.png")
+    )
 
 
-def test_render_flow_explains_a_missing_graphviz(tmp_path, monkeypatch):
-    monkeypatch.setenv("PATH", str(tmp_path))  # an environment without the `dot` command
-    with pytest.raises(RuntimeError, match="Graphviz is not installed"):
-        render_flow(overview(), tmp_path / "f.png")
+def test_rendering_explains_a_missing_node(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", str(tmp_path))  # an environment without Node.js
+    with pytest.raises(RuntimeError, match="Node.js is not installed"):
+        render_flows(assemble_flows(overview(expand=[]), []), tmp_path)
 
 
 CARDS = [
@@ -188,12 +192,11 @@ CARDS = [
               section="Method", page=2, match=100),
 ]  # fmt: skip
 OUTLINE = Outline(
-    hook="h",
-    slides=[
-        OutlineSlide(title="t", purpose="task", claim_ids=["c01"]),
-        OutlineSlide(title="c", purpose="challenges", claim_ids=["c03"]),
-        OutlineSlide(title="m", purpose="method", claim_ids=["c02"]),
-        OutlineSlide(title="r", purpose="results", claim_ids=["c03"]),
+    cards=[
+        PlannedCard(title="t", purpose="task", claim_ids=["c01"]),
+        PlannedCard(title="c", purpose="challenges", claim_ids=["c03"]),
+        PlannedCard(title="m", purpose="method", claim_ids=["c02"]),
+        PlannedCard(title="r", purpose="results", claim_ids=["c03"]),
     ],
 )
 PAPER = Paper(
@@ -209,7 +212,7 @@ PAPER = Paper(
 
 def test_evidence_cards_and_sections():
     cards = flow_cards(OUTLINE, CARDS)
-    assert [c.id for c in cards] == ["c01", "c02", "c04"]  # task + method blocks, then methods
+    assert [c.id for c in cards] == ["c01", "c02", "c04"]  # task + method cards, then methods
     text = flow_sections(PAPER, cards)
     assert text.startswith("## Method\n")  # most-cited section first
     assert "## Intro" in text and "## Results" not in text
@@ -225,7 +228,7 @@ def test_planner_and_worker_prompts_and_checks(fake):
         return {"model": body["model"], "message": {"content": next(replies).model_dump_json()}}
 
     fake.chat_handler = handler
-    llm = LLM(fake.client(), "qwen3.6:35b-mlx")
+    llm = chat_model(fake)
     cards = flow_cards(OUTLINE, CARDS)
     sections = flow_sections(PAPER, cards)
     ov = plan_overview(PAPER, "method", ["It fuses RGB and landmarks."], cards, sections, llm)

@@ -1,26 +1,19 @@
-"""Step 5 (PROMPT CHAINING): write each planned block from its claim cards.
+"""PROMPT CHAINING: write each planned card from its claim cards.
 
-The outline is fixed at this point, so writing is a plain chain: one call per slide,
-run in parallel since slides don't depend on each other. Each bullet must cite the claim
-ids it uses, and only the slide's own claims. That citation is what the M3 fact-check
-loop verifies.
+The outline is fixed at this point, so writing is a plain chain step: one call per card,
+run in parallel since the cards don't depend on each other. Each bullet must cite the
+claim ids it uses, and only its card's claims. That citation is what the fact-check loop
+verifies next.
 """
 
 from __future__ import annotations
 
-from labmate.core.factcheck import check_slide, format_cards
-from labmate.core.llm.structured import structured_chat
-from labmate.core.model import LLM
-from labmate.core.parallel import parallel_map
+from langchain_core.runnables import RunnableConfig
+
+from labmate.core.factcheck import check_card, format_evidence
+from labmate.core.lc import RecordedChatModel, batch_map, prompt, structured
 from labmate.paper2flow.prompts import load_prompt
-from labmate.paper2flow.schemas import (
-    ClaimCard,
-    Claims,
-    Outline,
-    OutlineSlide,
-    SlideText,
-    WrittenSlides,
-)
+from labmate.paper2flow.schemas import Card, Cards, ClaimCard, Claims, Outline, PlannedCard
 
 PURPOSE_HINTS = {
     "task": "what the paper sets out to do, its inputs, outputs and setting.",
@@ -28,60 +21,66 @@ PURPOSE_HINTS = {
     "method": "what the authors propose and how it works, component by component.",
     "results": "the main results with numbers and comparisons, ablations or limitations.",
 }
-"""What each block should say (the writer sees the one for its slide)."""
+"""What each card should say (the writer sees the one for its card)."""
 
 
-def write_slide(
-    position: int, planned: OutlineSlide, total: int, by_id: dict[str, ClaimCard], llm: LLM
-) -> SlideText:
-    """Write one slide from its outline entry (one model call, validated).
+def write_card(
+    position: int,
+    planned: PlannedCard,
+    by_id: dict[str, ClaimCard],
+    model: RecordedChatModel,
+    config: RunnableConfig | None = None,
+) -> Card:
+    """Write one card from its outline entry (one validated model call).
 
     Args:
-        position: 1-based slide number.
-        planned: The slide's outline entry.
-        total: Number of slides.
+        position: 1-based card number.
+        planned: The card's outline entry.
         by_id: Claim cards by id.
-        llm: Model settings.
+        model: The writer model.
+        config: The calling step's config (callbacks).
 
     Returns:
-        The written slide.
+        The written card, with the planned title.
     """
-    cards = [by_id[cid] for cid in planned.claim_ids]
-    prompt = load_prompt("write").format(
-        position=position,
-        total=total,
-        purpose=planned.purpose,
-        purpose_hint=PURPOSE_HINTS.get(planned.purpose, ""),
-        title=planned.title,
-        claims=format_cards(cards),
+    writer = structured(model, Card, check=lambda c: check_card(c, set(planned.claim_ids)))
+    card = (prompt(load_prompt("write")) | writer).invoke(
+        {
+            "position": position,
+            "purpose": planned.purpose,
+            "purpose_hint": PURPOSE_HINTS.get(planned.purpose, ""),
+            "title": planned.title,
+            "claims": format_evidence([by_id[cid] for cid in planned.claim_ids]),
+        },
+        config,
     )
-    slide = structured_chat(
-        llm.backend,
-        llm.request(prompt),
-        SlideText,
-        check=lambda s: check_slide(s, set(planned.claim_ids)),
-    )
-    # The title was planned (and possibly edited by the human at the gate): keep it.
-    return slide.model_copy(update={"title": planned.title})
+    return card.model_copy(update={"title": planned.title})
 
 
-def write_slides(outline: Outline, claims: Claims, llm: LLM, workers: int = 2) -> WrittenSlides:
-    """Write all slides of an approved outline (parallel over slides).
+def write_cards(
+    outline: Outline,
+    claims: Claims,
+    model: RecordedChatModel,
+    workers: int = 2,
+    config: RunnableConfig | None = None,
+) -> Cards:
+    """Write all four cards of the outline, in parallel.
 
     Args:
-        outline: Approved outline.
+        outline: The outline.
         claims: Claim cards.
-        llm: Model settings.
+        model: The writer model.
         workers: Concurrent writing calls.
+        config: The calling step's config (callbacks).
 
     Returns:
-        The written slides, in outline order.
+        The written cards, in outline order.
     """
     by_id = {c.id: c for c in claims.cards}
-    total = len(outline.slides)
-    slides = parallel_map(
-        lambda item: write_slide(item[0], item[1], total, by_id, llm),
-        list(enumerate(outline.slides, start=1)),
+    cards = batch_map(
+        lambda item, cfg: write_card(item[0], item[1], by_id, model, cfg),
+        list(enumerate(outline.cards, start=1)),
+        config,
         workers,
     )
-    return WrittenSlides(hook=outline.hook, slides=slides)
+    return Cards(cards=cards)

@@ -12,6 +12,7 @@ from pathlib import Path
 from labmate.ask.embed import Embedder
 from labmate.ask.index import Index
 from labmate.config import Config, ReplayMode
+from labmate.core.lc import RecordedChatModel
 from labmate.core.llm.client import OllamaClient, OllamaError
 from labmate.core.llm.replay import CassetteStore, ReplayClient, read_lock
 from labmate.core.model import LLM
@@ -48,6 +49,16 @@ class AskSession:
     mode: ReplayMode
     connections: list[sqlite3.Connection] = field(default_factory=list)
     own_client: OllamaClient | None = None
+
+    @property
+    def writer_model(self) -> RecordedChatModel:
+        """The writer as a LangChain chat model (switches the model phase on every call)."""
+        return RecordedChatModel(llm=self.llm, switcher=self.switcher)
+
+    @property
+    def judge_model(self) -> RecordedChatModel:
+        """The judge as a LangChain chat model (switches the model phase on every call)."""
+        return RecordedChatModel(llm=self.judge, switcher=self.switcher)
 
     @property
     def workers(self) -> int:
@@ -109,8 +120,8 @@ def open_ask(
     return AskSession(
         config=config,
         tracer=tracer,
-        llm=LLM(backend, m.text, gen.seed, gen.temperature, gen.num_ctx),
-        judge=LLM(backend, m.critic, gen.seed, gen.temperature, gen.num_ctx),
+        llm=LLM(backend, m.text, gen.seed, gen.temperature, gen.num_ctx, digests.get(m.text)),
+        judge=LLM(backend, m.critic, gen.seed, gen.temperature, gen.num_ctx, digests.get(m.critic)),
         embedder=Embedder(backend, m.embed, config.ask.embed_batch),
         switcher=ModelSwitcher(live),
         index=Index(config.ask.index),

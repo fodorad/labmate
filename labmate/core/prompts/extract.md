@@ -20,7 +20,7 @@ For each claim:
   it appears in the text below (e.g. "Transformer (big) 28.4 41.8"), is a valid quote.
 
 Return at most {max_claims} claims, the most important first. Return an empty list if the
-section has nothing worth a slide (for example acknowledgements).
+section has nothing worth a claim (for example acknowledgements).
 
 Paper: {title}
 Section: {section} (page {page})

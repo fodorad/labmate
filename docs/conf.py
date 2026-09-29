@@ -49,7 +49,7 @@ suppress_warnings = ["sphinx_autodoc_typehints.forward_reference", "misc.highlig
 # inside autodoc the schema generation fails, so load everything the docs touch up front.
 import labmate.ask.dashboard  # noqa: E402,F401
 import labmate.ask.studio  # noqa: E402,F401
-import labmate.paper2flow.engines.langgraph_engine  # noqa: E402,F401
+import labmate.paper2post.chain  # noqa: E402,F401
 
 
 def _drop_foreign_docstrings(app, what, name, obj, options, lines):

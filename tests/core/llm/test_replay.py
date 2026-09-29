@@ -1,9 +1,11 @@
+import httpx
 import pytest
 
 from labmate.config import ReplayMode
 from labmate.core.llm.replay import (
     CassetteMissError,
     CassetteStore,
+    RecordedTransport,
     ReplayClient,
     read_lock,
     write_lock,
@@ -84,3 +86,39 @@ def test_lock_roundtrip(tmp_path):
     write_lock(path, {"b:1": "d2", "a:1": "d1"})
     assert read_lock(path) == {"a:1": "d1", "b:1": "d2"}
     assert path.read_text().index("a:1") < path.read_text().index("b:1")
+
+
+def test_web_requests_replay_without_the_network(tmp_path):
+    served = []
+
+    def site(request):
+        served.append(str(request.url))
+        if request.url.path == "/old":
+            return httpx.Response(301, headers={"location": "https://x.org/paper.pdf"})
+        return httpx.Response(200, content=b"%PDF-1.7", headers={"content-type": "application/pdf"})
+
+    store = CassetteStore(tmp_path)
+    live = httpx.Client(
+        transport=RecordedTransport(httpx.MockTransport(site), store, ReplayMode.AUTO),
+        follow_redirects=True,
+    )
+    assert live.get("https://x.org/old").content == b"%PDF-1.7"
+    offline = httpx.Client(
+        transport=RecordedTransport(None, store, ReplayMode.REPLAY), follow_redirects=True
+    )
+    again = offline.get("https://x.org/old")
+    assert again.content == b"%PDF-1.7" and again.headers["content-type"] == "application/pdf"
+    assert served == ["https://x.org/old", "https://x.org/paper.pdf"]  # the redirect too
+    with pytest.raises(CassetteMissError, match="GET https://x.org/other"):
+        offline.get("https://x.org/other")
+
+
+def test_failed_web_requests_are_not_recorded(tmp_path):
+    answers = iter([httpx.Response(429), httpx.Response(200, text="ok")])
+    client = httpx.Client(
+        transport=RecordedTransport(
+            httpx.MockTransport(lambda r: next(answers)), CassetteStore(tmp_path), ReplayMode.AUTO
+        )
+    )
+    assert client.get("https://api.x.org/q").status_code == 429
+    assert client.get("https://api.x.org/q").text == "ok"  # the retry reached the network

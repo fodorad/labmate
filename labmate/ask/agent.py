@@ -17,10 +17,10 @@ from langchain_core.tools import BaseTool, tool
 
 from labmate.ask.evidence import context, label
 from labmate.ask.graph import compose
-from labmate.ask.lc import RecordedChatModel
 from labmate.ask.prompts import load_prompt
 from labmate.ask.schemas import Answer, Sentence
 from labmate.ask.session import AskSession
+from labmate.core.lc import RecordedChatModel
 
 SCOPES = {"dissertation": [1], "own": [1, 2], "all": [1, 2, 3]}
 """Search scopes offered to the agent, as tiers."""

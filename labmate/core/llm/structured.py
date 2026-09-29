@@ -95,7 +95,16 @@ class StructuredOutputError(RuntimeError):
     """Raised when a model fails to produce schema-valid JSON within the retry budget."""
 
 
-def _validation_error(text: str, model: type[BaseModel]) -> str:
+def validation_error(text: str, model: type[BaseModel]) -> str:
+    """The validation error of a reply, as shown to the model when it retries.
+
+    Args:
+        text: Raw model output that failed to validate.
+        model: Target Pydantic model class.
+
+    Returns:
+        The error text (truncated).
+    """
     candidate = extract_json(text) or text
     try:
         model.model_validate_json(candidate)
@@ -149,8 +158,7 @@ def structured_chat[M: BaseModel](
             )
         else:
             feedback = (
-                f"That reply does not validate against the schema:\n"
-                f"{_validation_error(last, model)}"
+                f"That reply does not validate against the schema:\n{validation_error(last, model)}"
             )
         messages = [
             *messages,

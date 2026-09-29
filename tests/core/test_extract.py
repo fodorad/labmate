@@ -6,6 +6,7 @@ from labmate.core.extract import (
     extract_claims,
     quote_score,
 )
+from labmate.core.lc import RecordedChatModel
 from labmate.core.model import LLM
 from labmate.paper2flow.schemas import Paper, Section
 
@@ -67,7 +68,8 @@ def test_unverifiable_quotes_are_rejected_and_ids_are_sequential(fake):
             Section(title="Results", page=5, text=TEXT + " " * MIN_SECTION_CHARS),
         ],
     )
-    claims = extract_claims(paper, LLM(fake.client(), "qwen3.6:35b-mlx"), workers=2)
+    writer = RecordedChatModel(llm=LLM(fake.client(), "qwen3.6:35b-mlx"))
+    claims = extract_claims(paper, writer, workers=2)
     assert [c.id for c in claims.cards] == ["c01", "c02"]
     assert [(c.section, c.page) for c in claims.cards] == [("Intro", 1), ("Results", 5)]
     assert [r.claim for r in claims.rejected] == ["Made up", "Made up"]

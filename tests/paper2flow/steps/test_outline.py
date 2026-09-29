@@ -1,9 +1,8 @@
 import pytest
 
-from labmate.core.model import LLM
-from labmate.paper2flow.schemas import ClaimCard, Claims, Outline, OutlineSlide, Route
+from labmate.paper2flow.schemas import ClaimCard, Claims, Outline, PlannedCard, Route
 from labmate.paper2flow.steps.outline import check_outline, plan_outline
-from tests.conftest import agentic_chat
+from tests.conftest import agentic_chat, chat_model
 
 CLAIMS = Claims(
     cards=[
@@ -21,10 +20,8 @@ CLAIMS = Claims(
 )
 
 
-def outline(*slides):
-    return Outline(
-        hook="h", slides=[OutlineSlide(title="t", purpose=p, claim_ids=ids) for p, ids in slides]
-    )
+def outline(*cards):
+    return Outline(cards=[PlannedCard(title="t", purpose=p, claim_ids=ids) for p, ids in cards])
 
 
 FOUR = ["task", "challenges", "method", "results"]
@@ -36,16 +33,15 @@ def blocks(*ids):
 
 def test_valid_outline_has_no_problems():
     o = blocks(["c01"], ["c02", "c03"], ["c03", "c04"], ["c04"])
-    assert check_outline(o, CLAIMS, "method") == []
-    assert check_outline(o, CLAIMS, "survey") == []  # every paper type uses the four blocks
+    assert check_outline(o, CLAIMS) == []
 
 
 @pytest.mark.parametrize(
-    ("slides", "problem"),
+    ("cards", "problem"),
     [
         (
-            [("task", ["c01"]), ("method", ["c02"]), ("results", ["c03"])],
-            "the slides must be exactly ['task', 'challenges', 'method', 'results']",
+            [("task", ["c01"]), ("method", ["c02"]), ("results", ["c03"]), ("method", ["c04"])],
+            "the cards must be exactly ['task', 'challenges', 'method', 'results']",
         ),
         (
             [("challenges", ["c01"]), ("task", ["c02"]), ("method", ["c03"]), ("results", ["c04"])],
@@ -61,21 +57,22 @@ def test_valid_outline_has_no_problems():
         ),
         (
             list(zip(FOUR, [["c01"], ["c01"], ["c01"], ["c04"]], strict=True)),
-            "more than 2 slides: ['c01']",
+            "more than 2 cards: ['c01']",
         ),
     ],
 )
-def test_each_rule_is_enforced(slides, problem):
-    problems = check_outline(outline(*slides), CLAIMS, "method")
+def test_each_rule_is_enforced(cards, problem):
+    problems = check_outline(outline(*cards), CLAIMS)
     assert any(problem in p for p in problems), problems
 
 
 def test_planner_gets_rule_violations_fed_back(fake):
     replies = iter(
         [
-            '{"hook": "h", "slides": [{"title": "t", "purpose": "task", "claim_ids": ["c01"]},'
-            ' {"title": "t", "purpose": "method", "claim_ids": ["c02"]},'
-            ' {"title": "t", "purpose": "results", "claim_ids": ["c03"]}]}',
+            '{"cards": [{"title": "t", "purpose": "task", "claim_ids": ["c01"]},'
+            ' {"title": "t", "purpose": "results", "claim_ids": ["c02"]},'
+            ' {"title": "t", "purpose": "method", "claim_ids": ["c03"]},'
+            ' {"title": "t", "purpose": "challenges", "claim_ids": ["c04"]}]}',
         ]
     )
 
@@ -87,13 +84,13 @@ def test_planner_gets_rule_violations_fed_back(fake):
 
     fake.chat_handler = model
     route = Route(paper_type="method", confidence=0.9, reason="r")
-    result = plan_outline("T", route, CLAIMS, LLM(fake.client(), "qwen3.6:35b-mlx"))
-    assert [s.purpose for s in result.slides] == FOUR
+    result = plan_outline("T", route, CLAIMS, chat_model(fake))
+    assert [c.purpose for c in result.cards] == FOUR
     retry = fake.requests[1][1]["messages"][-1]["content"]
-    assert "the slides must be exactly" in retry
+    assert "the cards must be exactly" in retry
 
 
 def test_planning_without_claims_is_an_error(fake):
     route = Route(paper_type="method", confidence=0.9, reason="r")
     with pytest.raises(ValueError, match="no verified claim cards"):
-        plan_outline("T", route, Claims(cards=[]), LLM(fake.client(), "m"))
+        plan_outline("T", route, Claims(cards=[]), chat_model(fake))

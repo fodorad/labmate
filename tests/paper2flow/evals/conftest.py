@@ -7,16 +7,16 @@ from pathlib import Path
 import pytest
 
 from labmate.config import Config
-from labmate.paper2flow.engines.plain import run
+from labmate.paper2flow.chain import ARTIFACTS, paper2flow
 from labmate.paper2flow.schemas import (
     Bullet,
     BulletCheck,
+    Card,
+    Cards,
     ClaimCard,
     Claims,
     FactChecked,
     FactCheckReport,
-    SlideText,
-    WrittenSlides,
 )
 from tests.conftest import agentic_chat
 
@@ -32,12 +32,11 @@ def config(tmp_path):
 
 @pytest.fixture
 def finished(fake, arxiv, config) -> Path:
-    """A run that paused at the gate and was then approved."""
+    """A finished paper2flow run."""
     fake.chat_handler = agentic_chat
-    run(config, ref="2401.00001", client=fake.client(), http=arxiv.client())
-    result = run(config, ref="2401.00001", client=fake.client(), http=arxiv.client(), approve=True)
-    assert result.status == "done"
-    return result.run_dir
+    return paper2flow(
+        config, "2401.00001", client=fake.client(), transport=arxiv.transport()
+    ).parent
 
 
 def card(i: int, quote: str) -> ClaimCard:
@@ -52,9 +51,9 @@ def card(i: int, quote: str) -> ClaimCard:
     )
 
 
-def check(slide: int, bullet: int, text: str, ids: list[str], verdict: str) -> BulletCheck:
+def check(card: int, bullet: int, text: str, ids: list[str], verdict: str) -> BulletCheck:
     return BulletCheck(
-        slide=slide, bullet=bullet, text=text, claim_ids=ids, verdict=verdict, reason="r"
+        card=card, bullet=bullet, text=text, claim_ids=ids, verdict=verdict, reason="r"
     )
 
 
@@ -62,7 +61,7 @@ def write_audit(run_dir: Path, n_supported: int = 6, n_rejected: int = 4) -> Pat
     """A run directory with claims and a two-round fact-check audit, no model needed."""
     run_dir.mkdir(parents=True, exist_ok=True)
     cards = [card(1, "Accuracy is 84.6%."), card(2, "Memory drops by 38%.")]
-    (run_dir / "02_claims.json").write_text(Claims(cards=cards, rejected=[]).model_dump_json())
+    (run_dir / ARTIFACTS["claims"]).write_text(Claims(cards=cards, rejected=[]).model_dump_json())
     round0 = [check(1, i + 1, f"Good bullet {i}", ["c01"], "supported") for i in range(n_supported)]
     round0 += [
         check(2, i + 1, f"WRONG bullet {i}", ["c01", "c02"], "unsupported")
@@ -70,10 +69,8 @@ def write_audit(run_dir: Path, n_supported: int = 6, n_rejected: int = 4) -> Pat
     ]
     round1 = [*round0[:n_supported], check(2, 1, "Fixed bullet", ["c02"], "supported")]
     report = FactCheckReport(rounds=[round0, round1], dropped=round0[n_supported:])
-    slides = WrittenSlides(
-        hook="h", slides=[SlideText(title="t", bullets=[Bullet(text="x", claim_ids=["c01"])])]
-    )
-    (run_dir / "05_factcheck.json").write_text(
-        FactChecked(slides=slides, report=report).model_dump_json()
+    final = Cards(cards=[Card(title="t", bullets=[Bullet(text="x", claim_ids=["c01"])])])
+    (run_dir / ARTIFACTS["checked"]).write_text(
+        FactChecked(cards=final, report=report).model_dump_json()
     )
     return run_dir
