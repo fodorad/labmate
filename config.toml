@@ -6,7 +6,7 @@ host = "http://localhost:11434"
 timeout_s = 900
 
 [models]
-# Roles, see plan §2. Tags must match `ollama list`; digests are pinned in models.lock.
+# Model roles. Tags must match `ollama list`; digests are pinned in models.lock.
 text = "qwen3.6:35b-mlx"
 critic = "gemma4:26b-mlx"
 embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
@@ -39,3 +39,4 @@ threads = "library/threads.sqlite"  # conversation memory (LangGraph checkpoints
 chunk_words = 180
 top_k = 6
 max_loops = 2                       # retrieve -> grade -> rewrite rounds per sub-question
+summary_min_words = 300             # shorter chapters get no summary chunk

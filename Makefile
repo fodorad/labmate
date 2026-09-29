@@ -30,7 +30,7 @@ docs-serve: docs
 build:
 	uv build
 
-check: lint type-check test docs
+check: lint type-check test docs verify
 
 # --- Shared: local model tooling (needs a running Ollama) ---
 

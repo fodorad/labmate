@@ -6,6 +6,7 @@ Without an outline the text is split per page. The references section is dropped
 
 from __future__ import annotations
 
+import hashlib
 import html
 import re
 import shutil
@@ -319,7 +320,11 @@ def is_url(ref: str) -> bool:
 
 
 def url_stem(url: str) -> str:
-    """File stem of a URL's path, e.g. ``2023_Fodor_Adam_MDPI_BlinkLinMulT``.
+    """File stem for a URL: its path's stem plus a short hash of the whole URL.
+
+    The hash keeps papers apart whose URLs end in the same file name (every OpenReview
+    link ends in ``/pdf``), so they never share a download or a run directory, e.g.
+    ``2023_Fodor_Adam_MDPI_BlinkLinMulT-1a2b3c4d``.
 
     Args:
         url: PDF URL.
@@ -327,7 +332,8 @@ def url_stem(url: str) -> str:
     Returns:
         The stem (the run id is its slug).
     """
-    return PurePosixPath(urlparse(url).path).stem or "paper"
+    digest = hashlib.sha256(url.encode()).hexdigest()[:8]
+    return f"{PurePosixPath(urlparse(url).path).stem or 'paper'}-{digest}"
 
 
 def download_url(url: str, cache_dir: Path, http: httpx.Client) -> Path:

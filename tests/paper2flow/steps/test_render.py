@@ -27,7 +27,6 @@ from labmate.paper2flow.steps.render import (
     render_overview,
     render_post,
 )
-from tests.paper2flow.steps.test_flow import needs_dot
 
 
 def flat(page):
@@ -94,7 +93,6 @@ POST = Post(
 )
 
 
-@needs_dot
 def test_overview_has_paper_blocks_flow_and_details(tmp_path):
     f = flows()
     pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
@@ -112,7 +110,6 @@ def test_overview_has_paper_blocks_flow_and_details(tmp_path):
     assert not (tmp_path / "overview.typ").exists()
 
 
-@needs_dot
 def test_post_is_the_text_then_one_image_per_diagram(tmp_path):
     f = flows()
     pages = diagrams(f, render_flows(f, tmp_path), "survey", tmp_path)
@@ -126,7 +123,6 @@ def test_post_is_the_text_then_one_image_per_diagram(tmp_path):
         assert "Inside linear attention" in flat(doc[2])
 
 
-@needs_dot
 def test_small_diagrams_are_not_blown_up(tmp_path):
     f = flows()
     names = render_flows(f, tmp_path)
@@ -134,7 +130,6 @@ def test_small_diagrams_are_not_blown_up(tmp_path):
     assert 50 < width < 400 and 50 < height < 500  # points at the render resolution
 
 
-@needs_dot
 def test_without_a_figure_the_first_page_shows_the_abstract(tmp_path):
     f = flows()
     pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
@@ -144,7 +139,6 @@ def test_without_a_figure_the_first_page_shows_the_abstract(tmp_path):
         assert "We study attention." in flat(doc[0])
 
 
-@needs_dot
 def test_paper_text_cannot_inject_typst_markup(tmp_path):
     nasty = '#set page(fill: red) *bold* $x$ @ref <label> [x] // comment "quote"'
     f = flows()

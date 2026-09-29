@@ -12,6 +12,7 @@ from labmate.ask.graph import (
     evidence_ids,
     find_conflicts,
     widen,
+    written_in,
 )
 from labmate.ask.schemas import Finding, Sentence
 from labmate.ask.session import open_ask
@@ -140,6 +141,12 @@ def test_conflict_values_must_be_in_their_chunks(indexed, model):
     retry = [b for p, b in model.requests if p == "/api/chat"][-1]["messages"][-1]["content"]
     assert "'0.999' is not written in" in retry and "unknown chunk id nope:0001" in retry
     assert "dissertation_chunk must be a tier-1 chunk" in retry
+
+
+def test_values_without_numbers_must_be_written_in_their_chunk():
+    text = "BlinkLinMulT is evaluated on the MRL Eye and RT-BENE datasets."
+    assert written_in("MRL Eye", text) and written_in("0.9", "reaches 0.9 F1")
+    assert not written_in("TalkBlink", text) and not written_in(" ", text)
 
 
 def test_unsupported_sentences_are_dropped_by_the_verify_subgraph(indexed, graph):

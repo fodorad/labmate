@@ -25,7 +25,13 @@ from labmate.core.ingest import (
     url_stem,
 )
 from labmate.core.llm.client import OllamaClient, OllamaError, normalize_tag
-from labmate.core.llm.replay import CassetteStore, ReplayClient, read_lock, write_lock
+from labmate.core.llm.replay import (
+    CassetteMissError,
+    CassetteStore,
+    ReplayClient,
+    read_lock,
+    write_lock,
+)
 from labmate.core.model import LLM
 from labmate.core.phases import ModelSwitcher
 from labmate.core.probe import run_probe
@@ -480,6 +486,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _model_error(error: OllamaError | CassetteMissError) -> int:
+    """Report a failed model call: Ollama unreachable, or no cassette in replay mode.
+
+    Args:
+        error: The error.
+
+    Returns:
+        Exit code 2.
+    """
+    print(f"error: {error}", file=sys.stderr)
+    if isinstance(error, CassetteMissError):
+        print(
+            "hint: a prompt, schema or model changed since the run was recorded; "
+            "run in auto mode (with Ollama) to record the missing calls",
+            file=sys.stderr,
+        )
+    return 2
+
+
 def main(
     argv: Sequence[str] | None = None,
     client: OllamaClient | None = None,
@@ -502,9 +527,8 @@ def main(
 
         try:
             return ask_main(config, args, client)
-        except OllamaError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 2
+        except (OllamaError, CassetteMissError) as e:
+            return _model_error(e)
     if args.command == "graphs":
         from labmate.diagrams import write_diagrams  # noqa: PLC0415 - needs the [ask] extra
 
@@ -523,6 +547,7 @@ def main(
         return cmd_verify(config, args.gallery, args.papers, http)
     if command == "site":
         return cmd_site(args.gallery, args.out, args.judges)
+    own_client = client is None
     client = client or OllamaClient(config.ollama.host, config.ollama.timeout_s)
     try:
         if command == "judges":
@@ -533,6 +558,8 @@ def main(
         if command == "run":
             return cmd_run(config, args, client, http)
         return cmd_probe(config, client, args.out)
-    except OllamaError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 2
+    except (OllamaError, CassetteMissError) as e:
+        return _model_error(e)
+    finally:
+        if own_client:
+            client.close()

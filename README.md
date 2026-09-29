@@ -276,7 +276,7 @@ so the pipeline always sends both and validates with a retry loop.
 
 ```bash
 make install     # uv sync (incl. the LangGraph and ask extras) + pre-commit hooks
-make check       # lint + type-check + tests + docs (no Ollama needed)
+make check       # lint + type-check + tests + docs + gallery replay (no Ollama needed)
 
 # with Ollama running:
 make lock        # pin installed model digests into models.lock

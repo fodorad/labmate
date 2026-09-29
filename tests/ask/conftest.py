@@ -128,6 +128,7 @@ def config(tmp_path: Path, library: Path) -> Config:
     cfg.ask.index = library / "index.sqlite"
     cfg.ask.threads = library / "threads.sqlite"
     cfg.ask.chunk_words = 30
+    cfg.ask.summary_min_words = 10  # the test documents are tiny
     cfg.ask.top_k = 4
     return cfg
 
@@ -279,12 +280,6 @@ def session(config, model):
     s = open_ask(config, client=model.client())
     yield s
     s.close()
-
-
-@pytest.fixture(autouse=True)
-def short_chapters(monkeypatch):
-    """The test documents are tiny: summarise chapters of any length."""
-    monkeypatch.setattr("labmate.ask.build.SUMMARY_MIN_WORDS", 10)
 
 
 @pytest.fixture

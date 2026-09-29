@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
@@ -11,11 +12,13 @@ from pathlib import Path
 from labmate.ask.embed import Embedder
 from labmate.ask.index import Index
 from labmate.config import Config, ReplayMode
-from labmate.core.llm.client import OllamaClient
+from labmate.core.llm.client import OllamaClient, OllamaError
 from labmate.core.llm.replay import CassetteStore, ReplayClient, read_lock
 from labmate.core.model import LLM
 from labmate.core.phases import ModelSwitcher
 from labmate.core.tracing import TracedClient, Tracer
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,6 +35,7 @@ class AskSession:
         index: The search index.
         mode: Replay mode in effect.
         connections: Extra databases to close with the session (conversation checkpoints).
+        own_client: The Ollama client the session opened itself (closed with it).
     """
 
     config: Config
@@ -43,6 +47,7 @@ class AskSession:
     index: Index
     mode: ReplayMode
     connections: list[sqlite3.Connection] = field(default_factory=list)
+    own_client: OllamaClient | None = None
 
     @property
     def workers(self) -> int:
@@ -50,11 +55,20 @@ class AskSession:
         return self.config.pipeline.workers
 
     def close(self) -> None:
-        """Release the models and close the index."""
-        self.switcher.release()
+        """Release the models, then close the databases and the session's own client.
+
+        Unloading the model is best effort: when Ollama is gone, the databases are still
+        closed.
+        """
+        try:
+            self.switcher.release()
+        except OllamaError as e:
+            log.warning("could not unload the model: %s", e)
         self.index.close()
         for connection in self.connections:
             connection.close()
+        if self.own_client is not None:
+            self.own_client.close()
 
 
 def open_ask(
@@ -77,9 +91,11 @@ def open_ask(
         The session.
     """
     mode = mode or config.replay.mode
-    live = None
+    live = own_client = None
     if mode is not ReplayMode.REPLAY:
-        live = client or OllamaClient(config.ollama.host, config.ollama.timeout_s)
+        if client is None:
+            own_client = OllamaClient(config.ollama.host, config.ollama.timeout_s)
+        live = client or own_client
     started = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     tracer = Tracer(
         trace or config.ask.library / "trace.jsonl",
@@ -99,4 +115,5 @@ def open_ask(
         switcher=ModelSwitcher(live),
         index=Index(config.ask.index),
         mode=mode,
+        own_client=own_client,
     )

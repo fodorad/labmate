@@ -63,6 +63,7 @@ from labmate.ask.schemas import (
 from labmate.ask.session import AskSession
 from labmate.ask.verify import build_verifier
 from labmate.core import schemas as core_schemas
+from labmate.core.extract import normalize
 from labmate.core.factcheck import FactCheckLoop, numbers_in
 from labmate.core.llm.structured import structured_chat
 
@@ -274,6 +275,25 @@ def widen(tiers: list[int]) -> list[int]:
     return [1, 2] if tiers == [1] else tiers
 
 
+def written_in(value: str, text: str) -> bool:
+    """Whether a reported value is stated in a text.
+
+    A value with numbers counts as written when all its numbers are in the text (units and
+    wording may differ); a value without numbers must appear in the text itself.
+
+    Args:
+        value: Reported value, e.g. ``"0.912 F1"`` or ``"MRL Eye"``.
+        text: Chunk text.
+
+    Returns:
+        True if the text states the value.
+    """
+    numbers = numbers_in(value)
+    if numbers:
+        return numbers <= numbers_in(text)
+    return bool(value.strip()) and normalize(value) in normalize(text)
+
+
 def find_conflicts(s: AskSession, chunk_ids: list[str]) -> list[Conflict]:
     """Values the dissertation and another source state differently.
 
@@ -300,7 +320,7 @@ def find_conflicts(s: AskSession, chunk_ids: list[str]) -> list[Conflict]:
                                (c.other_chunk, c.other_value)):  # fmt: skip
                 if cid not in known:
                     problems.append(f"{c.topic}: unknown chunk id {cid}")
-                elif numbers_in(value) - numbers_in(s.index.chunk(cid).text):
+                elif not written_in(value, s.index.chunk(cid).text):
                     problems.append(f"{c.topic}: {value!r} is not written in {cid}")
             if c.dissertation_chunk in known and s.index.chunk(c.dissertation_chunk).tier != 1:
                 problems.append(f"{c.topic}: dissertation_chunk must be a tier-1 chunk")

@@ -4,7 +4,7 @@
 
 ## Why
 
-<!-- Link the plan section / milestone if relevant. -->
+<!-- Link the issue if there is one. -->
 
 ## Checklist
 

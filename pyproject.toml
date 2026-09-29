@@ -68,7 +68,6 @@ labmate = "labmate.cli:main"
 Homepage = "https://github.com/fodorad/labmate"
 Repository = "https://github.com/fodorad/labmate"
 Issues = "https://github.com/fodorad/labmate/issues"
-Changelog = "https://github.com/fodorad/labmate/blob/main/CHANGELOG.md"
 
 [tool.ruff]
 line-length = 100
@@ -90,13 +89,17 @@ convention = "google"
 
 [tool.mypy]
 python_version = "3.13"
-ignore_missing_imports = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=labmate --cov-report=term-missing --cov-report=xml --cov-fail-under=90"
+filterwarnings = [
+    # PyMuPDF's SWIG bindings (1.28.2, the latest release) define types without __module__,
+    # which Python 3.13 reports on import. Upstream and harmless; any other warning shows.
+    'ignore:builtin type [Ss]wig\w* has no __module__ attribute:DeprecationWarning',
+]
 
 [tool.coverage.run]
 source = ["labmate"]

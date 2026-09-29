@@ -55,6 +55,16 @@ def test_replay_mode_works_without_backend_and_fails_on_miss(fake, tmp_path):
         offline.chat(other)
 
 
+def test_a_cassette_cut_short_is_recorded_again(fake, tmp_path):
+    store = CassetteStore(tmp_path)
+    ReplayClient(fake.client(), store, ReplayMode.RECORD).chat(REQ)
+    path = store.path(REQ.cache_key())
+    path.write_text(path.read_text()[:40])  # an interrupted write
+    assert ReplayClient(fake.client(), store, ReplayMode.AUTO).chat(REQ).cached is False
+    assert ReplayClient(None, store, ReplayMode.REPLAY).chat(REQ).cached is True
+    assert [p.name for p in path.parent.iterdir()] == [path.name]  # no temporary files left
+
+
 def test_non_replay_mode_requires_backend(tmp_path):
     with pytest.raises(ValueError, match="needs a live backend"):
         ReplayClient(None, CassetteStore(tmp_path), ReplayMode.AUTO)

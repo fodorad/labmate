@@ -131,7 +131,7 @@ def test_download_url_caches_and_rejects_non_pdfs(tmp_path):
 
     http = httpx.Client(transport=httpx.MockTransport(handle))
     out = download_url("https://x.org/a/My_Paper.pdf", tmp_path / "dl", http)
-    assert out == tmp_path / "dl" / "My_Paper.pdf" and out.read_bytes() == pdf_bytes
+    assert out.name.startswith("My_Paper-") and out.read_bytes() == pdf_bytes
     download_url("https://x.org/a/My_Paper.pdf", tmp_path / "dl", http)
     assert len(hits) == 1
     with pytest.raises(IngestError, match="did not return a PDF"):
@@ -189,3 +189,17 @@ def test_pdf_year_falls_back_to_the_creation_date_and_first_page_text(tmp_path):
     assert ingest_pdf(pdf).year == 2023
     text = first_page_text(pdf, limit=30)
     assert text.startswith("1 Introduction") and len(text) == 30
+
+
+def test_urls_with_the_same_file_name_never_share_a_download(tmp_path):
+    served = {"a": make_pdf(tmp_path / "a.pdf", title="Paper A").read_bytes(),
+              "b": make_pdf(tmp_path / "b.pdf", title="Paper B").read_bytes()}  # fmt: skip
+    http = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(200, content=served[r.url.params["id"]])
+        )
+    )
+    first = download_url("https://openreview.net/pdf?id=a", tmp_path / "dl", http)
+    second = download_url("https://openreview.net/pdf?id=b", tmp_path / "dl", http)
+    assert first != second
+    assert ingest_pdf(first).title == "Paper A" and ingest_pdf(second).title == "Paper B"

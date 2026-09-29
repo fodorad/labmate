@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -34,6 +35,24 @@ UNLOAD_WAIT_S = 30.0
 
 UNLOAD_POLL_S = 0.5
 """Polling interval while waiting for an unload."""
+
+
+@dataclass(frozen=True)
+class UnloadWait:
+    """How long the probe waits for a model to leave memory after ``keep_alive=0``.
+
+    Attributes:
+        timeout_s: Give up after this many seconds (the unload check then fails).
+        poll_s: Polling interval.
+    """
+
+    timeout_s: float = UNLOAD_WAIT_S
+    poll_s: float = UNLOAD_POLL_S
+
+
+DEFAULT_WAIT = UnloadWait()
+"""Unload waiting used unless a caller passes its own."""
+
 
 PROBE_PASSAGE = (
     "We introduce LinMulT, a multimodal transformer with linear-complexity attention. "
@@ -141,9 +160,9 @@ def _think_flag(capabilities: Iterable[str]) -> bool | None:
     return False if "thinking" in capabilities else None
 
 
-def _safe_unload(client: ProbeClient, model: str) -> None:
+def _safe_unload(client: ProbeClient, model: str, wait: UnloadWait) -> None:
     try:
-        client.unload(model, wait_s=UNLOAD_WAIT_S, poll_s=UNLOAD_POLL_S)
+        client.unload(model, wait_s=wait.timeout_s, poll_s=wait.poll_s)
     except Exception:  # best effort; the next load will evict it anyway
         pass
 
@@ -326,18 +345,21 @@ def check_determinism(
     )
 
 
-def check_load_and_unload(client: ProbeClient, model: str, think: bool | None) -> CheckResult:
+def check_load_and_unload(
+    client: ProbeClient, model: str, think: bool | None, wait: UnloadWait = DEFAULT_WAIT
+) -> CheckResult:
     """Measure cold-load time, then verify that ``keep_alive=0`` frees the model.
 
     Args:
         client: Probe client.
         model: Model tag.
         think: Thinking flag to send.
+        wait: How long to wait for the unload.
 
     Returns:
-        Pass if the model leaves ``/api/ps`` within :data:`UNLOAD_WAIT_S`.
+        Pass if the model leaves ``/api/ps`` within ``wait.timeout_s``.
     """
-    client.unload(model, wait_s=UNLOAD_WAIT_S, poll_s=UNLOAD_POLL_S)
+    client.unload(model, wait_s=wait.timeout_s, poll_s=wait.poll_s)
     response = client.chat(
         ChatRequest(
             model=model,
@@ -347,18 +369,20 @@ def check_load_and_unload(client: ProbeClient, model: str, think: bool | None) -
         )
     )
     t0 = time.perf_counter()
-    gone = client.unload(model, wait_s=UNLOAD_WAIT_S, poll_s=UNLOAD_POLL_S)
+    gone = client.unload(model, wait_s=wait.timeout_s, poll_s=wait.poll_s)
     unload_s = round(time.perf_counter() - t0, 1)
     return CheckResult(
         model=model,
         check="cold load + unload",
         passed=gone,
-        detail="unloaded" if gone else f"still resident {UNLOAD_WAIT_S:.0f}s after keep_alive=0",
+        detail="unloaded" if gone else f"still resident {wait.timeout_s:g}s after keep_alive=0",
         metrics={"cold_load_s": round(response.usage.load_ms / 1000, 1), "unload_s": unload_s},
     )
 
 
-def probe_chat_model(client: ProbeClient, model: str) -> list[CheckResult]:
+def probe_chat_model(
+    client: ProbeClient, model: str, wait: UnloadWait = DEFAULT_WAIT
+) -> list[CheckResult]:
     """Run all chat-model checks for one model, then unload it.
 
     Only checks the pipeline depends on can fail. Diagnostics are reported as
@@ -368,6 +392,7 @@ def probe_chat_model(client: ProbeClient, model: str) -> list[CheckResult]:
     Args:
         client: Probe client.
         model: Model tag.
+        wait: How long to wait for unloads.
 
     Returns:
         One result per check. Tool calling is reported as skipped for models that declare
@@ -384,7 +409,7 @@ def probe_chat_model(client: ProbeClient, model: str) -> list[CheckResult]:
     log.info("%s  (capabilities: %s; think=%s)", model, caps_result.detail, think)
     # (name, check, required)
     checks: list[tuple[str, Callable[[], CheckResult], bool]] = [
-        ("cold load + unload", lambda: check_load_and_unload(client, model, think), True),
+        ("cold load + unload", lambda: check_load_and_unload(client, model, think, wait), True),
         ("structured output", lambda: check_structured_output(client, model, think), False),
         (
             "structured output (schema in prompt)",
@@ -403,7 +428,7 @@ def probe_chat_model(client: ProbeClient, model: str) -> list[CheckResult]:
     results = [caps_result, *skipped]
     for name, fn, required in checks:
         results.append(_guarded(model, name, fn, required))
-    _safe_unload(client, model)
+    _safe_unload(client, model, wait)
     return results
 
 
@@ -412,6 +437,7 @@ def run_probe(
     ollama_version: str,
     models: Sequence[str],
     out_dir: Path,
+    wait: UnloadWait = DEFAULT_WAIT,
 ) -> ProbeReport:
     """Probe models one at a time (one resident model at a time, as in the pipeline).
 
@@ -420,6 +446,7 @@ def run_probe(
         ollama_version: Server version, recorded in the report.
         models: Chat model tags to probe.
         out_dir: Output directory for the report.
+        wait: How long to wait for unloads.
 
     Returns:
         The full report (also written as ``probe_report.json`` and ``probe_report.md``).
@@ -430,7 +457,7 @@ def run_probe(
         client.unload(loaded)
     report = ProbeReport(ollama_version=ollama_version)
     for model in models:
-        report.results.extend(probe_chat_model(client, model))
+        report.results.extend(probe_chat_model(client, model, wait))
     (out_dir / "probe_report.json").write_text(report.model_dump_json(indent=2) + "\n")
     (out_dir / "probe_report.md").write_text(report.to_markdown())
     return report

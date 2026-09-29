@@ -8,6 +8,8 @@ published runs reproducible byte-for-byte and lets CI run the full pipeline with
 from __future__ import annotations
 
 import json
+import logging
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -20,6 +22,8 @@ from labmate.core.llm.types import (
     EmbedRequest,
     EmbedResponse,
 )
+
+log = logging.getLogger(__name__)
 
 
 class CassetteMissError(LookupError):
@@ -54,12 +58,17 @@ class CassetteStore:
             key: Cache key.
 
         Returns:
-            The stored response dict, or ``None`` if absent.
+            The stored response dict, or ``None`` if absent or unreadable (a cassette cut
+            short by an interrupted run counts as missing, so it is recorded again).
         """
         p = self.path(key)
         if not p.exists():
             return None
-        response: dict[str, Any] = json.loads(p.read_text())["response"]
+        try:
+            response: dict[str, Any] = json.loads(p.read_text())["response"]
+        except (json.JSONDecodeError, KeyError):
+            log.warning("ignoring unreadable cassette %s", p)
+            return None
         return response
 
     def put(self, key: str, request: dict[str, Any], response: dict[str, Any]) -> None:
@@ -73,7 +82,13 @@ class CassetteStore:
         p = self.path(key)
         p.parent.mkdir(parents=True, exist_ok=True)
         record = {"key": key, "request": request, "response": response}
-        p.write_text(json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+        text = json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        # write a temporary file and rename it: an interrupted run never leaves half a cassette
+        with tempfile.NamedTemporaryFile(
+            "w", dir=p.parent, prefix=f".{key}.", suffix=".tmp", delete=False, encoding="utf-8"
+        ) as tmp:
+            tmp.write(text)
+        Path(tmp.name).replace(p)
 
 
 class ReplayClient:

@@ -25,9 +25,6 @@ from labmate.core.schemas import ClaimCard, Paper, Section
 
 log = logging.getLogger(__name__)
 
-SUMMARY_MIN_WORDS = 300
-"""Chapters shorter than this are not summarised (their chunks already say it all)."""
-
 SUMMARY_INPUT_WORDS = 3000
 """Words of a chapter shown to the summariser."""
 
@@ -71,7 +68,7 @@ def summarize_chapters(
     chapters = [
         c
         for c in sections
-        if c.level == 1 and len(chapter_text(sections, c).split()) >= SUMMARY_MIN_WORDS
+        if c.level == 1 and len(chapter_text(sections, c).split()) >= s.config.ask.summary_min_words
     ]
     template = load_prompt("summary")
 
@@ -154,6 +151,9 @@ def build_index(
 ) -> dict[str, tuple[int, int]]:
     """Index every source of the library that is not indexed yet.
 
+    An index built with another embedding model or chunk size is rebuilt completely:
+    its vectors and chunks can't be mixed with new ones.
+
     Args:
         s: Session.
         library: The library.
@@ -163,6 +163,12 @@ def build_index(
     Returns:
         Source id to ``(chunks, claim cards)`` for the sources indexed now.
     """
+    settings = {"embed_model": s.embedder.model, "chunk_words": str(s.config.ask.chunk_words)}
+    built_with = s.index.meta()
+    changed = sorted(k for k, v in settings.items() if k in built_with and built_with[k] != v)
+    if changed and not fresh:
+        log.warning("index settings changed (%s): re-indexing every source", ", ".join(changed))
+        fresh = True
     done: dict[str, tuple[int, int]] = {}
     with s.tracer.span("run", command="ask.index", sources=len(library.sources)):
         for source in library.sources:
@@ -170,5 +176,5 @@ def build_index(
                 log.info("  reuse %s", source.id)
                 continue
             done[source.id] = index_source(s, library, source, claims)
-        s.index.set_meta(embed_model=s.embedder.model, chunk_words=str(s.config.ask.chunk_words))
+        s.index.set_meta(**settings)
     return done
