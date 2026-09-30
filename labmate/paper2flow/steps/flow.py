@@ -2,23 +2,25 @@
 
 The planner draws the overview, from the raw data to the target output, and picks the
 steps that deserve a closer look; one worker call per picked step draws its detail
-diagram. The model only proposes graphs as data (typed nodes and edges). Code checks
+diagram. The model only proposes graphs as data (typed boxes and arrows). Code checks
 them — the flow must start at inputs and end at outputs, every label must name something
-the paper says, no number may be invented — feeds problems back, and lays the graphs out
-with Graphviz, top to bottom, in a fixed house style.
+the paper says, no number may be invented — and feeds problems back. Code then writes
+each graph as Mermaid in a fixed house style and renders it locally with mermaid-cli.
 """
 
 from __future__ import annotations
 
-import html
+import json
 import shutil
 import subprocess
+import tempfile
 from collections import Counter
 from pathlib import Path
 
+from langchain_core.runnables import RunnableConfig
+
 from labmate.core.factcheck import numbers_in
-from labmate.core.llm.structured import structured_chat
-from labmate.core.model import LLM
+from labmate.core.lc import RecordedChatModel, batch_map, prompt, structured
 from labmate.core.words import content_words
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import (
@@ -32,11 +34,14 @@ from labmate.paper2flow.schemas import (
     PaperType,
 )
 
-DOT_TIMEOUT_S = 20
-"""Graphviz render timeout."""
+MERMAID_CLI = ("npx", "--yes", "@mermaid-js/mermaid-cli@12.0.0")
+"""The pinned mermaid-cli (``make install`` downloads it once; it runs a headless Chromium)."""
 
-DPI = 200
-"""Resolution of the diagram PNGs."""
+MERMAID_TIMEOUT_S = 120
+"""Render timeout for one mermaid-cli call (all diagrams of a paper at once)."""
+
+SCALE = 2
+"""Pixel density of the diagram PNGs (2 = sharp on high-DPI screens and in print)."""
 
 MAX_LABEL_WORDS = 5
 """Longest node label."""
@@ -54,13 +59,13 @@ LETTERS = "ABC"
 """Names of the detail diagrams, in the order their steps appear in the overview."""
 
 KIND_STYLE = {
-    "input": ("#fff8d5", "#c9ad3f", "box"),
-    "data": ("#f7f6f4", "#9aa5b1", "cylinder"),
-    "component": ("#e3f2f8", "#5f95b0", "box"),
-    "process": ("#f1e1dc", "#ab4c31", "box"),
-    "output": ("#e4f8d6", "#6fa24c", "box"),
+    "input": ("#fff8d5", "#c9ad3f"),
+    "data": ("#f7f6f4", "#9aa5b1"),
+    "component": ("#e3f2f8", "#5f95b0"),
+    "process": ("#f1e1dc", "#ab4c31"),
+    "output": ("#e4f8d6", "#6fa24c"),
 }
-"""Fill, border and shape per node kind (the project-page card colours)."""
+"""Fill and border per node kind (the project-page card colours)."""
 
 KIND_NAMES = {
     "input": "Input",
@@ -70,6 +75,19 @@ KIND_NAMES = {
     "output": "Output",
 }
 """Legend entries."""
+
+MERMAID_THEME = {
+    "theme": "base",
+    "themeVariables": {
+        "fontFamily": "Inter, Helvetica, Arial, sans-serif",
+        "fontSize": "16px",
+        "lineColor": "#4c6176",
+        "primaryTextColor": "#222b35",
+        "edgeLabelBackground": "#fffefd",
+    },
+    "flowchart": {"curve": "basis", "nodeSpacing": 40, "rankSpacing": 45, "padding": 14},
+}
+"""mermaid-cli configuration: the house style shared by every diagram."""
 
 GOALS: dict[str, str] = {
     "method": "how data flows through the proposed method: from the raw input data, "
@@ -83,22 +101,21 @@ GOALS: dict[str, str] = {
 }
 """What the overview shows, per paper type."""
 
-
 # --- evidence ------------------------------------------------------------------------------
 
 
 def flow_cards(outline: Outline, cards: list[ClaimCard]) -> list[ClaimCard]:
-    """Claim cards the diagrams may draw on: the task and method blocks, then all method claims.
+    """Claim cards the diagrams may draw on: the task and method cards, then all method claims.
 
     Args:
-        outline: Approved outline.
+        outline: The outline.
         cards: All claim cards.
 
     Returns:
         Cards in that order, without duplicates.
     """
     by_id = {c.id: c for c in cards}
-    ids = [cid for sl in outline.slides if sl.purpose in ("task", "method") for cid in sl.claim_ids]
+    ids = [cid for c in outline.cards if c.purpose in ("task", "method") for cid in c.claim_ids]
     ids += [c.id for c in cards if c.kind in ("method", "contribution")]
     return [by_id[i] for i in dict.fromkeys(ids) if i in by_id]
 
@@ -282,34 +299,34 @@ def plan_overview(
     bullets: list[str],
     cards: list[ClaimCard],
     sections: str,
-    llm: LLM,
+    model: RecordedChatModel,
+    config: RunnableConfig | None = None,
 ) -> FlowOverview:
     """Ask the planner for the end-to-end flow and the steps to expand.
 
     Args:
         paper: The paper.
-        paper_type: Route (what the flow shows).
-        bullets: The fact-checked method block's bullets.
+        paper_type: What kind of paper (what the flow shows).
+        bullets: The fact-checked method card's bullets.
         cards: Evidence cards (:func:`flow_cards`).
         sections: Evidence text (:func:`flow_sections`).
-        llm: Writer model settings.
+        model: The writer model.
+        config: The calling step's config (callbacks).
 
     Returns:
         An overview that passes :func:`check_overview`.
     """
     evidence = " ".join([*(c.evidence_quote for c in cards), *bullets, sections])
     exempt = frozenset(content_words(paper.title, split_hyphens=True))
-    prompt = load_prompt("flow_overview").format(
-        title=paper.title,
-        goal=GOALS[paper_type],
-        bullets="\n".join(f"- {b}" for b in bullets) or "(none)",
-        evidence=_evidence(cards, sections),
-    )
-    return structured_chat(
-        llm.backend,
-        llm.request(prompt),
-        FlowOverview,
-        check=lambda g: check_overview(g, evidence, exempt),
+    planner = structured(model, FlowOverview, check=lambda g: check_overview(g, evidence, exempt))
+    return (prompt(load_prompt("flow_overview")) | planner).invoke(
+        {
+            "title": paper.title,
+            "goal": GOALS[paper_type],
+            "bullets": "\n".join(f"- {b}" for b in bullets) or "(none)",
+            "evidence": _evidence(cards, sections),
+        },
+        config,
     )
 
 
@@ -319,17 +336,19 @@ def plan_detail(
     node_id: str,
     cards: list[ClaimCard],
     sections: str,
-    llm: LLM,
+    model: RecordedChatModel,
+    config: RunnableConfig | None = None,
 ) -> FlowDetail:
     """Ask a worker for the detail diagram of one overview step.
 
     Args:
         paper: The paper.
-        overview: The approved overview.
+        overview: The overview.
         node_id: The step to break down.
         cards: Evidence cards.
         sections: Evidence text.
-        llm: Writer model settings.
+        model: The writer model.
+        config: The calling step's config (callbacks).
 
     Returns:
         The detail diagram, passing :func:`check_detail`.
@@ -339,21 +358,55 @@ def plan_detail(
     labels = {n.id: n.label for n in overview.nodes}
     incoming = [labels[e.source] for e in overview.edges if e.target == node_id]
     outgoing = [labels[e.target] for e in overview.edges if e.source == node_id]
-    prompt = load_prompt("flow_detail").format(
-        title=paper.title,
-        overview=_describe(overview),
-        step=labels[node_id],
-        incoming=", ".join(incoming) or "(nothing)",
-        outgoing=", ".join(outgoing) or "(nothing)",
-        evidence=_evidence(cards, sections),
+    worker = structured(
+        model, FlowGraph, check=lambda g: check_detail(g, overview, evidence, exempt)
     )
-    graph = structured_chat(
-        llm.backend,
-        llm.request(prompt),
-        FlowGraph,
-        check=lambda g: check_detail(g, overview, evidence, exempt),
+    graph = (prompt(load_prompt("flow_detail")) | worker).invoke(
+        {
+            "title": paper.title,
+            "overview": _describe(overview),
+            "step": labels[node_id],
+            "incoming": ", ".join(incoming) or "(nothing)",
+            "outgoing": ", ".join(outgoing) or "(nothing)",
+            "evidence": _evidence(cards, sections),
+        },
+        config,
     )
     return FlowDetail(node_id=node_id, graph=graph)
+
+
+def plan_flows(
+    paper: Paper,
+    paper_type: PaperType,
+    bullets: list[str],
+    cards: list[ClaimCard],
+    model: RecordedChatModel,
+    workers: int = 2,
+    config: RunnableConfig | None = None,
+) -> Flows:
+    """The overview (orchestrator), then one detail diagram per picked step (workers).
+
+    Args:
+        paper: The paper.
+        paper_type: What kind of paper.
+        bullets: The fact-checked method card's bullets.
+        cards: Evidence cards (:func:`flow_cards`).
+        model: The writer model.
+        workers: Concurrent worker calls.
+        config: The calling step's config (callbacks).
+
+    Returns:
+        All diagrams, details in overview order.
+    """
+    sections = flow_sections(paper, cards)
+    overview = plan_overview(paper, paper_type, bullets, cards, sections, model, config)
+    details = batch_map(
+        lambda nid, cfg: plan_detail(paper, overview, nid, cards, sections, model, cfg),
+        detail_order(overview),
+        config,
+        workers,
+    )
+    return assemble_flows(overview, details)
 
 
 def detail_order(overview: FlowOverview) -> list[str]:
@@ -386,89 +439,44 @@ def assemble_flows(overview: FlowOverview, details: list[FlowDetail]) -> Flows:
 # --- rendering -----------------------------------------------------------------------------
 
 
-def _wrap(label: str, width: int = 18) -> list[str]:
-    lines: list[str] = []
-    for word in label.split():
-        if lines and len(lines[-1]) + 1 + len(word) <= width:
-            lines[-1] += " " + word
-        else:
-            lines.append(word)
-    return lines or [label]
+def _text(label: str) -> str:
+    """A label as Mermaid text: quotes and angle brackets as entity codes, never markup."""
+    return (
+        label.replace("#", "#35;").replace('"', "#quot;").replace("<", "#lt;").replace(">", "#gt;")
+    )
 
 
-def _quote(text: str) -> str:
-    return '"' + text.replace("\\", "\\\\").replace('"', "'") + '"'
+def flow_mermaid(graph: FlowGraph, markers: dict[str, str] | None = None) -> str:
+    """Mermaid source in the house style, top to bottom (built by code, never by the model).
 
-
-def flow_dot(graph: FlowGraph, markers: dict[str, str] | None = None) -> str:
-    """Graphviz source in the house style, top to bottom (built by code, never by the model).
+    Node ids are renumbered (``n0``, ``n1``, ...), so a model's id can't clash with a
+    Mermaid keyword, and labels are escaped, so paper text can't inject Mermaid syntax.
 
     Args:
         graph: Flow diagram.
-        markers: Node id to detail letter; those boxes get a "detail A" note and a double
+        markers: Node id to detail letter; those boxes get a "detail A" note and a thick
             border, pointing to their detail diagram.
 
     Returns:
-        DOT source.
+        Mermaid source.
     """
     markers = markers or {}
-    lines = [
-        "digraph flow {",
-        '  graph [rankdir=TB, bgcolor="transparent", pad="0.3", nodesep="0.45", '
-        'ranksep="0.5", splines=true];',
-        '  node [style="rounded,filled", fontname="Helvetica", fontsize=15, '
-        'fontcolor="#222b35", penwidth=1.6, margin="0.24,0.12"];',
-        '  edge [color="#4c6176", penwidth=1.4, arrowsize=0.8, fontname="Helvetica", '
-        'fontsize=12, fontcolor="#4c6176"];',
-    ]
+    ids = {n.id: f"n{i}" for i, n in enumerate(graph.nodes)}
+    lines = ["flowchart TB"]
+    for kind, (fill, border) in KIND_STYLE.items():
+        lines.append(f"  classDef {kind} fill:{fill},stroke:{border},stroke-width:1.6px")
+    lines.append("  classDef expanded stroke-width:4px")
     for node in graph.nodes:
-        fill, border, shape = KIND_STYLE[node.kind]
-        text = "<BR/>".join(html.escape(line) for line in _wrap(node.label))
-        extra = ""
+        text = _text(node.label)
         if node.id in markers:
-            text += (
-                f'<BR/><FONT POINT-SIZE="11" COLOR="#ab4c31"><B>detail {markers[node.id]}'
-                "</B></FONT>"
-            )
-            extra = ", peripheries=2"
-        lines.append(
-            f"  {_quote(node.id)} [label=<{text}>, shape={shape}, "
-            f'fillcolor="{fill}", color="{border}"{extra}];'
-        )
+            text += f"<br/><b>detail {markers[node.id]}</b>"
+        box = f'[("{text}")]' if node.kind == "data" else f'("{text}")'
+        extra = ",expanded" if node.id in markers else ""
+        lines.append(f"  {ids[node.id]}{box}:::{node.kind}{extra}")
     for edge in graph.edges:
-        attrs = f"label={_quote('  ' + edge.label + '  ')}" if edge.label else ""
-        lines.append(f"  {_quote(edge.source)} -> {_quote(edge.target)} [{attrs}];")
-    lines.append("}")
+        arrow = f'-->|"{_text(edge.label)}"|' if edge.label else "-->"
+        lines.append(f"  {ids[edge.source]} {arrow} {ids[edge.target]}")
     return "\n".join(lines) + "\n"
-
-
-def render_flow(graph: FlowGraph, out: Path, markers: dict[str, str] | None = None) -> Path:
-    """Render a flow diagram to PNG with Graphviz.
-
-    Args:
-        graph: Flow diagram.
-        out: Output PNG path.
-        markers: See :func:`flow_dot`.
-
-    Returns:
-        ``out``.
-
-    Raises:
-        RuntimeError: If Graphviz is not installed or fails.
-    """
-    if shutil.which("dot") is None:
-        raise RuntimeError("Graphviz is not installed: the `dot` command is needed to draw flows")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
-        ["dot", "-Tpng", f"-Gdpi={DPI}", "-o", str(out.resolve())],
-        input=flow_dot(graph, markers),
-        capture_output=True,
-        text=True,
-        timeout=DOT_TIMEOUT_S,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(f"Graphviz failed: {proc.stderr.strip()[:300]}")
-    return out
 
 
 def image_names(flows: Flows) -> list[str]:
@@ -483,8 +491,54 @@ def image_names(flows: Flows) -> list[str]:
     return ["flow.png"] + [f"flow-{LETTERS[i].lower()}.png" for i in range(len(flows.details))]
 
 
+def flow_sources(flows: Flows) -> list[str]:
+    """Mermaid source of every diagram, overview (with detail markers) first.
+
+    Args:
+        flows: All diagrams.
+
+    Returns:
+        One source per diagram, in :func:`image_names` order.
+    """
+    markers = {d.node_id: LETTERS[i] for i, d in enumerate(flows.details)}
+    return [flow_mermaid(flows.overview, markers), *(flow_mermaid(d.graph) for d in flows.details)]
+
+
+def render_mermaid(sources: list[str], out: list[Path]) -> list[Path]:
+    """Render Mermaid diagrams to PNG with mermaid-cli, all in one call.
+
+    Args:
+        sources: Mermaid sources.
+        out: One output PNG path per source.
+
+    Returns:
+        ``out``.
+
+    Raises:
+        RuntimeError: If Node.js (``npx``) is missing or mermaid-cli fails.
+    """
+    if shutil.which("npx") is None:
+        raise RuntimeError("Node.js is not installed: `npx` is needed to render Mermaid diagrams")
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        (work / "config.json").write_text(json.dumps(MERMAID_THEME))
+        blocks = "\n".join(f"```mermaid\n{s}```\n" for s in sources)
+        (work / "flows.md").write_text(blocks)
+        proc = subprocess.run(
+            [*MERMAID_CLI, "--quiet", "-i", "flows.md", "-o", "out.md", "-e", "png",
+             "-s", str(SCALE), "-b", "transparent", "-c", "config.json"],
+            cwd=work, capture_output=True, text=True, timeout=MERMAID_TIMEOUT_S,
+        )  # fmt: skip
+        if proc.returncode != 0:
+            raise RuntimeError(f"mermaid-cli failed: {proc.stderr.strip()[:300]}")
+        for i, path in enumerate(out, start=1):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(work / f"out-{i}.png", path)
+    return out
+
+
 def render_flows(flows: Flows, out_dir: Path) -> list[str]:
-    """Render the overview (with detail markers) and every detail diagram.
+    """Render the overview (with detail markers) and every detail diagram to PNG.
 
     Args:
         flows: All diagrams.
@@ -493,11 +547,8 @@ def render_flows(flows: Flows, out_dir: Path) -> list[str]:
     Returns:
         File names (:func:`image_names`), overview first.
     """
-    markers = {d.node_id: LETTERS[i] for i, d in enumerate(flows.details)}
     names = image_names(flows)
-    render_flow(flows.overview, out_dir / names[0], markers)
-    for detail, name in zip(flows.details, names[1:], strict=True):
-        render_flow(detail.graph, out_dir / name)
+    render_mermaid(flow_sources(flows), [out_dir / n for n in names])
     return names
 
 

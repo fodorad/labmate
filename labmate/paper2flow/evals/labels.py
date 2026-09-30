@@ -31,7 +31,7 @@ class LabelledBullet(BaseModel):
     """One bullet to label.
 
     Attributes:
-        id: ``<paper>/r<round>s<slide>b<bullet>``.
+        id: ``<paper>/r<round>c<card>b<bullet>``.
         paper: Run directory name.
         text: Bullet text.
         evidence: The verified quotes the bullet cites.
@@ -68,7 +68,7 @@ def bullets_for_labelling(run_dir: Path) -> list[LabelledBullet]:
             seen.add(c.text)
             out.append(
                 LabelledBullet(
-                    id=f"{run_dir.name}/r{r}s{c.slide}b{c.bullet}",
+                    id=f"{run_dir.name}/r{r}c{c.card}b{c.bullet}",
                     paper=run_dir.name,
                     text=c.text,
                     evidence=[quotes[i] for i in c.claim_ids if i in quotes],

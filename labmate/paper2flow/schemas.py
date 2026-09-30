@@ -1,6 +1,6 @@
-"""paper2flow data model: routing, the outline, the post and the flow diagrams.
+"""paper2flow data model: routing, the outline, the flow diagrams and the chain's state.
 
-The shared types (papers, claim cards, the fact-check audit) live in
+The shared types (papers, claim cards, grounded cards, the fact-check audit) live in
 :mod:`labmate.core.schemas` and are re-exported here, so a step imports all it needs
 from one place.
 """
@@ -15,6 +15,9 @@ from labmate.core.schemas import (
     Bullet,
     BulletCheck,
     BulletVerdict,
+    Card,
+    Cards,
+    CardVerdicts,
     ClaimCard,
     ClaimDraft,
     ClaimKind,
@@ -25,16 +28,17 @@ from labmate.core.schemas import (
     Paper,
     Section,
     SectionClaims,
-    SlideText,
-    SlideVerdicts,
     VerdictLabel,
-    WrittenSlides,
 )
 
 __all__ = [
+    "Analysis",
     "Bullet",
     "BulletCheck",
     "BulletVerdict",
+    "Card",
+    "CardVerdicts",
+    "Cards",
     "ClaimCard",
     "ClaimDraft",
     "ClaimKind",
@@ -42,68 +46,53 @@ __all__ = [
     "FactCheckReport",
     "FactChecked",
     "Figure",
+    "FlowDetail",
+    "FlowEdge",
+    "FlowGraph",
+    "FlowNode",
+    "FlowOverview",
+    "Flows",
+    "NodeKind",
+    "Outline",
     "Paper",
+    "PaperType",
+    "PlannedCard",
+    "PublicationDraft",
+    "Route",
     "Section",
     "SectionClaims",
-    "SlideText",
-    "SlideVerdicts",
     "VerdictLabel",
-    "WrittenSlides",
 ]
 
 # --- routing and the outline ---------------------------------------------------------------
 
 PaperType = Literal["method", "benchmark", "survey", "position"]
-"""Narrative families; each has its own slide template (see ``steps/outline.py``)."""
+"""What kind of paper it is; it changes how the four cards and the flow are read."""
 
 
 class Route(BaseModel):
-    """Routing decision: which narrative template fits the paper."""
+    """Routing decision: which kind of paper this is."""
 
     paper_type: PaperType
     confidence: float = Field(ge=0, le=1, description="0 to 1")
     reason: str = Field(description="One sentence.")
 
 
-class OutlineSlide(BaseModel):
-    """One planned slide."""
+class PlannedCard(BaseModel):
+    """One planned card of the overview."""
 
     title: str = Field(description="Working title, at most 8 words.")
     purpose: str = Field(description="One of the allowed purposes.")
-    claim_ids: list[str] = Field(
-        description="Ids of the 2 to 4 claim cards this slide is built on."
-    )
+    claim_ids: list[str] = Field(description="Ids of the 3 to 5 claim cards it is built on.")
 
 
 class Outline(BaseModel):
-    """The orchestrator's plan: the four blocks and the claims each one is built on."""
+    """The orchestrator's plan: the four cards and the claims each one is built on."""
 
-    hook: str = Field(description="Headline that makes an ML engineer stop scrolling.")
-    slides: list[OutlineSlide] = Field(min_length=3, max_length=8)
-
-
-class PostDraft(BaseModel):
-    """A LinkedIn post drafted from the fact-checked slides."""
-
-    hook: str = Field(description="First line, at most 15 words, makes people open the post.")
-    takeaways: list[Bullet] = Field(
-        description="3 to 5 sentences explaining the paper, each citing its claim ids.",
-        min_length=3,
-        max_length=5,
-    )
-    question: str = Field(description="A closing question to readers, with no factual claims.")
+    cards: list[PlannedCard] = Field(min_length=4, max_length=4)
 
 
-class Post(BaseModel):
-    """The fact-checked post and its audit trail."""
-
-    hook: str
-    takeaways: list[Bullet]
-    question: str
-    report: FactCheckReport
-
-
-# --- publication info -------------------------------------------------------------------------
+# --- publication info ----------------------------------------------------------------------
 
 
 class PublicationDraft(BaseModel):
@@ -138,7 +127,7 @@ class FlowEdge(BaseModel):
 
 
 class FlowGraph(BaseModel):
-    """A top-to-bottom flow diagram."""
+    """A top-to-bottom flow diagram, proposed by the model as data and checked by code."""
 
     title: str = Field(description="At most 8 words.")
     nodes: list[FlowNode] = Field(min_length=3, max_length=10)
@@ -168,3 +157,32 @@ class Flows(BaseModel):
 
     overview: FlowOverview
     details: list[FlowDetail] = Field(default_factory=list)
+
+
+# --- the chain's state ---------------------------------------------------------------------
+
+
+class Analysis(BaseModel):
+    """What the analysis chain knows about a paper so far; each step fills in one field.
+
+    Attributes:
+        source: The paper as given: an arXiv id or URL, a PDF URL, or a local PDF path.
+        title: Title override for PDFs without a usable title.
+        paper: The ingested paper (venue and date added by the publication step).
+        route: What kind of paper it is.
+        claims: Verified claim cards.
+        outline: The four planned cards.
+        written: The cards as the writer drafted them.
+        checked: The cards after the fact-check loop, with its audit.
+        flows: The flow diagrams.
+    """
+
+    source: str
+    title: str | None = None
+    paper: Paper | None = None
+    route: Route | None = None
+    claims: Claims | None = None
+    outline: Outline | None = None
+    written: Cards | None = None
+    checked: FactChecked | None = None
+    flows: Flows | None = None

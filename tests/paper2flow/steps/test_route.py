@@ -1,8 +1,8 @@
 import json
 
-from labmate.core.model import LLM
 from labmate.paper2flow.schemas import Paper
 from labmate.paper2flow.steps.route import route_paper
+from tests.conftest import chat_model
 
 PAPER = Paper(paper_id="x", title="A Survey of Things", abstract="We review things.")
 
@@ -10,7 +10,7 @@ PAPER = Paper(paper_id="x", title="A Survey of Things", abstract="We review thin
 def routed(fake, paper_type, confidence):
     reply = {"paper_type": paper_type, "confidence": confidence, "reason": "because"}
     fake.chat_handler = lambda b: {"model": b["model"], "message": {"content": json.dumps(reply)}}
-    return route_paper(PAPER, LLM(fake.client(), "qwen3.6:35b-mlx"))
+    return route_paper(PAPER, chat_model(fake))
 
 
 def test_confident_route_is_kept(fake):

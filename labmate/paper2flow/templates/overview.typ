@@ -80,25 +80,26 @@
   }
 })
 
-// --- page 2: the four blocks ------------------------------------------------------------
+// --- page 2: the four cards, two by two, like a project page ---------------------------
+#let card(c) = block(width: 100%, height: 100%, fill: rgb(c.color), radius: 12pt,
+  inset: (x: 12pt, top: 20pt, bottom: 10pt), {
+    place(top + left, dy: -30pt, box(fill: white, stroke: 0.8pt + rgb("#d9d9d9"),
+      radius: 12pt, inset: (x: 12pt, y: 5pt), text(size: 10pt, weight: "bold", c.label)))
+    text(size: 11pt, weight: "bold", c.title)
+    v(4pt)
+    for b in c.bullets {
+      grid(columns: (8pt, 1fr), column-gutter: 3pt,
+        move(dy: 3.5pt, circle(radius: 2pt, fill: rgb(theme.text), stroke: none)),
+        text(size: 9.5pt, b))
+      v(1pt)
+    }
+  })
+
 #pagebreak()
 #kicker("At a glance")
-#v(16pt)
-#for c in data.cards {
-  block(width: 100%, fill: rgb(c.color), radius: 12pt, breakable: false,
-    inset: (x: 16pt, top: 22pt, bottom: 12pt), above: 26pt, {
-      place(top + left, dy: -33pt, box(fill: white, stroke: 0.8pt + rgb("#d9d9d9"),
-        radius: 12pt, inset: (x: 14pt, y: 5pt), text(size: 10.5pt, weight: "bold", c.label)))
-      text(size: 12pt, weight: "bold", c.title)
-      v(6pt)
-      for b in c.bullets {
-        grid(columns: (10pt, 1fr), column-gutter: 4pt,
-          move(dy: 4pt, circle(radius: 2.2pt, fill: rgb(theme.text), stroke: none)),
-          text(size: 10.5pt, b))
-        v(2pt)
-      }
-    })
-}
+#v(24pt)
+#grid(columns: (1fr, 1fr), rows: (1fr, 1fr), column-gutter: 12pt, row-gutter: 32pt,
+  ..data.cards.map(card))
 
 // --- pages 3+: the flow diagrams --------------------------------------------------------
 #for d in data.diagrams {

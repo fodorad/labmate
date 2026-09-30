@@ -1,12 +1,12 @@
 import json
 
-from labmate.core.model import LLM
 from labmate.paper2flow.schemas import Paper, PublicationDraft
 from labmate.paper2flow.steps.publication import (
     check_publication,
     read_publication,
     with_publication,
 )
+from tests.conftest import chat_model
 
 FIRST_PAGE = (
     "Journal of Imaging\nArticle\nBlinkLinMulT: Transformer-Based Eye Blink Detection\n"
@@ -14,6 +14,7 @@ FIRST_PAGE = (
     "Citation: Fodor, Á. J. Imaging 2023, 9, 196.\n"
     "arXiv:2309.00001v2 [cs.CV] 3 Oct 2023"
 )
+
 PAPER = Paper(paper_id="x", title="BlinkLinMulT", year=2022)
 
 
@@ -61,7 +62,7 @@ def test_reads_venue_and_date_with_feedback(fake):
         return reply(next(answers))(body)
 
     fake.chat_handler = handler
-    llm = LLM(fake.client(), "qwen3.6:35b-mlx")
+    llm = chat_model(fake)
     notes = PAPER.model_copy(update={"notes": "Comments: 12 pages"})
     result = read_publication(notes, FIRST_PAGE, llm)
     assert result == draft("J. Imaging 2023, 9, 196", "21 September 2023")
@@ -71,7 +72,7 @@ def test_reads_venue_and_date_with_feedback(fake):
 
 def test_gives_up_quietly_and_skips_empty_sources(fake):
     fake.chat_handler = reply({"venue": "Made Up Conference", "date": ""})
-    llm = LLM(fake.client(), "qwen3.6:35b-mlx")
+    llm = chat_model(fake)
     assert read_publication(PAPER, FIRST_PAGE, llm) == draft()
     calls = len(fake.requests)
     assert read_publication(PAPER, "", llm) == draft() and len(fake.requests) == calls

@@ -20,7 +20,7 @@ from labmate.ask.library import Library, Source
 from labmate.ask.prompts import load_prompt
 from labmate.ask.session import AskSession
 from labmate.core.extract import extract_claims
-from labmate.core.parallel import parallel_map
+from labmate.core.lc import batch_map
 from labmate.core.schemas import ClaimCard, Paper, Section
 
 log = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ def summarize_chapters(
         return " ".join(s.llm.backend.chat(s.llm.request(prompt)).content.split())
 
     s.switcher.use(s.llm.model)
-    summaries = parallel_map(summarize, chapters, s.workers)
+    summaries = batch_map(lambda chapter, _: summarize(chapter), chapters, None, s.workers)
     return [
         Chunk(
             id=f"{source.id}:{start_index + i:04d}",
@@ -113,7 +113,7 @@ def source_claims(s: AskSession, source: Source, sections: list[DocSection]) -> 
         sections=[Section(title=x.title, page=x.page, text=x.text) for x in sections],
     )
     s.switcher.use(s.llm.model)
-    return extract_claims(paper, s.llm, s.workers).cards
+    return extract_claims(paper, s.writer_model, s.workers).cards
 
 
 def index_source(

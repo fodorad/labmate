@@ -371,7 +371,10 @@ def supported_sentences(s: AskSession, answer: Answer) -> int:
         return 0
     ids = [c for x in answer.sentences for c in x.chunk_ids]
     loop = judge_pending(
-        start_loop(to_blocks(answer.sentences)), evidence_cards(s.index, ids), s.judge, s.workers
+        start_loop(to_blocks(answer.sentences)),
+        evidence_cards(s.index, ids),
+        s.judge_model,
+        s.workers,
     )
     return sum(c.passed for c in loop.report.rounds[-1])
 

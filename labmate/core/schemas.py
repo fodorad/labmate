@@ -134,21 +134,20 @@ class Bullet(BaseModel):
     claim_ids: list[str] = Field(min_length=1)
 
 
-class SlideText(BaseModel):
-    """A titled block of bullets, every bullet grounded in claim cards."""
+class Card(BaseModel):
+    """A titled card of bullets, every bullet grounded in claim cards."""
 
     title: str = Field(description="At most 8 words.")
     bullets: list[Bullet] = Field(min_length=1, max_length=4)
 
 
-class WrittenSlides(BaseModel):
-    """Grounded text blocks (slides, overview blocks, post sentences), in order."""
+class Cards(BaseModel):
+    """Grounded cards in order: the overview's four cards, a post's sentences, an answer."""
 
-    hook: str
-    slides: list[SlideText]
+    cards: list[Card]
 
 
-# --- M3: fact-check loop ---------------------------------------------------------------------
+# --- fact-check loop -------------------------------------------------------------------------
 
 VerdictLabel = Literal["supported", "partial", "unsupported"]
 """Judge verdict for one bullet. Only ``supported`` passes."""
@@ -162,8 +161,8 @@ class BulletVerdict(BaseModel):
     reason: str = Field(description="One short sentence naming what is or isn't supported.")
 
 
-class SlideVerdicts(BaseModel):
-    """Judge output for one slide: exactly one verdict per bullet."""
+class CardVerdicts(BaseModel):
+    """Judge output for one card: exactly one verdict per bullet."""
 
     verdicts: list[BulletVerdict]
 
@@ -172,8 +171,8 @@ class BulletCheck(BaseModel):
     """Everything known about one bullet in one round (the fact-check audit trail).
 
     Attributes:
-        slide: 1-based slide number.
-        bullet: 1-based bullet number within the slide.
+        card: 1-based card number.
+        bullet: 1-based bullet number within the card.
         text: Bullet text.
         claim_ids: Cited claims.
         problems: Deterministic check failures (e.g. a number not in the evidence).
@@ -181,7 +180,7 @@ class BulletCheck(BaseModel):
         reason: Judge reason.
     """
 
-    slide: int
+    card: int
     bullet: int
     text: str
     claim_ids: list[str]
@@ -200,13 +199,13 @@ class FactCheckReport(BaseModel):
 
     Attributes:
         rounds: Checks of every bullet, per round (round 0 = the writer's first draft).
-        dropped: Bullets still failing after the last round, removed from the deck.
-        dropped_slides: 1-based numbers of slides that lost all their bullets.
+        dropped: Bullets still failing after the last round, removed from the cards.
+        dropped_cards: 1-based numbers of cards that lost all their bullets.
     """
 
     rounds: list[list[BulletCheck]]
     dropped: list[BulletCheck] = Field(default_factory=list)
-    dropped_slides: list[int] = Field(default_factory=list)
+    dropped_cards: list[int] = Field(default_factory=list)
 
     @property
     def failed_first(self) -> int:
@@ -220,7 +219,7 @@ class FactCheckReport(BaseModel):
 
 
 class FactChecked(BaseModel):
-    """Output of the fact-check step: the corrected slides and the audit trail."""
+    """Output of the fact-check step: the corrected cards and the audit trail."""
 
-    slides: WrittenSlides
+    cards: Cards
     report: FactCheckReport

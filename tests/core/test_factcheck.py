@@ -2,10 +2,18 @@ import json
 
 import pytest
 
-from labmate.core.factcheck import deterministic_problems, fact_check, numbers_in
+from labmate.core.factcheck import (
+    check_card,
+    deterministic_problems,
+    fact_check,
+    names_in,
+    numbers_in,
+    title_names,
+)
+from labmate.core.lc import RecordedChatModel
 from labmate.core.model import LLM
 from labmate.core.phases import ModelSwitcher
-from labmate.paper2flow.schemas import Bullet, ClaimCard, Claims, SlideText, WrittenSlides
+from labmate.core.schemas import Bullet, Card, Cards, ClaimCard, Claims
 from tests.conftest import agentic_chat
 
 CARDS = [
@@ -31,8 +39,8 @@ CARDS = [
 CLAIMS = Claims(cards=CARDS)
 
 
-def slide(*bullets):
-    return SlideText(title="Results", bullets=[Bullet(text=t, claim_ids=ids) for t, ids in bullets])
+def card(*bullets):
+    return Card(title="Results", bullets=[Bullet(text=t, claim_ids=ids) for t, ids in bullets])
 
 
 def test_numbers_in_normalises_separators():
@@ -68,15 +76,10 @@ class Recorder(ModelSwitcher):
 
 def run_loop(fake, written, max_rounds=2):
     switcher = Recorder()
-    result = fact_check(
-        written,
-        [[b.claim_ids[0] for b in s.bullets] for s in written.slides],
-        CLAIMS,
-        LLM(fake.client(), "writer"),
-        LLM(fake.client(), "judge"),
-        switcher,
-        max_rounds=max_rounds,
-    )
+    writer = RecordedChatModel(llm=LLM(fake.client(), "writer"), switcher=switcher)
+    judge = RecordedChatModel(llm=LLM(fake.client(), "judge"), switcher=switcher)
+    scopes = [[b.claim_ids[0] for b in c.bullets] for c in written.cards]
+    result = fact_check(written, scopes, CLAIMS, writer, judge, max_rounds=max_rounds)
     return result, switcher
 
 
@@ -87,30 +90,29 @@ def model(fake):
     return fake
 
 
-def test_clean_slides_pass_in_one_round_with_one_model(model):
-    written = WrittenSlides(hook="h", slides=[slide(("Trained for 3.5 days.", ["c01"]))])
+def test_clean_cards_pass_in_one_round_with_one_model(model):
+    written = Cards(cards=[card(("Trained for 3.5 days.", ["c01"]))])
     result, switcher = run_loop(model, written)
     assert len(result.report.rounds) == 1 and result.report.failed_first == 0
-    assert result.slides == written and switcher.order == ["judge"]
+    assert result.cards == written and switcher.order == ["judge"]
 
 
 def test_failing_bullet_is_rewritten_and_rejudged(model):
-    written = WrittenSlides(
-        hook="h",
-        slides=[
-            slide(("Trained for 3.5 days.", ["c01"])),
-            slide(("WRONG: beats every model ever.", ["c02"])),
-        ],
+    written = Cards(
+        cards=[
+            card(("Trained for 3.5 days.", ["c01"])),
+            card(("WRONG: beats every model ever.", ["c02"])),
+        ]
     )
     result, switcher = run_loop(model, written)
     report = result.report
     assert report.failed_first == 1 and report.total_first == 2
     assert len(report.rounds) == 2 and all(c.passed for c in report.rounds[1])
-    assert result.slides.slides[0] == written.slides[0]  # untouched
-    assert "WRONG" not in result.slides.slides[1].bullets[0].text
+    assert result.cards.cards[0] == written.cards[0]  # untouched
+    assert "WRONG" not in result.cards.cards[1].bullets[0].text
     assert switcher.order == ["judge", "writer", "judge"]  # phases, not interleaving
     judged = [b for p, b in model.requests if p == "/api/chat" and b["model"] == "judge"]
-    assert len(judged) == 3  # 2 slides, then only the rewritten one
+    assert len(judged) == 3  # 2 cards, then only the rewritten one
 
 
 def test_bullets_still_failing_after_budget_are_dropped(model):
@@ -127,22 +129,21 @@ def test_bullets_still_failing_after_budget_are_dropped(model):
         return agentic_chat(body)
 
     model.chat_handler = stubborn
-    written = WrittenSlides(
-        hook="h",
-        slides=[slide(("Trained for 3.5 days.", ["c01"])), slide(("WRONG claim", ["c02"]))],
+    written = Cards(
+        cards=[card(("Trained for 3.5 days.", ["c01"])), card(("WRONG claim", ["c02"]))]
     )
     result, _ = run_loop(model, written, max_rounds=1)
     report = result.report
     assert len(report.rounds) == 2 and len(report.dropped) == 1
-    assert report.dropped_slides == [2] and len(result.slides.slides) == 1
+    assert report.dropped_cards == [2] and len(result.cards.cards) == 1
 
 
 def test_number_drift_fails_even_if_the_judge_is_fooled(model):
-    written = WrittenSlides(hook="h", slides=[slide(("Trained for 4 days.", ["c01"]))])
+    written = Cards(cards=[card(("Trained for 4 days.", ["c01"]))])
     result, _ = run_loop(model, written, max_rounds=0)
     check = result.report.rounds[0][0]
     assert check.verdict == "supported" and not check.passed
-    assert result.report.dropped_slides == [1]
+    assert result.report.dropped_cards == [1]
 
 
 def test_switcher_unloads_previous_model(fake):
@@ -159,8 +160,6 @@ def test_switcher_unloads_previous_model(fake):
 
 
 def test_names_must_be_in_the_evidence_unless_generic_or_in_the_title():
-    from labmate.core.factcheck import names_in, title_names
-
     assert names_in("DenseNet121 gets 0.99 F1 on MRL, EN-DE and TalkingFace data") == {
         "densenet121",
         "f1",
@@ -180,3 +179,21 @@ def test_names_must_be_in_the_evidence_unless_generic_or_in_the_title():
     exempt = title_names("BlinkLinMulT: Transformer-Based Eye Blink Detection")
     assert "blinklinmult" in exempt
     assert deterministic_problems("BlinkLinMulT reaches 0.9953 F1.", quote, exempt) == []
+
+
+def test_card_rules_flag_long_text_foreign_claims_and_inline_ids():
+    assert check_card(card(("ok", ["c01"])), {"c01"}) == []
+    long_title = Card(
+        title="one two three four five six seven eight nine ten eleven",
+        bullets=[
+            Bullet(text="word " * 31, claim_ids=["c01"]),
+            Bullet(text="fine", claim_ids=["c01", "c07"]),
+            Bullet(text="Faster training [c03].", claim_ids=["c01"]),
+        ],
+    )
+    assert check_card(long_title, {"c01"}) == [
+        "the title has more than 10 words",
+        "bullet 1 has more than 30 words",
+        "bullet 2 cites claims not on this card: ['c07']",
+        "bullet 3 has claim ids in its text; list them in claim_ids only",
+    ]

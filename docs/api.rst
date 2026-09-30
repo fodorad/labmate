@@ -15,8 +15,8 @@ API Reference
 Core
 ----
 
-Shared by every feature: local models with record/replay, tracing, ingest, claim
-extraction and the fact-check loop.
+Shared by every feature: local models with record/replay, the LangChain building blocks
+over them, tracing, ingest, claim extraction and the fact-check loop.
 
 .. automodule:: labmate.core
 .. automodule:: labmate.core.llm.types
@@ -32,6 +32,12 @@ extraction and the fact-check loop.
    :show-inheritance:
 .. automodule:: labmate.core.model
    :members:
+.. automodule:: labmate.core.lc
+   :members:
+   :show-inheritance:
+.. automodule:: labmate.core.callbacks
+   :members:
+   :show-inheritance:
 .. automodule:: labmate.core.schemas
    :members:
 .. automodule:: labmate.core.ingest
@@ -45,8 +51,6 @@ extraction and the fact-check loop.
 .. automodule:: labmate.core.factcheck
    :members:
 .. automodule:: labmate.core.phases
-   :members:
-.. automodule:: labmate.core.parallel
    :members:
 .. automodule:: labmate.core.tracing
    :members:
@@ -62,33 +66,25 @@ extraction and the fact-check loop.
 paper2flow
 ----------
 
-A paper in, ``overview.pdf`` and ``post.pdf`` out.
+A paper in, ``overview.pdf`` out: a LangChain chain.
 
 .. automodule:: labmate.paper2flow
+.. automodule:: labmate.paper2flow.chain
+   :members:
 .. automodule:: labmate.paper2flow.schemas
    :members:
-   :exclude-members: Bullet, BulletCheck, BulletVerdict, ClaimCard, ClaimDraft, Claims, FactCheckReport, FactChecked, Figure, Paper, Section, SectionClaims, SlideText, SlideVerdicts, WrittenSlides
+   :exclude-members: Bullet, BulletCheck, BulletVerdict, Card, CardVerdicts, Cards, ClaimCard, ClaimDraft, Claims, FactCheckReport, FactChecked, Figure, Paper, Section, SectionClaims
 .. automodule:: labmate.paper2flow.steps.publication
    :members:
 .. automodule:: labmate.paper2flow.steps.route
    :members:
 .. automodule:: labmate.paper2flow.steps.outline
    :members:
-.. automodule:: labmate.paper2flow.steps.gate
-   :members:
 .. automodule:: labmate.paper2flow.steps.write
-   :members:
-.. automodule:: labmate.paper2flow.steps.post
    :members:
 .. automodule:: labmate.paper2flow.steps.flow
    :members:
 .. automodule:: labmate.paper2flow.steps.render
-   :members:
-.. automodule:: labmate.paper2flow.engines.common
-   :members:
-.. automodule:: labmate.paper2flow.engines.plain
-   :members:
-.. automodule:: labmate.paper2flow.engines.langgraph_engine
    :members:
 .. automodule:: labmate.paper2flow.evals.metrics
    :members:
@@ -96,7 +92,20 @@ A paper in, ``overview.pdf`` and ``post.pdf`` out.
    :members:
 .. automodule:: labmate.paper2flow.evals.agreement
    :members:
-.. automodule:: labmate.paper2flow.gallery
+
+paper2post
+----------
+
+A paper in, ``post.pdf`` out: a LangChain chain that extends paper2flow's analysis.
+
+.. automodule:: labmate.paper2post
+.. automodule:: labmate.paper2post.chain
+   :members:
+.. automodule:: labmate.paper2post.schemas
+   :members:
+.. automodule:: labmate.paper2post.post
+   :members:
+.. automodule:: labmate.paper2post.render
    :members:
 
 ask

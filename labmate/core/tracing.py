@@ -92,6 +92,14 @@ class Tracer:
                 }
             )
 
+    def record(self, span: dict[str, Any]) -> None:
+        """Add a finished span recorded elsewhere (e.g. by a LangChain callback handler).
+
+        Args:
+            span: The span, with the same fields as those :meth:`span` writes.
+        """
+        self._emit(span)
+
     def _emit(self, span: dict[str, Any]) -> None:
         line = json.dumps(span, ensure_ascii=False, default=str) + "\n"
         with self._lock:
@@ -177,38 +185,29 @@ Span = dict[str, Any]
 """A span as read back from ``trace.jsonl``."""
 
 
-def _is_live(chain: list[Span]) -> bool:
-    return any(s["name"] == "llm.chat" and not s.get("cached") for s in chain)
+def _is_live(spans: list[Span]) -> bool:
+    return any(s["name"] == "llm.chat" and not s.get("cached") for s in spans)
 
 
 def latest_completed(trace: Path) -> list[Span]:
-    """Spans of the latest finished run, including the paused run before it.
+    """Spans of the latest run that finished.
 
-    A paper is usually processed in two invocations: ``run`` pauses at the gate (root
-    status ``awaiting_approval``) and ``run --approve`` finishes (root status ``ok``).
-    Both belong to one logical run. Chains that made at least one live model call are
-    preferred over pure replays, whose timings would be meaningless.
+    A run directory collects every invocation for one paper. Runs that made at least one
+    live model call are preferred over pure replays, whose timings would be meaningless.
 
     Args:
         trace: ``trace.jsonl`` of a run directory.
 
     Returns:
-        All spans of the chosen chain; empty if no run finished.
+        All spans of the chosen run; empty if no run finished.
     """
     if not trace.exists():
         return []
     spans = read_trace(trace)
-    roots = [s for s in spans if s["name"] == "run" and s["parent_id"] is None]
-    chains: list[set[str]] = []
-    for i, root in enumerate(roots):
-        if root["status"] != "ok":
-            continue
-        ids = {str(root["trace_id"])}
-        j = i - 1
-        while j >= 0 and roots[j]["status"] == "awaiting_approval":
-            ids.add(str(roots[j]["trace_id"]))
-            j -= 1
-        chains.append(ids)
-    by_chain = [[s for s in spans if s["trace_id"] in ids] for ids in chains]
-    live = [c for c in by_chain if _is_live(c)]
-    return (live or by_chain or [[]])[-1]
+    finished = [
+        s["trace_id"] for s in spans if s["name"] == "run" and s["parent_id"] is None
+        and s["status"] == "ok"
+    ]  # fmt: skip
+    runs = [[s for s in spans if s["trace_id"] == t] for t in finished]
+    live = [r for r in runs if _is_live(r)]
+    return (live or runs or [[]])[-1]

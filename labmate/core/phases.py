@@ -9,6 +9,7 @@ shows up in the trace instead of as a mysterious slowdown.
 from __future__ import annotations
 
 import logging
+import threading
 
 from labmate.core.llm.client import OllamaClient
 
@@ -29,6 +30,7 @@ class ModelSwitcher:
         self.unload_wait_s = unload_wait_s
         self.active: str | None = None
         self.swaps = 0
+        self._lock = threading.Lock()  # a batch calls use() from several threads at once
 
     def use(self, model: str) -> None:
         """Make ``model`` the active one, unloading the previous model if it differs.
@@ -36,17 +38,19 @@ class ModelSwitcher:
         Args:
             model: Model tag about to be used.
         """
-        if model == self.active:
-            return
-        if self.active is not None:
-            self.swaps += 1
-            log.info("  phase: %s -> %s", self.active, model)
-            if self.client is not None:
-                self.client.unload(self.active, wait_s=self.unload_wait_s)
-        self.active = model
+        with self._lock:
+            if model == self.active:
+                return
+            if self.active is not None:
+                self.swaps += 1
+                log.info("  phase: %s -> %s", self.active, model)
+                if self.client is not None:
+                    self.client.unload(self.active, wait_s=self.unload_wait_s)
+            self.active = model
 
     def release(self) -> None:
         """Unload the active model (end of run)."""
-        if self.active is not None and self.client is not None:
-            self.client.unload(self.active)
-        self.active = None
+        with self._lock:
+            if self.active is not None and self.client is not None:
+                self.client.unload(self.active)
+            self.active = None

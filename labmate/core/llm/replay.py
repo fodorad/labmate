@@ -1,18 +1,23 @@
-"""Record/replay cache for model calls ("cassettes").
+"""Record/replay cache for model calls and web requests ("cassettes").
 
-Every request is keyed by :meth:`ChatRequest.cache_key` (sha256 over the model digest and
-the canonical payload). In ``replay`` mode no model is needed at all, which is what makes
-published runs reproducible byte-for-byte and lets CI run the full pipeline without Ollama.
+Every model request is keyed by :meth:`ChatRequest.cache_key` (sha256 over the model digest
+and the canonical payload); every web request (paper downloads, search APIs) by its method,
+URL and body. In ``replay`` mode neither a model nor the network is needed, which is what
+makes runs reproducible byte for byte and lets the tests run every feature offline.
 """
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import logging
 import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from labmate.config import ReplayMode
 from labmate.core.llm.client import Backend
@@ -21,6 +26,7 @@ from labmate.core.llm.types import (
     ChatResponse,
     EmbedRequest,
     EmbedResponse,
+    canonical_json,
 )
 
 log = logging.getLogger(__name__)
@@ -166,6 +172,91 @@ class ReplayClient:
         response = self._live().embed(request)
         if self.mode is not ReplayMode.LIVE:
             self.store.put(key, request.to_payload(), response.model_dump(exclude={"cached"}))
+        return response
+
+
+_KEPT_HEADERS = ("content-type", "location")
+"""Response headers stored with a recorded web response (enough to replay it)."""
+
+
+def http_key(request: httpx.Request) -> str:
+    """Cache key of a web request: sha256 over its method, URL and body.
+
+    Args:
+        request: The request.
+
+    Returns:
+        A sha256 hex digest.
+    """
+    material = {
+        "kind": "http",
+        "method": request.method,
+        "url": str(request.url),
+        "body": base64.b64encode(request.read()).decode(),
+    }
+    return hashlib.sha256(canonical_json(material).encode()).hexdigest()
+
+
+class RecordedTransport(httpx.BaseTransport):
+    """An ``httpx`` transport that records and replays web requests like model calls.
+
+    Responses below 400 (including redirects) are stored; errors are not, so a retry after
+    a temporary failure (arXiv answers 429 now and then) goes to the network again.
+
+    Args:
+        inner: The live transport. May be ``None`` in ``replay`` mode.
+        store: Cassette store (shared with the model calls).
+        mode: Replay mode.
+
+    Raises:
+        ValueError: If a live transport is required by ``mode`` but not given.
+    """
+
+    def __init__(
+        self, inner: httpx.BaseTransport | None, store: CassetteStore, mode: ReplayMode
+    ) -> None:
+        if inner is None and mode is not ReplayMode.REPLAY:
+            raise ValueError(f"mode={mode.value!r} needs a live transport")
+        self.inner = inner
+        self.store = store
+        self.mode = mode
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        """Serve a request from the cassette store or the network.
+
+        Args:
+            request: The request.
+
+        Returns:
+            The response.
+
+        Raises:
+            CassetteMissError: In ``replay`` mode, if the request was never recorded.
+        """
+        key = http_key(request)
+        if self.mode in (ReplayMode.AUTO, ReplayMode.REPLAY):
+            hit = self.store.get(key)
+            if hit is not None:
+                return httpx.Response(
+                    hit["status"],
+                    headers=hit["headers"],
+                    content=base64.b64decode(hit["body"]),
+                    request=request,
+                )
+            if self.mode is ReplayMode.REPLAY:
+                raise CassetteMissError(f"No cassette for {request.method} {request.url}")
+        if self.inner is None:  # pragma: no cover - prevented by __init__
+            raise RuntimeError("no live transport configured")
+        response = self.inner.handle_request(request)
+        body = response.read()
+        if self.mode is not ReplayMode.LIVE and response.status_code < 400:
+            headers = {k: v for k, v in response.headers.items() if k in _KEPT_HEADERS}
+            self.store.put(
+                key,
+                {"method": request.method, "url": str(request.url)},
+                {"status": response.status_code, "headers": headers,
+                 "body": base64.b64encode(body).decode()},
+            )  # fmt: skip
         return response
 
 

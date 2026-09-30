@@ -1,6 +1,5 @@
 import pytest
 
-from labmate.core.model import LLM
 from labmate.paper2flow.evals.agreement import (
     agreement,
     agreement_markdown,
@@ -8,7 +7,7 @@ from labmate.paper2flow.evals.agreement import (
     judge_labels,
 )
 from labmate.paper2flow.evals.labels import LabelledBullet
-from tests.conftest import agentic_chat
+from tests.conftest import agentic_chat, chat_model
 
 
 def test_cohen_kappa_known_values():
@@ -49,7 +48,7 @@ def test_judge_labels_uses_the_pipeline_judge(fake):
         LabelledBullet(id="b", paper="p", text="WRONG claim", evidence=["84.6%"]),
         LabelledBullet(id="c", paper="p", text="No evidence at all", evidence=[]),
     ]
-    judge = LLM(fake.client(), "gemma4:26b-mlx")
+    judge = chat_model(fake, "gemma4:26b-mlx")
     assert judge_labels(labels, judge, workers=2) == ["supported", "unsupported", "supported"]
     prompts = [b["messages"][-1]["content"] for p, b in fake.requests if p == "/api/chat"]
     assert any('evidence (e1): "84.6%"' in p for p in prompts)

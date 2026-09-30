@@ -856,6 +856,7 @@ source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "langchain-core" },
     { name = "pydantic" },
     { name = "pymupdf" },
     { name = "pyyaml" },
@@ -866,7 +867,6 @@ dependencies = [
 [package.optional-dependencies]
 ask = [
     { name = "langchain" },
-    { name = "langchain-core" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "nicegui" },
@@ -875,7 +875,6 @@ ask = [
 dev = [
     { name = "furo" },
     { name = "langchain" },
-    { name = "langchain-core" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "mypy" },
@@ -890,22 +889,17 @@ dev = [
     { name = "sphinx-autodoc-typehints" },
     { name = "types-pyyaml" },
 ]
-langgraph = [
-    { name = "langgraph" },
-    { name = "langgraph-checkpoint-sqlite" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2024.8" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1" },
-    { name = "labmate", extras = ["langgraph"], marker = "extra == 'ask'" },
-    { name = "labmate", extras = ["langgraph", "ask"], marker = "extra == 'dev'" },
+    { name = "labmate", extras = ["ask"], marker = "extra == 'dev'" },
     { name = "langchain", marker = "extra == 'ask'", specifier = ">=1.0" },
-    { name = "langchain-core", marker = "extra == 'ask'", specifier = ">=1.0" },
-    { name = "langgraph", marker = "extra == 'langgraph'", specifier = ">=1.0" },
-    { name = "langgraph-checkpoint-sqlite", marker = "extra == 'langgraph'", specifier = ">=2.0" },
+    { name = "langchain-core", specifier = ">=1.0" },
+    { name = "langgraph", marker = "extra == 'ask'", specifier = ">=1.0" },
+    { name = "langgraph-checkpoint-sqlite", marker = "extra == 'ask'", specifier = ">=2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "nicegui", marker = "extra == 'ask'", specifier = ">=2.0" },
@@ -923,7 +917,7 @@ requires-dist = [
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "typst", specifier = ">=0.13" },
 ]
-provides-extras = ["dev", "langgraph", "ask"]
+provides-extras = ["dev", "ask"]
 
 [[package]]
 name = "langchain"

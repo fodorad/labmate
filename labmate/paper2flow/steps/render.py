@@ -1,13 +1,12 @@
-"""The two outputs, rendered with Typst. Plain code, no LLM.
+"""``overview.pdf``, rendered with Typst. Plain code, no LLM.
 
-- ``overview.pdf`` (A4 portrait): the paper at a glance: title, authors, venue and date,
-  the main figure; the four blocks; the end-to-end data flow; one page per detail flow.
-- ``post.pdf`` (4:5 pages): what a LinkedIn post needs: the post text, ready to copy,
-  then the diagrams as images to attach (or to upload together as a document carousel).
+The overview (A4 portrait) is the paper at a glance: a cover (title, authors, venue and
+date, the main figure), the four cards, the end-to-end data flow, and one page per
+detail flow. paper2post reuses the helpers here for ``post.pdf``.
 
 Layout is deterministic and lives in ``templates/*.typ``; the model only ever produces
 data. Content is passed as JSON through Typst's ``sys.inputs``, so paper text cannot
-inject markup. Neither PDF carries a creation date, so the same run renders the same bytes.
+inject markup. No PDF carries a creation date, so the same run renders the same bytes.
 """
 
 from __future__ import annotations
@@ -21,9 +20,11 @@ from typing import Any
 
 import typst
 
+from labmate.core.figures import best_figure, short_caption
 from labmate.core.theme import FONTS_DIR, Theme
-from labmate.paper2flow.schemas import Flows, Paper, Post, WrittenSlides
-from labmate.paper2flow.steps.flow import DPI, LETTERS, legend
+from labmate.paper2flow.schemas import Cards, Flows, Paper
+from labmate.paper2flow.steps.flow import LETTERS, SCALE, legend
+from labmate.paper2flow.steps.outline import LABELS
 
 CARD_COLORS = {
     "Task": "#fff8d5",
@@ -82,41 +83,61 @@ def publication_line(paper: Paper) -> str:
     return " · ".join(part for part in (venue, when) if part)
 
 
-def blocks(slides: WrittenSlides, labels: list[str]) -> list[dict[str, Any]]:
-    """The four blocks as cards (citations dropped).
+def card_blocks(cards: Cards, labels: list[str]) -> list[dict[str, Any]]:
+    """The four cards as the template draws them (citations dropped).
 
     Args:
-        slides: Fact-checked blocks.
-        labels: One label per block ("Task", ...).
+        cards: Fact-checked cards.
+        labels: One label per card ("Task", ...).
 
     Returns:
-        ``{"label", "title", "bullets", "color"}`` per block.
+        ``{"label", "title", "bullets", "color"}`` per card.
     """
     return [
         {
             "label": label,
-            "title": s.title,
-            "bullets": [b.text for b in s.bullets],
+            "title": c.title,
+            "bullets": [b.text for b in c.bullets],
             "color": CARD_COLORS.get(label, "#f1e1dc"),
         }
-        for s, label in zip(slides.slides, labels, strict=True)
+        for c, label in zip(cards.cards, labels, strict=True)
     ]
 
 
+def main_figure(cards: Cards, labels: list[str], paper: Paper) -> tuple[str, str] | None:
+    """The paper figure for the cover: the one matching the method card best, else Figure 1.
+
+    Args:
+        cards: Fact-checked cards.
+        labels: Their labels.
+        paper: The paper (its figures).
+
+    Returns:
+        ``(path relative to the run directory, caption)``, or ``None`` without figures.
+    """
+    method = next(
+        (c for c, label in zip(cards.cards, labels, strict=True) if label == LABELS["method"]),
+        None,
+    )
+    text = " ".join([method.title, *(b.text for b in method.bullets)]) if method else ""
+    figure = best_figure(text, paper.figures, paper.title) or next(iter(paper.figures), None)
+    return (figure.path, short_caption(figure.caption)) if figure else None
+
+
 def natural_size(png: Path) -> tuple[float, float]:
-    """Size in points of a Graphviz PNG at its render resolution (read from the header).
+    """Size in points of a diagram PNG at its render scale (read from the PNG header).
 
     A small diagram is shown at this size at most, so its boxes aren't blown up to fill
     the page.
 
     Args:
-        png: PNG file rendered at :data:`~labmate.paper2flow.steps.flow.DPI`.
+        png: PNG file rendered at :data:`~labmate.paper2flow.steps.flow.SCALE`.
 
     Returns:
-        ``(width, height)`` in points.
+        ``(width, height)`` in points (CSS pixels at 96 per inch, 72 points per inch).
     """
     width, height = struct.unpack(">II", png.read_bytes()[16:24])
-    return width * 72 / DPI, height * 72 / DPI
+    return width / SCALE * 0.75, height / SCALE * 0.75
 
 
 def diagrams(
@@ -156,15 +177,24 @@ def diagrams(
     return pages
 
 
-def _compile(template: str, data: dict[str, Any], out: Path) -> Path:
-    """Compile ``templates/<template>`` with ``data`` into ``out``.
+def compile_typst(package: str, template: str, data: dict[str, Any], out: Path) -> Path:
+    """Compile a Typst template shipped in ``package`` with ``data`` into ``out``.
 
     Typst resolves image paths relative to the source file, so the template is copied
     next to the output (where the images are) for the compile and removed afterwards.
+
+    Args:
+        package: Package holding the template, e.g. ``"labmate.paper2flow.templates"``.
+        template: File name, e.g. ``"overview.typ"``.
+        data: Content, passed as JSON through ``sys.inputs``.
+        out: Output PDF path.
+
+    Returns:
+        ``out``.
     """
     out.parent.mkdir(parents=True, exist_ok=True)
     source = out.with_suffix(".typ")
-    source.write_text(files("labmate.paper2flow.templates").joinpath(template).read_text())
+    source.write_text(files(package).joinpath(template).read_text())
     try:
         pdf = typst.compile(
             str(source),
@@ -190,7 +220,7 @@ def render_overview(
 
     Args:
         paper: The paper (title, authors, venue, date, link, abstract).
-        cards: The four blocks (:func:`blocks`).
+        cards: The four cards (:func:`card_blocks`).
         pages: The diagrams (:func:`diagrams`).
         out: Output PDF path; image paths are relative to its directory.
         figure: Main figure ``(path, caption)``; without one, page 1 shows the abstract.
@@ -210,51 +240,4 @@ def render_overview(
         "theme": (theme or Theme()).model_dump(),
         **({"figure": figure[0], "figure_caption": figure[1]} if figure else {}),
     }
-    return _compile("overview.typ", data, out)
-
-
-def post_text(post: Post, paper: Paper) -> list[str]:
-    """The post as paragraphs, in the order they are pasted into LinkedIn.
-
-    Args:
-        post: Fact-checked post.
-        paper: The paper (title and link).
-
-    Returns:
-        Hook, takeaways, question, then the paper reference.
-    """
-    reference = f"Paper: {paper.title}" + (f" {paper.url}" if paper.url else "")
-    return [post.hook, *(t.text for t in post.takeaways), post.question, reference]
-
-
-def render_post(
-    post: Post,
-    paper: Paper,
-    pages: list[dict[str, Any]],
-    out: Path,
-    theme: Theme | None = None,
-) -> Path:
-    """Render ``post.pdf``: the post text, then one 4:5 image page per diagram.
-
-    Args:
-        post: Fact-checked post.
-        paper: The paper.
-        pages: The diagrams (:func:`diagrams`); the first one is headed by the hook.
-        out: Output PDF path.
-        theme: Colours and font.
-
-    Returns:
-        ``out``.
-    """
-    data = {
-        "hook": post.hook,
-        "takeaways": [t.text for t in post.takeaways],
-        "question": post.question,
-        "title": paper.title,
-        "authors": author_line(paper.authors),
-        "publication": publication_line(paper),
-        "url": paper.url,
-        "diagrams": pages,
-        "theme": (theme or Theme()).model_dump(),
-    }
-    return _compile("post.typ", data, out)
+    return compile_typst("labmate.paper2flow.templates", "overview.typ", data, out)

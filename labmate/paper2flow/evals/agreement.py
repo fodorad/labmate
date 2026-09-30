@@ -1,7 +1,7 @@
 """Judge agreement: how often does a model's fact-check verdict match a human's?
 
 Each candidate judge re-judges the labelled bullets with the exact prompt the pipeline
-uses (:func:`~labmate.core.factcheck.judge_slide`), one bullet per call, so the
+uses (:func:`~labmate.core.factcheck.judge_card`), one bullet per call, so the
 numbers describe the judge as deployed. Agreement is reported as accuracy and Cohen's
 kappa, both on the three labels and collapsed to pass/fail (``supported`` vs the rest),
 which is the decision the pipeline actually acts on.
@@ -12,13 +12,13 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Sequence
 
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
 
-from labmate.core.factcheck import judge_slide
-from labmate.core.model import LLM
-from labmate.core.parallel import parallel_map
+from labmate.core.factcheck import judge_card
+from labmate.core.lc import RecordedChatModel, batch_map
 from labmate.paper2flow.evals.labels import LabelledBullet
-from labmate.paper2flow.schemas import Bullet, ClaimCard, SlideText, VerdictLabel
+from labmate.paper2flow.schemas import Bullet, Card, ClaimCard, VerdictLabel
 
 LABELS: list[VerdictLabel] = ["supported", "partial", "unsupported"]
 """Label order used in confusion matrices."""
@@ -71,19 +71,25 @@ class JudgeAgreement(BaseModel):
     confusion: dict[str, dict[str, int]]
 
 
-def judge_labels(labels: list[LabelledBullet], judge: LLM, workers: int = 2) -> list[VerdictLabel]:
+def judge_labels(
+    labels: list[LabelledBullet],
+    judge: RecordedChatModel,
+    workers: int = 2,
+    config: RunnableConfig | None = None,
+) -> list[VerdictLabel]:
     """Re-judge labelled bullets with one model, using the pipeline's judge prompt.
 
     Args:
         labels: Bullets with their evidence.
-        judge: Judge model settings.
+        judge: The judge model.
         workers: Concurrent calls.
+        config: Callbacks (tracing).
 
     Returns:
         One verdict per bullet, in order.
     """
 
-    def one(item: LabelledBullet) -> VerdictLabel:
+    def one(item: LabelledBullet, cfg: RunnableConfig) -> VerdictLabel:
         cards = {
             f"e{i}": ClaimCard(
                 id=f"e{i}",
@@ -96,12 +102,10 @@ def judge_labels(labels: list[LabelledBullet], judge: LLM, workers: int = 2) -> 
             )
             for i, quote in enumerate(item.evidence, start=1)
         }
-        slide = SlideText(
-            title="", bullets=[Bullet(text=item.text, claim_ids=list(cards) or ["e0"])]
-        )
-        return judge_slide(slide, cards, judge).verdicts[0].verdict
+        card = Card(title="", bullets=[Bullet(text=item.text, claim_ids=list(cards) or ["e0"])])
+        return judge_card(card, cards, judge, cfg).verdicts[0].verdict
 
-    return parallel_map(one, labels, workers)
+    return batch_map(one, labels, config, workers)
 
 
 def _binary(labels: Sequence[str]) -> list[str]:

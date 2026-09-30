@@ -101,6 +101,16 @@ class TracingConfig(BaseModel):
     runs_dir: Path = Path("runs")
 
 
+class PostConfig(BaseModel):
+    """Settings of paper2post.
+
+    Attributes:
+        links: Your own links, shown under every post (label -> URL).
+    """
+
+    links: dict[str, str] = Field(default_factory=dict)
+
+
 class Config(BaseModel):
     """Top-level configuration."""
 
@@ -111,6 +121,7 @@ class Config(BaseModel):
     replay: ReplayConfig = Field(default_factory=ReplayConfig)
     tracing: TracingConfig = Field(default_factory=TracingConfig)
     ask: AskConfig = Field(default_factory=AskConfig)
+    post: PostConfig = Field(default_factory=PostConfig)
 
 
 def load_config(path: Path | None = None) -> Config:

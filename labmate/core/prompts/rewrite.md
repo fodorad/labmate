@@ -1,6 +1,6 @@
-A fact-checker flagged problems in this block of an overview of a research paper.
+A fact-checker flagged problems in this card of an overview of a research paper.
 
-Rewrite the block so that every bullet is fully supported by its evidence:
+Rewrite the card so that every bullet is fully supported by its evidence:
 - Fix or remove each flagged bullet; keep the bullets that were not flagged unchanged.
 - If a problem says part of a bullet is not in the evidence (a name, a cause, a qualifier,
   an extra item), delete that part and keep the rest. Rephrasing it does not fix it, and
@@ -9,8 +9,8 @@ Rewrite the block so that every bullet is fully supported by its evidence:
 - A title of at most 8 words, 1 to 4 bullets of at most 25 words, each citing its claim ids.
 - Plain text only, third person.
 
-Current block:
-{slide}
+Current card:
+{card}
 
 Problems found:
 {problems}

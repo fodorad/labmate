@@ -40,3 +40,7 @@ chunk_words = 180
 top_k = 6
 max_loops = 2                       # retrieve -> grade -> rewrite rounds per sub-question
 summary_min_words = 300             # shorter chapters get no summary chunk
+
+[post.links]
+# Your links, shown under every LinkedIn post (label = URL)
+Website = "https://adamfodor.com"

@@ -10,100 +10,77 @@ labmate is a collection of features, each chosen to show a different way of buil
 with LLMs, all on one shared core: local models via Ollama, every model call recorded and
 replayable, traced, and evaluated.
 
-| Feature | What it does | How it is built | Status |
-|---|---|---|---|
-| **paper2flow** | A research paper in, a fact-checked overview with data-flow diagrams and a LinkedIn post out | A **workflow**: fixed steps (routing, parallel extraction, an orchestrator, a human gate, chaining, a fact-check loop, orchestrator–workers), in plain Python and, as a second engine, in LangGraph | done |
-| **ask** | Questions about my research, answered from my PhD dissertation and papers, with page citations | An **agent**: agentic RAG in LangGraph (tiered hybrid retrieval, grading and query rewriting loops, conflict checks, self-verification, multi-turn memory), compared against a prebuilt tool-calling agent | done |
+| Feature | What it does | How it is built |
+|---|---|---|
+| **paper2flow** | A research paper in, `overview.pdf` out: a cover, four fact-checked cards and data-flow diagrams | A **LangChain chain** (LCEL): the path is known, so the steps are fixed |
+| **paper2post** | A research paper in, `post.pdf` out: a fact-checked LinkedIn post with icons, links and the pipeline image | A **LangChain chain** that extends paper2flow's analysis |
+| **ask** | Questions about my research, answered from my PhD dissertation and papers, with page citations | A **LangGraph agent**: agentic RAG with routing, loops, interrupts and memory |
 
-Workflows where the path is known, an agent where it isn't.
+Chains where the path is known, a graph where it depends on the input.
 
 ## Shared core (`labmate.core`)
 
 - **Local and free:** a Mac mini M4 (32 GB) with Ollama. No paid APIs.
-- **Reproducible:** every model call is recorded to a cassette; `replay` mode reruns a
-  run byte-for-byte without any model installed, and CI does exactly that.
+- **Reproducible:** every model call and every download is recorded to a cassette;
+  `--mode replay` reruns a paper without a model or the network.
 - **Grounded:** claim cards carry verbatim quotes checked against the source; a
   fact-check loop (evaluator–optimizer) rewrites or drops unsupported statements.
-- **Observable:** every step and model call is traced (`trace.jsonl`, HTML viewer).
+- **Observable:** one LangChain callback handler traces every chain step, graph node and
+  model call to `trace.jsonl` (with an HTML viewer). LangSmith, when switched on, listens
+  to the same events.
+- **LangChain on a recorded backend:** `RecordedChatModel` is a LangChain chat model whose
+  calls go through the cassettes; `structured` validates replies against a Pydantic
+  schema and retries with the error fed back (the MLX model builds ignore Ollama's
+  `format=`, so the schema also goes into the prompt).
 
 ## paper2flow
 
-**Status: pre-alpha, feature-complete for v0.1.** Routing, parallel claim extraction with
-a quote-verification guard, an orchestrated four-block outline, a human approval gate,
-grounded writing, a fact-check loop, and flow diagrams planned by an orchestrator and
-drawn by workers, every label checked against the paper. All traced and replayable, with
-an evaluation suite (run metrics and judge agreement against human labels), an HTML trace
-viewer, gallery tooling that publishes runs anyone can replay from cassettes, and two
-interchangeable orchestration engines (plain Python and LangGraph).
-
-### What it does
-
 ```
-paper (arXiv id, PDF or URL) ─▶ ingest ─▶ venue & date ─▶ route ─▶ extract claims
-   ─▶ plan the 4 blocks ─▶ ✋ human approval ─▶ write ─▶ fact-check loop ─▶ post text
-   ─▶ flow diagrams (overview ─▶ details) ─▶ overview.pdf + post.pdf
+analyze    = ingest | publication | route | extract | outline | write | factcheck | flows
+paper2flow = analyze | render                                          -> overview.pdf
 ```
 
-Two PDFs per paper, nothing else:
+`overview.pdf` (A4 portrait):
 
-- **`overview.pdf`** (A4 portrait)
-  1. the paper: title, authors, venue and publication date, and its main figure;
-  2. four blocks, the structure of a research project page: **Task**, **Challenges**,
-     **Proposed method**, **Main results**;
-  3. the **end-to-end data flow**, top to bottom, from the raw data to the target output;
-  4. one page per **detail flow** that breaks a step of the overview down (marked
-     "detail A", "detail B", … in the overview).
-- **`post.pdf`** (4:5 pages): what a LinkedIn post needs. Page 1 is the post text, ready
-  to copy (hook, 3–5 sentences telling the paper's story, a question, the link); the next
-  pages are the diagrams as images to attach, or to upload together as a document carousel.
+1. the **cover**: title, authors, venue and publication date, and the paper's main figure;
+2. the **four cards** of a project page: **Task**, **Challenges**, **Proposed method**,
+   **Main results**;
+3. the **end-to-end data flow**, top to bottom, from the raw data to the target output;
+4. one page per **detail flow** that breaks a step of the overview down ("detail A", …).
 
-What makes it trustworthy:
-
-- **Grounded:** every bullet cites a claim card, and every claim card carries a verbatim
-  quote from the paper. A fact-check loop rewrites or drops unsupported bullets; the post
-  goes through the same loop.
-- **Checked diagrams:** the model proposes each diagram as data (typed boxes and arrows);
-  code accepts it only if it runs from input data to an output, every label names
-  something in the paper's text and no number is invented, then lays it out with Graphviz
-  in a fixed house style. The venue and date are accepted only if they are printed on the
-  paper's first page.
-- **Agentic where it pays off:** routing, parallel extraction, an orchestrator, an
-  evaluator–optimizer loop and orchestrator–workers for the diagrams. Everything else is
-  plain code.
-### How it works
-
-```mermaid
-flowchart TB
-    p([paper]) --> ingest --> publication --> route
-    route --> fan1{{"Send × sections"}} --> extract[extract claims] --> outline
-    outline --> gate{{"✋ human gate<br/>(interrupt)"}}
-    gate --> fan2{{"Send × 4 blocks"}} --> write
-    write --> judge
-    subgraph factcheck ["fact-check loop"]
-        judge -->|unsupported| rewrite --> judge
-    end
-    judge --> post[post text] --> flow_overview["flow: overview<br/>(orchestrator)"]
-    flow_overview --> fan3{{"Send × steps"}} --> flow_detail["flow: details<br/>(workers)"]
-    flow_detail --> render --> out([overview.pdf + post.pdf])
-```
-
-Every LangGraph graph, as LangGraph itself draws it: [docs/graphs.md](https://github.com/fodorad/labmate/blob/main/docs/graphs.md).
+Every step is a named Runnable that fills in one field of the chain's state and saves it
+as a JSON artifact in `runs/<paper id>/`. The agentic patterns live inside the steps:
 
 | Step | Pattern | What it does |
 |---|---|---|
-| ingest | plain code | PDF → sections via the PDF outline (references dropped), figures cropped; arXiv metadata incl. the submission date and journal reference |
-| publication | structured output + check | the writer reads the venue and publication date off the first page; accepted only if copied verbatim from it (the arXiv margin stamp is ignored); the year falls back to the arXiv date |
+| ingest | plain code | arXiv id or URL, PDF URL or PDF path → sections via the PDF outline, figures cropped, arXiv metadata |
+| publication | structured output + check | venue and publication date read off the first page; accepted only if copied verbatim from it |
 | route | routing | title + abstract → method / benchmark / survey / position |
-| extract | parallelisation | per section: claim cards with verbatim evidence quotes; quotes that aren't in the paper, or whose numbers differ, are dropped in code |
-| outline | orchestrator | assigns claim cards to the four blocks and titles them; rules (the four blocks in order, valid ids, ≤ 2 uses per claim) are checked in code and fed back on violation |
-| gate | human-in-the-loop | writes `outline.yaml` and pauses; your edits are validated with the same rules |
-| write | prompt chaining | one call per block; every bullet cites the claim ids it uses |
-| fact-check | evaluator–optimizer | numbers and names must be in the cited evidence; a different model judges each bullet against its evidence; failures go back to the writer with the reasons (≤ 2 rounds), then unsupported bullets are dropped |
-| post | chaining + evaluator | LinkedIn post text drafted from the final blocks; every sentence goes through the same fact-check |
-| flows | orchestrator–workers | the planner draws the end-to-end flow from the method block, its evidence quotes and the text of the sections they come from, and picks 1–3 steps to break down; one worker call per step draws its detail flow. Checked in code: starts at inputs, ends at outputs, grounded labels, no invented numbers, details add new boxes |
-| render | plain code | Graphviz (top to bottom) + Typst → the two PDFs in the adamfodor.com palette, Inter bundled; no creation date, so the same run renders the same bytes |
+| extract | parallelisation | per section (`.batch`): claim cards with verbatim quotes; quotes not in the paper, or with other numbers, are dropped in code |
+| outline | orchestrator | assigns claim cards to the four cards; rules checked in code and fed back on violation |
+| write | prompt chaining | one call per card, in parallel; every bullet cites the claim ids it uses |
+| factcheck | evaluator–optimizer | numbers and names must be in the cited quotes; a different model judges each bullet; failures are rewritten (≤ 2 rounds), then dropped |
+| flows | orchestrator–workers | the planner draws the end-to-end flow and picks 1–3 steps; one worker per step draws its detail. Checked in code: starts at inputs, ends at outputs, grounded labels, no invented numbers |
+| render | plain code | typed graphs → Mermaid (house style) → PNG with mermaid-cli; Typst lays out the PDF, no creation date, so the same run renders the same bytes |
 
-### Evaluation
+The model only ever proposes *data* (typed boxes and arrows); code validates it and
+writes the Mermaid, so no model output reaches a diagram or a page unchecked.
+
+## paper2post
+
+```
+paper2post = analyze | post | icons | render                          -> post.pdf
+```
+
+`post.pdf` (4:5 pages): page 1 is the post text, ready to copy (hook, 3–5 sentences
+telling the paper's story, a question), one icon per sentence (a bundled set of Tabler
+Icons, so the model can only pick valid ones) and the links: the paper, its code if it
+names a repository, and your own links from `config.toml` `[post.links]`. Page 2 is the
+end-to-end pipeline diagram, to attach as the post's image. Every sentence passes the
+same fact-check as the overview. Running both chains on a paper costs only the post's
+own model calls: the analysis replays from cassettes.
+
+## Evaluation
 
 ```bash
 make eval    # metrics of every finished run -> evals/results.md, results.json
@@ -113,64 +90,14 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
 
 - **Run metrics** come from the run artifacts and the trace, no model needed: verified vs
   rejected claims, the share of first-draft bullets that failed the fact-check, bullets
-  dropped after the loop, *block fit* (the share of bullets citing a claim of their
-  block's kind, e.g. a result under Main results), the size of the flow diagrams,
-  model calls, tokens and compute time (the paused and the approved invocation together).
+  dropped after the loop, *card fit* (the share of bullets citing a claim of their card's
+  kind, e.g. a result under Main results), the size of the flow diagrams, model calls,
+  tokens, model swaps and compute time.
 - **Judge agreement:** `make labels` samples bullets from every fact-check round, about half
   of them rejected by the pipeline's judge, and writes them with their evidence but
   *without* the judge's verdict. You fill the `human` column (`s` / `p` / `u`).
   `make judges` then re-judges them with each candidate model using the pipeline's own
   judge prompt and reports accuracy and Cohen's κ, on the three labels and on pass/fail.
-  The default candidates are the critic (`gemma4:26b-mlx`) and the writer judging itself
-  (`qwen3.6:35b-mlx`), which tests whether a separate judge model is worth the swap.
-  Judge calls are recorded to cassettes like everything else, so `--mode replay`
-  reproduces the table.
-
-### Same pipeline, two ways
-
-The steps know nothing about orchestration. Two engines drive them:
-
-```bash
-make run ARXIV=1706.03762                   # plain Python (default)
-make run ARXIV=1706.03762 ENGINE=langgraph  # LangGraph StateGraph
-```
-
-| | `engine=plain` | `engine=langgraph` |
-|---|---|---|
-| Code (without docstrings) | ~100 lines | ~290 lines |
-| Parallel extraction / writing / detail flows | thread pool (`parallel_map`) | `Send` fan-out + `operator.add` reducer |
-| Fact-check loop | `while` loop | `judge ⇄ rewrite` cycle with a conditional edge |
-| Human gate | pause, re-run with `--approve`, reuse file checkpoints | `interrupt()`, resume from a SQLite checkpoint |
-| Resume after a crash | step artifacts on disk | graph checkpoint per super-step |
-
-Both call the same stage functions (`engines/common.py`) and the same per-item step
-functions, so they send identical model requests. **In replay mode they write
-byte-identical artifacts**; a test runs a paper with a rewrite round through both
-engines and compares every file, so CI fails if they drift apart.
-
-What LangGraph gave for free: checkpointing of the whole state after every node, a clean
-interrupt/resume at the gate, and a graph picture of the pipeline. What it cost: about
-3× the orchestration code, state that must be serializable (the checkpointer's
-deserialization is allow-listed to this package's models), fan-out results that arrive
-in any order (they carry their index and are sorted before assembly), and control flow
-that is harder to step through in a debugger than a `for` loop. For a pipeline this
-linear, the plain engine is the one I'd maintain; LangGraph earns its keep once there
-are real branches, long-running interrupts or several agents sharing state.
-
-### Trace viewer and gallery
-
-```bash
-make trace ARXIV=1706.03762    # runs/1706.03762/trace.html: every step and model call on a timeline
-make publish ARXIV=1706.03762  # copy the finished run + the cassettes of its model calls to gallery/
-make verify                    # replay every gallery entry from cassettes only, compare byte for byte
-make site                      # static gallery -> site/ (make site-serve to browse it)
-```
-
-A gallery entry contains the step artifacts, the two PDFs, the trace and the cassettes of
-exactly the model calls in that trace (not the paper, which is fetched again from arXiv or
-its URL). CI runs `make verify`, so a published entry that no
-longer reproduces fails the build. The gallery is empty for now: the entries recorded
-before the paper2flow rewrite no longer replayed and were removed.
 
 ## ask
 
@@ -279,27 +206,17 @@ so the pipeline always sends both and validates with a retry loop.
 ## Quickstart
 
 ```bash
-make install     # uv sync (incl. the LangGraph and ask extras) + pre-commit hooks
-make check       # lint + type-check + tests + docs + gallery replay (no Ollama needed)
+make install     # uv sync + pre-commit hooks + mermaid-cli (needs Node.js)
+make check       # lint + type-check + tests + docs (no Ollama needed)
 
 # with Ollama running:
 make lock        # pin installed model digests into models.lock
 make probe       # verify structured output, tool calling and determinism
-make run ARXIV=1706.03762      # ingest, route, extract, plan -> pauses with runs/1706.03762/outline.yaml
-make approve ARXIV=1706.03762  # after reviewing/editing the outline: overview.pdf + post.pdf
-make replay ARXIV=1706.03762   # the whole run again from cassettes only, no Ollama needed
-```
-
-Each run folder contains the two PDFs, the diagram PNGs they embed, every step's JSON
-artifact and `trace.jsonl`.
-
-Papers that aren't on arXiv work too, from a path or a URL (title and authors come from
-the PDF metadata when present; the URL is linked in the outputs):
-
-```bash
-make run PDF=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
-make approve PDF=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
-make run PDF=papers/mine.pdf TITLE="My paper"
+make flow PAPER=1706.03762                 # runs/1706.03762/overview.pdf
+make post PAPER=1706.03762                 # runs/1706.03762/post.pdf
+make flow PAPER=1706.03762 MODE=replay     # the same run from cassettes, no model or network
+make flow PAPER=https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf
+make trace PAPER=1706.03762                # runs/1706.03762/trace.html
 ```
 
 ## Replay modes
@@ -311,7 +228,7 @@ Set `[replay].mode` in `config.toml`:
 | `live` | always call Ollama, store nothing |
 | `record` | always call Ollama, (over)write cassettes |
 | `auto` | cassette if present, otherwise call and record (dev default) |
-| `replay` | cassettes only; a miss is an error (CI and published runs) |
+| `replay` | cassettes only; a miss is an error (no model or network needed) |
 
 ## License
 

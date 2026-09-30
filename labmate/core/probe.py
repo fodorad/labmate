@@ -66,7 +66,7 @@ FIGURE_TOOL: dict[str, Any] = {
     "type": "function",
     "function": {
         "name": "use_paper_figure",
-        "description": "Place one of the paper's figures on the current slide.",
+        "description": "Show one of the paper's figures.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -76,7 +76,7 @@ FIGURE_TOOL: dict[str, Any] = {
         },
     },
 }
-"""Tool definition mirroring the visuals agent's real ``use_paper_figure`` tool."""
+"""A small tool definition: can the model call a tool with the right argument?"""
 
 
 class ProbeClaim(BaseModel):
@@ -286,8 +286,7 @@ def check_tool_calling(client: ProbeClient, model: str, think: bool | None) -> C
             messages=[
                 Message(
                     role="user",
-                    content="Put Figure 3 of the paper on this slide. "
-                    "Available figure ids: fig1, fig2, fig3.",
+                    content="Show Figure 3 of the paper. Available figure ids: fig1, fig2, fig3.",
                 )
             ],
             tools=[FIGURE_TOOL],
@@ -328,7 +327,7 @@ def check_determinism(
         messages=[
             Message(
                 role="user",
-                content=f"Summarise this in two sentences for a LinkedIn slide:\n\n{PROBE_PASSAGE}",
+                content=f"Summarise this in two sentences:\n\n{PROBE_PASSAGE}",
             )
         ],
         temperature=0.0,
