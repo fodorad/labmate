@@ -1,6 +1,6 @@
 # labmate
 
-> Local research tools on Ollama: paper overviews, LinkedIn posts, and cited answers about a paper library.
+> Local tools on Ollama: paper overviews and posts, cited answers about a paper library, an arXiv scout, and CV tailoring.
 
 All features run on local models through [Ollama](https://ollama.com) and share one core.
 Each is labelled by who decides the next step: **code** (a chain or a graph, the model fills in
@@ -14,6 +14,11 @@ each step) or **the model** (an agent that picks its own tools).
 | **cv2job** | A CV and a job posting in, a tailored CV, a cover letter and a gap report out | code, with one agent step | LangChain chain + `create_agent` |
 | **ask** (graph) | A question about a library of PDFs in, a cited answer out | code | LangGraph graph |
 | **ask** (agent) | The same task, with the model choosing its tools | the model | LangChain `create_agent` |
+
+**Workflow or agent.** In a workflow the code fixes the order of steps and the model fills each one
+in. In an agent the model picks the next action from a set of tools. LangChain chains and LangGraph
+graphs are used for both: paper2flow, paper2post and the ask graph are workflows; the ask agent and
+scout are agents; cv2job is a workflow whose `gaps` step is an agent.
 
 ## Shared core (`labmate.core`)
 
