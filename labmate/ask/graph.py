@@ -2,12 +2,15 @@
 
 .. code-block:: text
 
-    understand ─┬─(off topic)─────────────────────────────────────────────▶ abstain
-                ├─(ambiguous)─▶ ✋ clarify ─┐
-                └──────────────────────────┴─▶ retrieve ─▶ grade ─┬─(enough)─▶ answer ─▶ verify
-                                                  ▲               │
-                                                  └── rewrite ◀───┘ (not enough)
-                                             grade ─(nothing relevant)─▶ abstain
+    understand ─(ambiguous)─▶ ✋ clarify ─┐
+        └─────────────────────────────────┴─▶ retrieve ─▶ grade ─┬─(enough)─▶ answer ─▶ verify
+                                                 ▲               │
+                                                 └── rewrite ◀───┘ (not enough)
+                                            grade ─(nothing relevant)─▶ abstain
+
+The model's "off topic" verdict is a hint, not a gate: a real run refused a question the library
+answers ("How fast is LinMulT at inference on GPU and CPU?"). Such a question is searched once,
+and the graph refuses only if nothing relevant comes back.
 
 The code decides the path; the model fills in each node: it reads the question, grades what
 was retrieved, rewrites the query, writes the cited answer and, as a second model, checks it.
@@ -208,10 +211,7 @@ def build_graph(s: AskSession) -> StateGraph:
         return {"understanding": u, "query": u.search, "tried": [], "loop": 0, "relevant": []}
 
     def route(state: AskState) -> str:
-        u = state["understanding"]
-        if not u.on_topic:
-            return "abstain"
-        return "clarify" if u.options else "retrieve"
+        return "clarify" if state["understanding"].options else "retrieve"
 
     def clarify(state: AskState) -> AskState:
         u = state["understanding"]
@@ -229,6 +229,8 @@ def build_graph(s: AskSession) -> StateGraph:
                 "loop": state["loop"] + 1}  # fmt: skip
 
     def decide(state: AskState) -> str:
+        if not state["relevant"] and not state["understanding"].on_topic:
+            return "abstain"  # thought off topic, and the library has nothing on it
         if not state["sufficient"] and state["loop"] < max_loops:
             return "rewrite"
         return "answer" if state["relevant"] else "abstain"
@@ -269,7 +271,7 @@ def build_graph(s: AskSession) -> StateGraph:
     ]:
         g.add_node(name, fn)  # type: ignore[arg-type,call-overload,unused-ignore]
     g.add_edge(START, "understand")
-    g.add_conditional_edges("understand", route, ["abstain", "clarify", "retrieve"])
+    g.add_conditional_edges("understand", route, ["clarify", "retrieve"])
     g.add_edge("clarify", "retrieve")
     g.add_edge("retrieve", "grade")
     g.add_conditional_edges("grade", decide, ["rewrite", "answer", "abstain"])

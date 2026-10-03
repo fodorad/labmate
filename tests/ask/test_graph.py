@@ -22,13 +22,22 @@ def test_a_question_is_answered_with_numbered_citations(indexed, graph):
     assert {c.n for c in answer.citations} == set(range(1, len(answer.citations) + 1))
 
 
-def test_off_topic_questions_are_declined_without_searching(indexed, graph, model):
+def test_an_off_topic_question_is_searched_once_and_declined_when_nothing_is_found(
+    indexed, graph, model
+):
     searches = len(embeds(model))
 
     answer = ask(graph, "What will the weather be tomorrow?")
 
     assert answer.abstained and answer.text == OFF_TOPIC and answer.reason == "off topic"
-    assert len(embeds(model)) == searches
+    assert len(embeds(model)) - searches == 1  # one look, no rewriting rounds
+
+
+def test_a_question_wrongly_called_off_topic_is_still_answered_from_the_library(indexed, graph):
+    # a real run refused "How fast is LinMulT at inference?" this way: the model called it off topic
+    answer = ask(graph, "Which OFFBEAT datasets are used for training?")
+
+    assert not answer.abstained and answer.citations
 
 
 def test_thin_evidence_makes_the_query_be_rewritten_and_searched_again(indexed, graph, model):

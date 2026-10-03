@@ -163,7 +163,7 @@ def ask_chat(body: dict[str, Any]) -> dict[str, Any]:
         return _agent_turn(body)
     if "on_topic" in props:
         question = _field(prompt, "Question")
-        if "weather" in question.lower():
+        if "weather" in question.lower() or "offbeat" in question.lower():
             return _reply(body, {"on_topic": False, "options": [], "search": question})
         if "the transformer" in question.lower():
             options = ["BlinkLinMulT", "the outside transformer"]
