@@ -1,0 +1,31 @@
+# A fictional CV for trying cv2job. Put your own under private/ (git-ignored).
+name: Jordan Example
+headline: Machine learning engineer
+email: jordan@example.org
+location: Budapest, Hungary
+links: [github.com/jordan-example]
+skills:
+  - {name: Python, since: 2016}
+  - {name: PyTorch, since: 2019}
+  - {name: SQL, since: 2018}
+  - {name: Docker, since: 2021}
+roles:
+  - id: r1
+    title: Machine learning engineer
+    company: Northwind Analytics
+    start: 2021-03
+    end: present
+    bullets:
+      - text: Trained transformer models in PyTorch for text classification, raising macro F1 from 0.71 to 0.78.
+      - text: Built a feature pipeline in Python and SQL that serves 2 million predictions per day.
+      - text: Packaged the inference service in Docker and cut its start-up time by 40%.
+  - id: r2
+    title: Research assistant
+    company: Example University
+    start: 2017-09
+    end: 2021-02
+    bullets:
+      - text: Published two papers on speech emotion recognition with convolutional networks.
+      - text: Maintained the lab's GPU cluster scripts and trained 30 students to use them.
+education:
+  - {degree: MSc Computer Science, school: Example University, year: "2019"}

@@ -21,6 +21,8 @@ tmp/
 
 # Pipeline outputs and the reply cache. Anchored to the repo root.
 /runs/
+# your own CV and postings (examples/cv2job holds fictional ones)
+/private/
 /cache/
 /site/
 

@@ -23,8 +23,11 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
   - `agent.py`: the **tool-calling agent** (`create_agent`, three library tools).
   - `answer.py` (sentence checks, citations), `verify.py` (judge checks each sentence), `evidence.py`.
   - `evals.py`: graph vs agent on `library/golden.yaml`. `studio.py`: factories for LangGraph Studio.
+- `labmate/cv2job/`: a **LangChain chain with one agent step**, CV + posting → `cv.pdf`, `cover_letter.pdf`, `gap_report.pdf`.
+  - `steps.py` (requirements, match, tailor, highlights; the checks), `gaps.py` (the agent), `letter.py` (fixed template), `render.py`, `chain.py`.
+  - Input: `cv.yaml` (see `examples/cv2job/`) and a text posting. Your own files go in `private/` (git-ignored).
 - `labmate/diagrams.py`: Mermaid diagrams drawn by LangChain/LangGraph. `make graphs` writes `docs/graphs.md`.
-- `labmate/cli.py`: `labmate paper2flow|paper2post <paper>`, `ask index|query|eval-answers`, `eval`, `graphs`. The `Makefile` wraps it.
+- `labmate/cli.py`: `labmate paper2flow|paper2post <paper>`, `cv2job <cv> <job>`, `ask index|query|eval-answers`, `eval`, `graphs`. The `Makefile` wraps it.
 
 ## Commands
 
@@ -34,6 +37,7 @@ make check          # ruff + mypy + pytest (>=90% coverage, currently ~99%) + sp
 make flow PAPER=…   # paper2flow; make post PAPER=… for paper2post
 make index          # ask: index library/ (library.toml + PDFs)
 make ask Q="…"      # [AGENT=agent]
+make cv CV=… JOB=…  # cv2job
 make eval           # paper2flow run metrics
 make eval-answers   # evals/ask/answers.md
 ```

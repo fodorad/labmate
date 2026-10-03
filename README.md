@@ -10,6 +10,7 @@ each step) or **the model** (an agent that picks its own tools).
 |---|---|---|---|
 | **paper2flow** | A research paper in, `overview.pdf` out: a cover, four fact-checked cards and data-flow diagrams | code | LangChain chain |
 | **paper2post** | A research paper in, `post.pdf` out: a fact-checked LinkedIn post, its links and the pipeline image | code | LangChain chain |
+| **cv2job** | A CV and a job posting in, a tailored CV, a cover letter and a gap report out | code, with one agent step | LangChain chain + `create_agent` |
 | **ask** (graph) | A question about a library of PDFs in, a cited answer out | code | LangGraph graph |
 | **ask** (agent) | The same task, with the model choosing its tools | the model | LangChain `create_agent` |
 
@@ -71,6 +72,34 @@ something specific in the paper, one icon per sentence (a bundled Tabler icon ch
 sentence's place in the story) and the links: the paper, its code if it names a repository, and your own links from `config.toml`
 `[post.links]`. Page 2 is the end-to-end pipeline diagram, to attach as the post's image. Every
 sentence passes the same fact-check as the overview, and the analysis is reused from the cache.
+
+## cv2job
+
+A CV (YAML) and a job posting (text) in; `cv.pdf`, `cover_letter.pdf` and a separate
+`gap_report.pdf` out, in `runs/cv2job/<posting file name>/`.
+
+```
+cv2job = requirements | match | gaps | tailor | letter | render
+```
+
+| Step | Who decides | What it does |
+|---|---|---|
+| requirements | model call, checked | reads the posting's requirements (must-have or nice-to-have); every quote must be in the posting, or the model is sent back |
+| match | model call per requirement, checked | CV bullets and skills that show it; ids must exist in the CV; empty if the CV shows nothing |
+| gaps | **agent** | for requirements nothing matched: searches the CV with other words, asks you a question in the terminal if the CV hints at more, and reports `covered` or `gap`. Your answer is stored verbatim; a `covered` needs CV bullets that exist or your answer |
+| tailor | model call per role, checked | picks, orders and rewords up to 4 bullets per role; numbers and names must come from the source bullet, and a tool name such as Kubernetes may not be added |
+| letter | model call, checked | up to four highlights (must-haves first), one sentence each from the evidence; everything else is a fixed template |
+| render | plain code | three PDFs with Typst |
+
+The cover letter is a fixed template. The years of experience come from the `since` year of a
+skill in your CV, never from the model, and there is no claim about the company. The gap report is
+for you only: what the CV does not cover (do not claim it), what it covers and by which bullets,
+and what you told the agent that is not in your CV yet.
+
+```bash
+make cv CV=examples/cv2job/cv.yaml JOB=examples/cv2job/job.txt   # fictional examples
+make cv CV=private/cv.yaml JOB=private/job.txt                   # yours (private/ is git-ignored)
+```
 
 ## ask
 

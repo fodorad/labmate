@@ -62,6 +62,35 @@ graph TD;
 	classDef last fill:#bfb6fc
 ```
 
+## cv2job (chain with one agent step)
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	requirements_input([requirements_input]):::first
+	requirements(requirements)
+	match(match)
+	gaps(gaps)
+	tailor(tailor)
+	letter(letter)
+	render(render)
+	render_output([render_output]):::last
+	requirements_input --> requirements;
+	requirements --> match;
+	match --> gaps;
+	gaps --> tailor;
+	tailor --> letter;
+	render --> render_output;
+	letter --> render;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```
+
 ## ask (graph)
 
 ```mermaid

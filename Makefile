@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post eval index ask eval-answers graphs studio
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post cv eval index ask eval-answers graphs studio
 
 install:
 	uv sync --extra dev
@@ -43,6 +43,14 @@ flow:  ## a paper -> runs/<id>/overview.pdf, e.g. make flow PAPER=1706.03762
 
 post:  ## a paper -> runs/<id>/post.pdf (reuses the overview's analysis)
 	uv run labmate paper2post "$(PAPER)"
+
+# --- cv2job: a CV and a job posting -> tailored CV, cover letter, gap report ---
+
+CV ?= examples/cv2job/cv.yaml
+JOB ?= examples/cv2job/job.txt
+
+cv:  ## tailor a CV to a job posting -> runs/cv2job/<job>/, e.g. make cv CV=my-cv.yaml JOB=job.txt
+	uv run labmate cv2job "$(CV)" "$(JOB)"
 
 # --- evaluation of the paper chains ---
 

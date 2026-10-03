@@ -1,0 +1,14 @@
+Machine Learning Engineer, Contoso Vision
+
+Contoso Vision builds camera software for factories. We are looking for a machine learning
+engineer to take models from research to production.
+
+You have:
+- At least 3 years of experience training deep learning models in PyTorch.
+- Strong Python and SQL skills.
+- Experience deploying models as services with Docker.
+- Experience with Kubernetes in production.
+
+It would be a plus if you:
+- Have worked with video or other time-series data.
+- Have published research papers.

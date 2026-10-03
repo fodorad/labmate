@@ -1,6 +1,7 @@
 """Command-line interface: ``labmate <command>``; every command is also a Makefile target.
 
 - ``paper2flow`` / ``paper2post``: a paper in, ``overview.pdf`` / ``post.pdf`` out.
+- ``cv2job``: a CV and a job posting in, a tailored CV, a cover letter and a gap report out.
 - ``ask``: questions about your research (see :mod:`labmate.ask.cli`).
 - ``eval``: metrics of the finished paper runs.
 - ``graphs``: Mermaid diagrams of the chains and graphs.
@@ -12,7 +13,7 @@ import argparse
 import json
 import logging
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import httpx
@@ -111,6 +112,11 @@ def build_parser() -> argparse.ArgumentParser:
         chain.add_argument("paper", help="arXiv id or URL, PDF URL or PDF path")
         chain.add_argument("--title", help="title override for PDFs without a usable title")
 
+    cv = sub.add_parser("cv2job", help="a CV and a job posting -> tailored CV, letter, gap report")
+    cv.add_argument("cv", type=Path, help="your CV as YAML (see examples/cv2job/cv.yaml)")
+    cv.add_argument("job", type=Path, help="the job posting as a text file")
+    cv.add_argument("--out", type=Path, help="output folder (default: runs/cv2job/<job file>)")
+
     from labmate.ask.cli import add_parser as add_ask  # noqa: PLC0415 - light imports only
 
     add_ask(sub)
@@ -124,10 +130,58 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def terminal_ask(question: str) -> str:
+    """Ask the candidate in the terminal; no answer when there is no terminal to ask in.
+
+    Args:
+        question: The question.
+
+    Returns:
+        The typed answer, or ``""``.
+    """
+    if not sys.stdin.isatty():
+        return ""
+    print(f"\n{question}")  # pragma: no cover - interactive
+    return input("> ")  # pragma: no cover
+
+
+def cmd_cv2job(
+    config: Config,
+    args: argparse.Namespace,
+    ask: Callable[[str], str],
+    ollama: httpx.BaseTransport | None,
+) -> int:
+    """Tailor a CV to a job posting.
+
+    Args:
+        config: Loaded configuration.
+        args: Parsed arguments (``cv``, ``job``, ``out``).
+        ask: Asks the candidate a question (the gap agent uses it).
+        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+
+    Returns:
+        Exit code: 0 on success, 1 if an input file is missing or invalid.
+    """
+    from labmate.cv2job.chain import cv2job  # noqa: PLC0415 - needs the [ask] extra
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    out = args.out or config.tracing.runs_dir / "cv2job" / args.job.stem
+    try:
+        pdfs = cv2job(config, args.cv, args.job, out, ask, ollama=ollama)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    for pdf in pdfs:
+        print(pdf)
+    return 0
+
+
 def main(
     argv: Sequence[str] | None = None,
     web: httpx.BaseTransport | None = None,
     ollama: httpx.BaseTransport | None = None,
+    ask: Callable[[str], str] = terminal_ask,
 ) -> int:
     """Entry point.
 
@@ -135,6 +189,7 @@ def main(
         argv: Arguments (defaults to ``sys.argv[1:]``).
         web: Injected web transport (tests); the network otherwise.
         ollama: Injected transport to Ollama (tests); the configured host otherwise.
+        ask: How cv2job's agent asks you a question (default: in the terminal).
 
     Returns:
         Process exit code.
@@ -153,6 +208,8 @@ def main(
             from labmate.ask.cli import main as ask_main  # noqa: PLC0415 - needs the [ask] extra
 
             return ask_main(config, args, ollama)
+        if args.command == "cv2job":
+            return cmd_cv2job(config, args, ask, ollama)
         return cmd_paper(config, args, web, ollama)
     except (httpx.TransportError, ResponseError) as e:  # Ollama down, or the model not pulled
         print(
