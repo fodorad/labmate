@@ -10,9 +10,11 @@ from labmate.core.ingest import (
     ingest_arxiv,
     ingest_pdf,
     parse_arxiv_id,
+    search_arxiv,
     split_sections,
 )
 from tests.conftest import EMPTY_ATOM, FakeArxiv, make_pdf
+from tests.scout.conftest import FEED
 
 
 @pytest.mark.parametrize(
@@ -189,3 +191,15 @@ def test_urls_with_the_same_file_name_never_share_a_download(tmp_path):
     second = download_url("https://openreview.net/pdf?id=b", tmp_path / "dl", http)
     assert first != second
     assert ingest_pdf(first).title == "Paper A" and ingest_pdf(second).title == "Paper B"
+
+
+def test_a_search_lists_every_hit_with_its_arxiv_id_and_skips_empty_entries():
+    feed = FEED.replace("</feed>", "<entry><title>Error</title></entry></feed>")
+
+    hits = search_arxiv("attention", FakeArxiv(b"", atom=feed).client())
+
+    assert [(i, m.title) for i, m in hits] == [
+        ("2401.00001", "Linear Attention Revisited"),
+        ("2401.00002", "Sparse Attention at Scale"),
+    ]
+    assert hits[0][1].published == "2024-01-02"

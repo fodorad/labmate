@@ -1,6 +1,7 @@
 """Command-line interface: ``labmate <command>``; every command is also a Makefile target.
 
 - ``paper2flow`` / ``paper2post``: a paper in, ``overview.pdf`` / ``post.pdf`` out.
+- ``scout``: a research agent that searches arXiv and writes notes on a topic.
 - ``cv2job``: a CV and a job posting in, a tailored CV, a cover letter and a gap report out.
 - ``ask``: questions about your research (see :mod:`labmate.ask.cli`).
 - ``eval``: metrics of the finished paper runs.
@@ -20,7 +21,7 @@ import httpx
 from ollama import ResponseError
 
 from labmate.config import Config, load_config
-from labmate.core.ingest import IngestError
+from labmate.core.ingest import IngestError, slugify
 from labmate.paper2flow.chain import ARTIFACTS, NothingSupportedError, paper2flow
 from labmate.paper2flow.evals.metrics import results_markdown, run_metrics
 from labmate.paper2post.chain import paper2post
@@ -112,6 +113,11 @@ def build_parser() -> argparse.ArgumentParser:
         chain.add_argument("paper", help="arXiv id or URL, PDF URL or PDF path")
         chain.add_argument("--title", help="title override for PDFs without a usable title")
 
+    scout = sub.add_parser("scout", help="an agent that searches arXiv and writes notes on a topic")
+    scout.add_argument("topic", help="what to look into, e.g. 'efficient attention for video'")
+    scout.add_argument("--deep", type=int, default=2, help="papers it may look at deeply (slow)")
+    scout.add_argument("--out", type=Path, help="output folder (default: runs/scout/<topic>)")
+
     cv = sub.add_parser("cv2job", help="a CV and a job posting -> tailored CV, letter, gap report")
     cv.add_argument("cv", type=Path, help="your CV as YAML (see examples/cv2job/cv.yaml)")
     cv.add_argument("job", type=Path, help="the job posting as a text file")
@@ -143,6 +149,36 @@ def terminal_ask(question: str) -> str:
         return ""
     print(f"\n{question}")  # pragma: no cover - interactive
     return input("> ")  # pragma: no cover
+
+
+def cmd_scout(
+    config: Config,
+    args: argparse.Namespace,
+    web: httpx.BaseTransport | None,
+    ollama: httpx.BaseTransport | None,
+) -> int:
+    """Let the scout agent look into a topic.
+
+    Args:
+        config: Loaded configuration.
+        args: Parsed arguments (``topic``, ``deep``, ``out``).
+        web: Transport for arXiv (tests); the network otherwise.
+        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+
+    Returns:
+        Exit code: 0 if notes were written, 1 if the agent stopped without them.
+    """
+    from labmate.scout.agent import run_scout  # noqa: PLC0415 - needs the [ask] extra
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    out = args.out or config.tracing.runs_dir / "scout" / slugify(args.topic)
+    notes = run_scout(config, args.topic, out, args.deep, web, ollama)
+    if notes is None:
+        print("error: the agent stopped without writing notes", file=sys.stderr)
+        return 1
+    print(notes)
+    return 0
 
 
 def cmd_cv2job(
@@ -208,12 +244,15 @@ def main(
             from labmate.ask.cli import main as ask_main  # noqa: PLC0415 - needs the [ask] extra
 
             return ask_main(config, args, ollama)
+        if args.command == "scout":
+            return cmd_scout(config, args, web, ollama)
         if args.command == "cv2job":
             return cmd_cv2job(config, args, ask, ollama)
         return cmd_paper(config, args, web, ollama)
-    except (httpx.TransportError, ResponseError) as e:  # Ollama down, or the model not pulled
-        print(
-            f"error: {e} (is Ollama running at {config.ollama.host}, with the models?)",
-            file=sys.stderr,
-        )
+    except httpx.TransportError as e:
+        print(f"error: {e} (is Ollama running at {config.ollama.host}?)", file=sys.stderr)
+        return 2
+    except ResponseError as e:  # a model not pulled, or a reply Ollama could not parse
+        print(f"error: Ollama refused the request: {e}. Pulled the models? Run again.",
+              file=sys.stderr)  # fmt: skip
         return 2

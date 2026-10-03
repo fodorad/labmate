@@ -77,6 +77,13 @@ def reply(body: dict[str, Any], content: str) -> dict[str, Any]:
     return {"model": body["model"], "message": {"role": "assistant", "content": content}}
 
 
+def tool_call(body: dict[str, Any], name: str, **arguments: Any) -> dict[str, Any]:
+    """A chat response in which the model calls one tool."""
+    call = {"function": {"name": name, "arguments": arguments}}
+    message = {"role": "assistant", "content": "", "tool_calls": [call]}
+    return {"model": body["model"], "message": message}
+
+
 class FakeOllama:
     """In-memory stand-in for an Ollama server, served through ``httpx.MockTransport``."""
 

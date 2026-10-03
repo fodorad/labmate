@@ -13,7 +13,7 @@ import shutil
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import httpx
 import pymupdf
@@ -27,6 +27,9 @@ ARXIV_PDF = "https://arxiv.org/pdf/{id}"
 
 ARXIV_API = "https://export.arxiv.org/api/query?id_list={id}"
 """Metadata (Atom feed) URL template."""
+
+ARXIV_SEARCH = "https://export.arxiv.org/api/query"
+"""Keyword search endpoint."""
 
 ARXIV_ABS = "https://arxiv.org/abs/{id}"
 """Abstract page URL template (metadata fallback)."""
@@ -121,14 +124,21 @@ def fetch_metadata(
         # carries the same metadata in its citation_* tags
         return _metadata_from_abs_page(arxiv_id, http)
     entry = ET.fromstring(response.text).find("a:entry", _ATOM)
-    title = entry.findtext("a:title", "", _ATOM) if entry is not None else ""
-    if entry is None or not title.strip() or title.strip() == "Error":
+    metadata = _entry_metadata(entry) if entry is not None else None
+    if metadata is None:
         raise IngestError(f"arXiv has no entry for {arxiv_id}")
+    return metadata
+
+
+def _entry_metadata(entry: ET.Element) -> ArxivMetadata | None:
+    """Metadata of one Atom entry; ``None`` for arXiv's empty "Error" entry."""
+    title = entry.findtext("a:title", "", _ATOM)
+    if not title.strip() or title.strip() == "Error":
+        return None
 
     def clean(s: str) -> str:
         return " ".join(s.split())
 
-    authors = entry.findall("a:author", _ATOM)
     notes = [
         f"{label}: {clean(text)}"
         for label, tag in (
@@ -139,11 +149,36 @@ def fetch_metadata(
     ]
     return ArxivMetadata(
         title=clean(title),
-        authors=[clean(a.findtext("a:name", "", _ATOM)) for a in authors],
+        authors=[clean(a.findtext("a:name", "", _ATOM)) for a in entry.findall("a:author", _ATOM)],
         abstract=clean(entry.findtext("a:summary", "", _ATOM)),
         published=entry.findtext("a:published", "", _ATOM).strip()[:10],
         notes="\n".join(notes),
     )
+
+
+def search_arxiv(
+    query: str, http: httpx.Client, limit: int = 5, retry_wait_s: float = RETRY_WAIT_S
+) -> list[tuple[str, ArxivMetadata]]:
+    """Search arXiv by keywords.
+
+    Args:
+        query: Search terms (all fields).
+        http: HTTP client.
+        limit: Most results.
+        retry_wait_s: Base wait between API tries (see :data:`RETRY_WAIT_S`).
+
+    Returns:
+        ``(arXiv id, metadata)`` for each hit, most relevant first.
+    """
+    url = f"{ARXIV_SEARCH}?{urlencode({'search_query': f'all:{query}', 'max_results': limit})}"
+    root = ET.fromstring(_get_with_retry(http, url, retry_wait_s).text)
+    hits = []
+    for entry in root.findall("a:entry", _ATOM):
+        metadata = _entry_metadata(entry)
+        found = _ARXIV_ID.search(entry.findtext("a:id", "", _ATOM))
+        if metadata is not None and found:
+            hits.append((found.group(1), metadata))
+    return hits
 
 
 def _metadata_from_abs_page(arxiv_id: str, http: httpx.Client) -> ArxivMetadata:
