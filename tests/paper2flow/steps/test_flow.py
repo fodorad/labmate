@@ -29,7 +29,7 @@ from labmate.paper2flow.steps.flow import (
     plan_overview,
     render_flows,
 )
-from tests.conftest import chat_model
+from tests.conftest import chat
 
 EVIDENCE = (
     "We present a modified multi-modal transformer with linear attention, which considers "
@@ -183,13 +183,13 @@ def test_rendering_explains_a_missing_node(tmp_path, monkeypatch):
 
 CARDS = [
     ClaimCard(id="c01", claim="c", evidence_quote="RGB texture", kind="task", section="Intro",
-              page=1, match=100),
+              page=1),
     ClaimCard(id="c02", claim="c", evidence_quote="linear attention", kind="method",
-              section="Method", page=2, match=100),
+              section="Method", page=2),
     ClaimCard(id="c03", claim="c", evidence_quote="0.99 F1", kind="result", section="Results",
-              page=3, match=100),
+              page=3),
     ClaimCard(id="c04", claim="c", evidence_quote="landmarks", kind="contribution",
-              section="Method", page=2, match=100),
+              section="Method", page=2),
 ]  # fmt: skip
 OUTLINE = Outline(
     cards=[
@@ -225,10 +225,13 @@ def test_planner_and_worker_prompts_and_checks(fake):
 
     def handler(body):
         seen.append(body["messages"][-1]["content"])
-        return {"model": body["model"], "message": {"content": next(replies).model_dump_json()}}
+        return {
+            "model": body["model"],
+            "message": {"role": "assistant", "content": next(replies).model_dump_json()},
+        }
 
     fake.chat_handler = handler
-    llm = chat_model(fake)
+    llm = chat(fake)
     cards = flow_cards(OUTLINE, CARDS)
     sections = flow_sections(PAPER, cards)
     ov = plan_overview(PAPER, "method", ["It fuses RGB and landmarks."], cards, sections, llm)

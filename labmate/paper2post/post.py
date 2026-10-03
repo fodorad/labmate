@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import re
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from labmate.core.factcheck import INLINE_ID, fact_check
-from labmate.core.lc import RecordedChatModel, prompt, structured
+from labmate.core.lc import prompt, structured
 from labmate.core.schemas import Card, Cards, Claims, Paper
 from labmate.paper2post.prompts import load_prompt
 from labmate.paper2post.schemas import IconChoice, IconName, Link, Post, PostDraft
@@ -35,8 +36,8 @@ def write_post(
     cards: Cards,
     claims: Claims,
     paper: Paper,
-    writer: RecordedChatModel,
-    judge: RecordedChatModel,
+    writer: BaseChatModel,
+    judge: BaseChatModel,
     max_rounds: int = 1,
     workers: int = 2,
     config: RunnableConfig | None = None,
@@ -95,7 +96,7 @@ def write_post(
 
 
 def pick_icons(
-    post: Post, model: RecordedChatModel, config: RunnableConfig | None = None
+    post: Post, model: BaseChatModel, config: RunnableConfig | None = None
 ) -> list[IconName]:
     """One icon per takeaway, from the bundled set.
 

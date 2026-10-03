@@ -1,14 +1,14 @@
-"""labmate: a local research assistant, built from agentic patterns.
+"""labmate: local research tools on Ollama.
 
 Features:
 
 - :mod:`labmate.paper2flow`: a paper in, a fact-checked overview with data-flow diagrams
-  and a LinkedIn post out (a workflow).
-- ``labmate.ask`` (planned): questions about your research answered from your
-  dissertation and papers, with citations (an agent, built with LangGraph).
+  out (a chain).
+- :mod:`labmate.paper2post`: a paper in, a fact-checked LinkedIn post out (a chain).
+- :mod:`labmate.ask`: questions about a library of PDFs, answered with citations by a
+  LangGraph graph or a tool-calling agent.
 
-Both run on :mod:`labmate.core`: local models via Ollama, every call recorded and
-replayable.
+All run on :mod:`labmate.core`: local models via Ollama with a reply cache.
 """
 
 __version__ = "0.0.0"

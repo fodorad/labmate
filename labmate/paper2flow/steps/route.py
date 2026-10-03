@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from labmate.core.lc import RecordedChatModel, prompt, structured
+from labmate.core.lc import prompt, structured
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Paper, Route
 
@@ -12,9 +13,7 @@ MIN_CONFIDENCE = 0.6
 """Below this the router falls back to the most general paper type (``method``)."""
 
 
-def route_paper(
-    paper: Paper, model: RecordedChatModel, config: RunnableConfig | None = None
-) -> Route:
+def route_paper(paper: Paper, model: BaseChatModel, config: RunnableConfig | None = None) -> Route:
     """Classify a paper as method, benchmark, survey or position.
 
     Only the title and abstract are sent: routing is cheap by design. Low-confidence

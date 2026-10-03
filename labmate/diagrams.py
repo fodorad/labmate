@@ -2,8 +2,7 @@
 
 ``make graphs`` writes them to ``docs/graphs.md`` (GitHub renders Mermaid), so the
 diagrams can't drift from the code: LangChain draws every chain and LangGraph every graph
-(``get_graph().draw_mermaid()``). :data:`ASK_OVERVIEW` is the hand-drawn overview of the
-ask agent with its two subgraphs expanded; the dashboard animates it.
+(``get_graph().draw_mermaid()``).
 """
 
 from __future__ import annotations
@@ -11,108 +10,43 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 
 from labmate.config import Config
-
-ASK_OVERVIEW = """flowchart TB
-    q([question]) --> understand
-    understand -->|off topic| abstain
-    understand -->|ambiguous| clarify{{"✋ clarify<br/>(interrupt)"}}
-    understand --> plan
-    clarify --> plan
-    plan -->|"Send × k<br/>(one per query)"| research_retrieve
-    subgraph research ["research (subgraph, per query)"]
-        research_retrieve["retrieve<br/>hybrid: BM25 + dense, RRF<br/>tier 1 first"]
-        research_grade["grade<br/>(judge model)"]
-        research_retrieve --> research_grade
-        research_grade -->|not enough| research_rewrite["rewrite query<br/>+ widen tier"]
-        research_rewrite --> research_retrieve
-    end
-    research_grade -->|enough / budget used| conflicts["conflict check<br/>dissertation vs papers"]
-    conflicts -->|no evidence| abstain
-    conflicts --> answer["answer<br/>cited sentences"]
-    answer --> verify_judge
-    subgraph verify ["verify (fact-check subgraph)"]
-        verify_judge["judge<br/>(critic model)"] -->|unsupported| verify_rewrite[rewrite]
-        verify_rewrite --> verify_judge
-    end
-    verify_judge --> finalize["finalize<br/>numbered citations"]
-    finalize --> a([answer + memory])
-    abstain --> a
-"""
-"""The ask agent with its subgraphs expanded (node ids match the dashboard's events)."""
-
-
-def _stub() -> Any:
-    """Just enough of a session for the chain and graph builders (nothing is run)."""
-    return SimpleNamespace(
-        config=Config(), llm=None, judge=None, writer_model=None, judge_model=None, workers=1
-    )
-
 
 _STEP_NOTE = re.compile(r"<hr/><small><em>step = [\w.]+</em></small>")
 """The metadata note LangChain adds to every named step (the step name, again)."""
 
 
 def generated_diagrams() -> dict[str, str]:
-    """Mermaid source of every compiled graph, as LangGraph draws it.
+    """Mermaid source of every compiled chain and graph, as LangChain and LangGraph draw it.
 
     Returns:
         Title to Mermaid source.
     """
     from labmate.ask.agent import build_agent  # noqa: PLC0415 - optional dependencies
-    from labmate.ask.graph import build_graph, build_research  # noqa: PLC0415
-    from labmate.ask.verify import build_verifier  # noqa: PLC0415
+    from labmate.ask.graph import build_graph  # noqa: PLC0415
+    from labmate.core.chat import chat_model  # noqa: PLC0415
     from labmate.paper2flow.chain import build_paper2flow  # noqa: PLC0415
     from labmate.paper2post.chain import build_paper2post  # noqa: PLC0415
 
-    stub = _stub()
-    from labmate.core.model import LLM  # noqa: PLC0415
-
-    agent_stub = SimpleNamespace(
-        llm=LLM(None, "model"),  # type: ignore[arg-type]
-        index=None,
-        embedder=None,
-        config=Config(),
-    )
+    config = Config()
+    model = chat_model(config, config.models.text)  # builds the client only; nothing is called
+    stub = SimpleNamespace(config=config, writer=model, judge=model, index=None, embedder=None)
     return {
-        "paper2flow (LangChain chain)": _STEP_NOTE.sub(
-            "", build_paper2flow(stub).get_graph().draw_mermaid()
-        ),
-        "paper2post (LangChain chain)": _STEP_NOTE.sub(
-            "", build_paper2post(stub).get_graph().draw_mermaid()
-        ),
-        "ask": build_graph(stub).compile().get_graph().draw_mermaid(),
-        "ask · research subgraph (one per planned query)": build_research(stub)
-        .get_graph()
-        .draw_mermaid(),
-        "ask · verify subgraph (shared fact-check loop)": build_verifier(None, None)
-        .get_graph()
-        .draw_mermaid(),
-        "ask · prebuilt baseline (LangChain create_agent)": build_agent(agent_stub)  # type: ignore[arg-type]
-        .get_graph()
-        .draw_mermaid(),
+        "paper2flow (chain)": _STEP_NOTE.sub("", build_paper2flow(stub).get_graph().draw_mermaid()),  # type: ignore[arg-type]
+        "paper2post (chain)": _STEP_NOTE.sub("", build_paper2post(stub).get_graph().draw_mermaid()),  # type: ignore[arg-type]
+        "ask (graph)": build_graph(stub).compile().get_graph().draw_mermaid(),  # type: ignore[arg-type]
+        "ask (agent)": build_agent(stub).get_graph().draw_mermaid(),  # type: ignore[arg-type]
     }
 
 
 def diagrams_markdown() -> str:
-    """The diagrams page: overviews first, then the generated graphs.
+    """The diagrams page.
 
     Returns:
-        Markdown with Mermaid blocks.
+        Markdown with one Mermaid block per chain and graph.
     """
-    parts = [
-        "# labmate graphs",
-        "",
-        "Generated by `make graphs` from the chains and graphs; don't edit by hand.",
-        "",
-        "## ask: overview",
-        "",
-        "```mermaid",
-        ASK_OVERVIEW.rstrip(),
-        "```",
-    ]
+    parts = ["# labmate graphs", "", "Generated by `make graphs`; don't edit by hand."]
     for title, source in generated_diagrams().items():
         parts += ["", f"## {title}", "", "```mermaid", source.rstrip(), "```"]
     return "\n".join(parts) + "\n"

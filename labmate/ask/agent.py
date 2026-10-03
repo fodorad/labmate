@@ -1,34 +1,33 @@
-"""Baseline: LangChain's prebuilt tool-calling agent (``create_agent``) with library tools.
+"""The ask agent: a tool-calling (ReAct) agent over the library.
 
-The same question-answering task as :mod:`labmate.ask.graph`, but the model decides
-everything in one ReAct loop: which tool to call, when to widen the search, when to
-stop. It has the same tools and the same recorded backend, so the evaluation compares
-the control flow, not the plumbing.
+The same task as :mod:`labmate.ask.graph`, but the model decides everything: which tool to
+call, how to rephrase a search, when to read more context and when to stop. Nothing fixes
+the order of steps, only the tools and the step limit. What the model writes is still
+checked by code: a sentence stays only if the chunks it cites exist and contain its numbers
+(see :func:`labmate.ask.answer.compose`).
 """
 
 from __future__ import annotations
 
 import re
-from typing import Any, Literal
+from typing import Any
 
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import BaseTool, tool
 
+from labmate.ask.answer import compose
 from labmate.ask.evidence import context, label
-from labmate.ask.graph import compose
 from labmate.ask.prompts import load_prompt
 from labmate.ask.schemas import Answer, Sentence
 from labmate.ask.session import AskSession
-from labmate.core.lc import RecordedChatModel
-
-SCOPES = {"dissertation": [1], "own": [1, 2], "all": [1, 2, 3]}
-"""Search scopes offered to the agent, as tiers."""
+from labmate.ask.verify import verify_sentences
 
 RECURSION_LIMIT = 16
 """Graph steps the agent may take (each tool call is two)."""
 
 _CITE = re.compile(r"\[([a-z0-9][a-z0-9-]*:\d{4})\]")
+_SPACE_BEFORE_PUNCTUATION = re.compile(r"\s+([.,;:!?])")
 _SENTENCES = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
 
 
@@ -43,18 +42,13 @@ def make_tools(s: AskSession) -> list[BaseTool]:
     """
 
     @tool
-    def search_library(
-        query: str, scope: Literal["dissertation", "own", "all"] = "dissertation"
-    ) -> str:
+    def search_library(query: str) -> str:
         """Search the library and return the best passages with their chunk ids.
 
         Args:
             query: What to look for.
-            scope: "dissertation" (the source of truth), "own" (dissertation and papers) or
-                "all" (also outside papers).
         """
-        tiers = SCOPES.get(scope, [1])
-        hits = s.index.search(query, s.embedder.query(query), tiers, s.config.ask.top_k)
+        hits = s.index.search(query, s.embedder.query(query), s.config.ask.top_k)
         return "\n\n".join(f"[{h.chunk.id}] {label(s.index, h.chunk.id)}: {h.chunk.text}"
                            for h in hits) or "no results"  # fmt: skip
 
@@ -72,14 +66,14 @@ def make_tools(s: AskSession) -> list[BaseTool]:
 
     @tool
     def list_sources() -> str:
-        """List the documents in the library with their tiers."""
-        return "\n".join(f"{x.id}: {x.name} (tier {x.tier}) {x.title}" for x in s.index.sources())
+        """List the documents in the library."""
+        return "\n".join(f"{x.id}: {x.name}. {x.title}" for x in s.index.sources())
 
     return [search_library, read_context, list_sources]
 
 
 def build_agent(s: AskSession) -> Any:
-    """The prebuilt agent over the recorded chat model.
+    """The agent over the writer model.
 
     Args:
         s: Session.
@@ -87,15 +81,15 @@ def build_agent(s: AskSession) -> Any:
     Returns:
         A compiled LangGraph graph (``create_agent`` builds one).
     """
-    model = RecordedChatModel(llm=s.llm)
-    return create_agent(model=model, tools=make_tools(s), system_prompt=load_prompt("agent"))
+    return create_agent(model=s.writer, tools=make_tools(s), system_prompt=load_prompt("agent"))
 
 
 def parse_answer(s: AskSession, question: str, text: str) -> Answer:
-    """Turn the agent's free text into an :class:`Answer` (sentences and their citations).
+    """Turn the agent's free text into an :class:`Answer`.
 
-    Sentences without a valid citation are kept out of the cited sentences, so the
-    answer evaluation scores both agents the same way.
+    Sentences are split off the text with their ``[chunk id]`` citations. A sentence without a
+    valid citation is dropped, and so is one the judge model or the number check finds
+    unsupported by the chunks it cites.
 
     Args:
         s: Session.
@@ -103,9 +97,9 @@ def parse_answer(s: AskSession, question: str, text: str) -> Answer:
         text: The agent's final message.
 
     Returns:
-        The answer.
+        The answer; an abstention carries the agent's own text when nothing was cited.
     """
-    sentences = []
+    sentences, uncited = [], 0
     for raw in _SENTENCES.split(text.strip()):
         ids = []
         for cid in _CITE.findall(raw):
@@ -114,17 +108,20 @@ def parse_answer(s: AskSession, question: str, text: str) -> Answer:
                 ids.append(cid)
             except KeyError:
                 continue
-        clean = _CITE.sub("", raw).strip()
+        clean = _SPACE_BEFORE_PUNCTUATION.sub(r"\1", _CITE.sub("", raw)).strip()
         if ids and clean:
             sentences.append(Sentence(text=" ".join(clean.split()), chunk_ids=ids))
-    answer = compose(s, question, sentences, [], agent="prebuilt")
+        elif clean:
+            uncited += 1
+    kept, rejected = verify_sentences(s, question, sentences)
+    answer = compose(s.index, question, kept, dropped=uncited + rejected, agent="agent")
     if answer.abstained:
         return answer.model_copy(update={"text": text.strip() or answer.text})
     return answer
 
 
-def ask_prebuilt(s: AskSession, agent: Any, question: str) -> Answer:
-    """Ask the prebuilt agent one question.
+def ask_agent(s: AskSession, agent: Any, question: str) -> Answer:
+    """Ask the agent one question.
 
     Args:
         s: Session.
@@ -134,14 +131,9 @@ def ask_prebuilt(s: AskSession, agent: Any, question: str) -> Answer:
     Returns:
         The parsed answer.
     """
-    with s.tracer.span("run", command="ask", agent="prebuilt") as root:
-        s.switcher.use(s.llm.model)
-        result = agent.invoke(
-            {"messages": [HumanMessage(question)]}, {"recursion_limit": RECURSION_LIMIT}
-        )
-        final = next((m for m in reversed(result["messages"]) if isinstance(m, AIMessage)), None)
-        text = final.content if final is not None and isinstance(final.content, str) else ""
-        tool_calls = sum(len(m.tool_calls) for m in result["messages"] if isinstance(m, AIMessage))
-        answer = parse_answer(s, question, text)
-        root.update(tool_calls=tool_calls, abstained=answer.abstained)
-    return answer
+    result = agent.invoke(
+        {"messages": [HumanMessage(question)]}, {"recursion_limit": RECURSION_LIMIT}
+    )
+    final = next((m for m in reversed(result["messages"]) if isinstance(m, AIMessage)), None)
+    text = final.content if final is not None and isinstance(final.content, str) else ""
+    return parse_answer(s, question, text)

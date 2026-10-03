@@ -1,19 +1,15 @@
-# The documents "ask my research" answers from. PDFs are not committed (see .gitignore):
-# copy them next to this file, keeping the paths below.
-#
-# tier 1 = source of truth (the dissertation), 2 = own papers, 3 = outside context.
-# theses = the dissertation's thesis points a paper backs.
+# The documents `ask` answers from. `file` is relative to this folder; `label` is the short name
+# used in citations. The PDFs are gitignored: copy them here, keeping the paths below.
 
 [[source]]
 id = "dissertation"
 file = "pdf/2025_Fodor_Adam_PhD_Thesis.pdf"
 title = "Affective behavior and social interaction analysis (PhD thesis)"
 label = "Dissertation"
-tier = 1
 year = 2025
 venue = "Eötvös Loránd University (ELTE)"
 
-# --- own papers: thesis points ------------------------------------------------------
+# --- own papers ---------------------------------------------------------------------
 
 [[source]]
 id = "linmult"
@@ -22,7 +18,6 @@ title = "Multimodal Sentiment and Personality Perception Under Speech: A Compari
 label = "LinMulT"
 year = 2021
 venue = "DYAD@ICCV 2021 (PMLR)"
-theses = ["1"]
 
 [[source]]
 id = "group-personality"
@@ -31,7 +26,6 @@ title = "Perceived Personality State Estimation in Dyadic and Small Group Intera
 label = "Group personality"
 year = 2022
 venue = "arXiv:2211.04979"
-theses = ["2"]
 
 [[source]]
 id = "blinklinmult"
@@ -40,9 +34,6 @@ title = "BlinkLinMulT: Transformer-Based Eye Blink Detection"
 label = "BlinkLinMulT"
 year = 2023
 venue = "Journal of Imaging (MDPI)"
-theses = ["3"]
-
-# --- own papers: related ------------------------------------------------------------
 
 [[source]]
 id = "cross-modal-personality"
@@ -101,14 +92,13 @@ venue = "Acta IMEKO"
 
 # Left out: the 2018 student-conference thesis (Hungarian) and the CV.
 
-# --- outside context (the paper2flow gallery) ---------------------------------------
+# --- other papers -------------------------------------------------------------------
 
 [[source]]
 id = "attention"
 file = "outside/1706.03762.pdf"
 title = "Attention Is All You Need"
 label = "Transformer (Vaswani et al.)"
-tier = 3
 year = 2017
 venue = "NeurIPS 2017"
 
@@ -117,7 +107,6 @@ id = "agent-eval-survey"
 file = "outside/2503.16416.pdf"
 title = "A Survey on Evaluation of LLM-based Agents"
 label = "Agent evaluation survey"
-tier = 3
 year = 2025
 venue = "arXiv:2503.16416"
 
@@ -126,7 +115,6 @@ id = "rrsi"
 file = "outside/2609.24972.pdf"
 title = "RRSI: Regularized Recursive Self-Improvement of Agent Harnesses"
 label = "RRSI"
-tier = 3
 year = 2026
 venue = "arXiv:2609.24972"
 
@@ -135,6 +123,5 @@ id = "gamehorizon"
 file = "outside/2609.25001.pdf"
 title = "GameHorizon Suite: Multi-Horizon Data and Evaluation in Gameplay"
 label = "GameHorizon"
-tier = 3
 year = 2026
 venue = "arXiv:2609.25001"

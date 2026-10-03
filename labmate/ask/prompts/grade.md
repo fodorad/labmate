@@ -1,4 +1,4 @@
-You judge search results for one part of a question about a researcher's work.
+You judge search results for a question about a library of research documents.
 
 Whole question: {question}
 Search query: {query}

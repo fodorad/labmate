@@ -24,8 +24,7 @@ from tests.conftest import agentic_chat
 @pytest.fixture
 def config(tmp_path):
     cfg = Config()
-    cfg.replay.dir = tmp_path / "cassettes"
-    cfg.replay.lock_file = tmp_path / "models.lock"
+    cfg.cache.path = tmp_path / "cache" / "replies.sqlite"
     cfg.tracing.runs_dir = tmp_path / "runs"
     return cfg
 
@@ -34,9 +33,7 @@ def config(tmp_path):
 def finished(fake, arxiv, config) -> Path:
     """A finished paper2flow run."""
     fake.chat_handler = agentic_chat
-    return paper2flow(
-        config, "2401.00001", client=fake.client(), transport=arxiv.transport()
-    ).parent
+    return paper2flow(config, "2401.00001", web=arxiv.transport(), ollama=fake.transport()).parent
 
 
 def card(i: int, quote: str) -> ClaimCard:
@@ -47,7 +44,6 @@ def card(i: int, quote: str) -> ClaimCard:
         kind="result",
         section="Results",
         page=3,
-        match=100.0,
     )
 
 

@@ -6,10 +6,9 @@
   retrieval).
 - **Chunks** pack whole sentences up to about ``chunk_words`` words, never across a
   section boundary, each with the page it starts on.
+- **Tables** flattened into rows of numbers are not chunked (see :data:`MAX_NUMERIC_SHARE`).
 - **Captions** ("Figure 3: ...", "Table 2 ...") become their own chunks: they are dense,
   and questions often ask about what a figure or table shows.
-- **Thesis points** of the dissertation ("Thesis I: ...") become their own chunks, so
-  "what is thesis point 2 about?" is answered from the statement itself.
 """
 
 from __future__ import annotations
@@ -25,8 +24,8 @@ from pydantic import BaseModel
 from labmate.ask.library import Source
 from labmate.core.ingest import _REFERENCES, IngestError
 
-ChunkKind = Literal["text", "caption", "thesis", "summary"]
-"""What a chunk holds (summaries are written by the model at index time)."""
+ChunkKind = Literal["text", "caption"]
+"""What a chunk holds: running text, or a figure or table caption."""
 
 _NUMBER = re.compile(r"^\s*(\d+(?:\.\d+)*)\.?\s+")
 _BOUNDARY = re.compile(r"([.!?][)\]\"']?)\s+(?=[A-Z0-9(\[\"'])")
@@ -36,10 +35,13 @@ _CAPTION = re.compile(
     r"(?m)^\s*((?:Figure|Fig\.|Table)\s*\d+[.:]?\s.{10,}?\.)(?=[ \t]*\n|\Z)", re.DOTALL
 )
 """A caption: "Figure 3: ..." at a line start, up to the first sentence that ends a line."""
-_THESES_TITLE = re.compile(r"thes(?:is|es)|new scientific results", re.IGNORECASE)
-_THESIS = re.compile(
-    r"(?m)^\s*(?:Thesis(?:\s+point)?|T)\s*((?:[IVX]+)|\d+)\s*[.:)]\s*", re.IGNORECASE
-)
+
+_NUMERIC = re.compile(r"^[\d.,%±×()\-+/:]+$")
+
+MAX_NUMERIC_SHARE = 0.4
+"""Text chunks with more numeric tokens than this are flattened tables and are left out: their
+column names are far from the numbers, so a model reads the numbers wrongly (a layer count as
+a head count). The table's caption is still indexed."""
 
 MAX_CAPTION_WORDS = 80
 """Captions are cut to this length (long ones run into the body text)."""
@@ -77,22 +79,18 @@ class Chunk(BaseModel):
     Attributes:
         id: ``<source>:<nnnn>``, stable for a given document and settings.
         source_id: Owning source.
-        tier: The source's tier.
         section_id: Section the chunk belongs to.
-        kind: text, caption, thesis or summary.
+        kind: text or caption.
         page: 1-based page where the chunk starts.
         text: The chunk text (whitespace-normalised).
-        thesis: Thesis point number for ``kind="thesis"``.
     """
 
     id: str
     source_id: str
-    tier: int
     section_id: str
     kind: ChunkKind = "text"
     page: int
     text: str
-    thesis: str = ""
 
 
 def _clean(text: str) -> str:
@@ -241,6 +239,19 @@ def sentences(text: str) -> list[tuple[int, str]]:
     return [(a, text[a:b].strip()) for a, b in zip(starts, ends, strict=True) if text[a:b].strip()]
 
 
+def numeric_share(text: str) -> float:
+    """The share of whitespace-separated tokens that are numbers.
+
+    Args:
+        text: Chunk text.
+
+    Returns:
+        A share from 0 to 1 (0 for empty text).
+    """
+    words = text.split()
+    return sum(bool(_NUMERIC.match(w)) for w in words) / len(words) if words else 0.0
+
+
 def chunk_section(
     section: DocSection, source: Source, chunk_words: int, start_index: int
 ) -> list[Chunk]:
@@ -248,7 +259,7 @@ def chunk_section(
 
     Args:
         section: The section.
-        source: Its source (tier, id).
+        source: Its source.
         chunk_words: Target size.
         start_index: Number of the first chunk (ids are numbered per source).
 
@@ -263,12 +274,11 @@ def chunk_section(
     def flush() -> None:
         nonlocal current, words, index
         text = _clean(" ".join(current))
-        if text:
+        if text and numeric_share(text) <= MAX_NUMERIC_SHARE:
             chunks.append(
                 Chunk(
                     id=f"{source.id}:{index:04d}",
                     source_id=source.id,
-                    tier=source.tier,
                     section_id=section.id,
                     page=page_at(section, start),
                     text=text,
@@ -292,7 +302,6 @@ def chunk_section(
             Chunk(
                 id=f"{source.id}:{index:04d}",
                 source_id=source.id,
-                tier=source.tier,
                 section_id=section.id,
                 kind="caption",
                 page=page_at(section, match.start()),
@@ -303,54 +312,6 @@ def chunk_section(
     return chunks
 
 
-THESIS_MAX_WORDS = 220
-"""A thesis point longer than this is cut (the last one otherwise runs to the section end)."""
-
-
-def thesis_chunks(sections: list[DocSection], source: Source, start_index: int) -> list[Chunk]:
-    """The dissertation's thesis points, one chunk each.
-
-    The points are looked for in the theses section, recognised by its title ("Theses",
-    "Thesis points", "Summary of the theses", "New scientific results"); if there is none,
-    in any section that states at least two of them (often the introduction). Each point
-    starts with "Thesis I." / "Thesis 2:" / "T3)" at the beginning of a line.
-
-    Args:
-        sections: The dissertation's sections.
-        source: The dissertation.
-        start_index: Number of the first chunk.
-
-    Returns:
-        One chunk per thesis point (empty if none are found).
-    """
-    titled = [s for s in sections if _THESES_TITLE.search(s.title)]
-    candidates = titled or [s for s in sections if len(_THESIS.findall(s.text)) >= 2]
-    chunks: list[Chunk] = []
-    seen: set[str] = set()
-    for section in candidates:
-        marks = list(_THESIS.finditer(section.text))
-        for i, mark in enumerate(marks):
-            point = mark.group(1).upper()
-            stop = marks[i + 1].start() if i + 1 < len(marks) else len(section.text)
-            words = _clean(section.text[mark.end() : stop]).split()
-            if len(words) < 5 or point in seen:
-                continue
-            seen.add(point)
-            chunks.append(
-                Chunk(
-                    id=f"{source.id}:{start_index + len(chunks):04d}",
-                    source_id=source.id,
-                    tier=source.tier,
-                    section_id=section.id,
-                    kind="thesis",
-                    page=page_at(section, mark.start()),
-                    text=f"Thesis {point}: {' '.join(words[:THESIS_MAX_WORDS])}",
-                    thesis=point,
-                )
-            )
-    return chunks
-
-
 MIN_SECTION_WORDS = 12
 """Sections shorter than this (a heading followed by its first subsection) get no chunk."""
 
@@ -358,7 +319,7 @@ MIN_SECTION_WORDS = 12
 def chunk_document(
     sections: list[DocSection], source: Source, chunk_words: int = 180
 ) -> list[Chunk]:
-    """All chunks of a document: section text, captions and (tier 1) thesis points.
+    """All chunks of a document: section text and captions.
 
     Args:
         sections: The document's sections.
@@ -373,8 +334,6 @@ def chunk_document(
         words = [w for w in section.text.split() if len(w) > 1]  # letter-spaced titles: none
         if len(words) >= MIN_SECTION_WORDS:  # not a bare heading
             chunks += chunk_section(section, source, chunk_words, len(chunks))
-    if source.tier == 1:
-        chunks += thesis_chunks(sections, source, len(chunks))
     return chunks
 
 

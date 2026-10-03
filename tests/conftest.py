@@ -10,33 +10,31 @@ from typing import Any
 import httpx
 import pymupdf
 import pytest
+from langchain_core.language_models import BaseChatModel
+from pydantic import BaseModel
 
-from labmate.core.lc import RecordedChatModel
-from labmate.core.llm.client import OllamaClient
-from labmate.core.model import LLM
-from labmate.core.probe import ProbeClaim
+from labmate.config import CacheConfig, Config
+from labmate.core.chat import chat_model
 
-INSTALLED = {
-    "qwen3.6:35b-mlx": "1b50c6fdc2d4" + "0" * 52,
-    "gemma4:26b-mlx": "21c59a2eae30" + "0" * 52,
-    "no-tools:latest": "f0ad3edce8e4" + "0" * 52,
-    "embeddinggemma:latest": "e3be3be3be3b" + "0" * 52,
-}
-CAPABILITIES = {
-    "qwen3.6:35b-mlx": ["completion", "tools", "thinking"],
-    "gemma4:26b-mlx": ["completion", "tools", "vision"],
-    "no-tools:latest": ["completion", "thinking"],
-}
+INSTALLED = ("qwen3.6:35b-mlx", "gemma4:26b-mlx", "embeddinggemma:latest")
+
+
+class SampleClaim(BaseModel):
+    """A small schema for structured-output tests."""
+
+    claim: str
+    evidence_quote: str
+    kind: str
 
 
 def default_chat(body: dict[str, Any]) -> dict[str, Any]:
     """A well-behaved model: valid JSON, correct tool call, deterministic."""
     message: dict[str, Any] = {"role": "assistant", "content": ""}
     if "format" in body:
-        message["content"] = ProbeClaim(
+        message["content"] = SampleClaim(
             claim="Accuracy improves to 84.6%", evidence_quote="from 82.1% to 84.6%", kind="result"
         ).model_dump_json()
-    elif "tools" in body:
+    elif body.get("tools"):
         message["tool_calls"] = [
             {"function": {"name": "use_paper_figure", "arguments": {"figure_id": "fig3"}}}
         ]
@@ -74,58 +72,35 @@ def default_embed(body: dict[str, Any]) -> dict[str, Any]:
             "total_duration": 1_000_000}  # fmt: skip
 
 
+def reply(body: dict[str, Any], content: str) -> dict[str, Any]:
+    """A chat response of the fake server carrying ``content``."""
+    return {"model": body["model"], "message": {"role": "assistant", "content": content}}
+
+
 class FakeOllama:
     """In-memory stand-in for an Ollama server, served through ``httpx.MockTransport``."""
 
     def __init__(self) -> None:
-        self.installed = dict(INSTALLED)
-        self.loaded: set[str] = set()
-        self.sticky: set[str] = set()  # models that refuse to unload
-        self.unload_delay_polls = 0  # /api/ps calls a model stays listed after keep_alive=0
-        self._pending_unload: dict[str, int] = {}
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.chat_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_chat
         self.embed_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_embed
-        self.version = "0.24.0"
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
         body = json.loads(request.content) if request.content else {}
         self.requests.append((path, body))
         model = body.get("model")
-        if model is not None and model not in self.installed:
+        if model is not None and model not in INSTALLED:
             return httpx.Response(404, json={"error": f"model '{model}' not found"})
         if path == "/api/chat":
-            self.loaded.add(model)
             return httpx.Response(200, json=self.chat_handler(body))
-        if path == "/api/generate":  # only used to unload (keep_alive=0)
-            if model in self.loaded and model not in self.sticky:
-                if self.unload_delay_polls:
-                    self._pending_unload[model] = self.unload_delay_polls
-                else:
-                    self.loaded.discard(model)
-            return httpx.Response(200, json={"model": model, "done": True})
         if path == "/api/embed":
             return httpx.Response(200, json=self.embed_handler(body))
-        if path == "/api/tags":
-            models = [{"name": n, "digest": d} for n, d in self.installed.items()]
-            return httpx.Response(200, json={"models": models})
-        if path == "/api/ps":
-            for name, left in list(self._pending_unload.items()):
-                if left <= 0:
-                    self.loaded.discard(name)
-                    del self._pending_unload[name]
-                else:
-                    self._pending_unload[name] = left - 1
-            return httpx.Response(200, json={"models": [{"name": n} for n in sorted(self.loaded)]})
-        if path == "/api/show":
-            return httpx.Response(200, json={"capabilities": CAPABILITIES.get(model, [])})
-        if path == "/api/version":
-            return httpx.Response(200, json={"version": self.version})
         return httpx.Response(404, text="not found")
 
-    def client(self) -> OllamaClient:
-        return OllamaClient(transport=httpx.MockTransport(self.handle))
+    def transport(self) -> httpx.MockTransport:
+        """A transport that reaches this fake from ``ChatOllama``."""
+        return httpx.MockTransport(self.handle)
 
     def paths(self) -> list[str]:
         return [p for p, _ in self.requests]
@@ -134,11 +109,6 @@ class FakeOllama:
 @pytest.fixture
 def fake() -> FakeOllama:
     return FakeOllama()
-
-
-def chat_model(fake: FakeOllama, model: str = "qwen3.6:35b-mlx") -> RecordedChatModel:
-    """A chat model talking straight to the fake server (no cassettes)."""
-    return RecordedChatModel(llm=LLM(fake.client(), model))
 
 
 @pytest.fixture(autouse=True)
@@ -362,4 +332,12 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
         }
     else:
         return default_chat(body)
-    return {"model": body["model"], "message": {"content": json.dumps(content)}}
+    return {
+        "model": body["model"],
+        "message": {"role": "assistant", "content": json.dumps(content)},
+    }
+
+
+def chat(fake: FakeOllama, model: str = "qwen3.6:35b-mlx") -> BaseChatModel:
+    """A chat model talking to the fake server, with the reply cache off."""
+    return chat_model(Config(cache=CacheConfig(enabled=False)), model, transport=fake.transport())

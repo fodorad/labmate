@@ -11,10 +11,10 @@ from __future__ import annotations
 import re
 import sqlite3
 import threading
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Sequence
 from functools import wraps
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -22,10 +22,6 @@ from pydantic import BaseModel
 
 from labmate.ask.chunk import Chunk, DocSection
 from labmate.ask.library import Source
-from labmate.core.schemas import ClaimCard
-
-Method = Literal["bm25", "dense", "hybrid"]
-"""Retrieval methods (compared by the retrieval evaluation)."""
 
 RRF_K = 60
 """Reciprocal rank fusion constant (the usual value from Cormack et al., 2009)."""
@@ -41,18 +37,15 @@ _STOP = frozenset(
 SCHEMA = """
 create table if not exists meta(key text primary key, value text);
 create table if not exists sources(
-    id text primary key, tier int, label text, title text, year int, venue text, theses text);
+    id text primary key, label text, title text, year int, venue text);
 create table if not exists sections(
     id text primary key, source_id text, level int, number text, title text, path text,
     page int, text text);
 create table if not exists chunks(
-    rowid integer primary key, id text unique, source_id text, tier int, section_id text,
-    kind text, page int, text text, thesis text, vector blob);
+    rowid integer primary key, id text unique, source_id text, section_id text,
+    kind text, page int, text text, vector blob);
 create virtual table if not exists chunks_fts using fts5(
     text, content='chunks', content_rowid='rowid', tokenize='porter unicode61');
-create table if not exists claims(
-    id text primary key, source_id text, claim text, quote text, kind text, section text,
-    page int);
 """
 
 
@@ -127,7 +120,7 @@ class Index:
         self.db.executescript(SCHEMA)
         # one connection, shared by parallel graph branches: serialise its use
         self._lock = threading.RLock()
-        self._matrices: dict[tuple[int, ...], tuple[list[str], NDArray[np.float32]]] = {}
+        self._matrix_cache: tuple[list[str], NDArray[np.float32]] | None = None
 
     def close(self) -> None:
         """Close the database."""
@@ -182,11 +175,11 @@ class Index:
         self.db.executemany(
             "insert into chunks_fts(chunks_fts, rowid, text) values ('delete', ?, ?)", rows
         )
-        for table in ("chunks", "sections", "claims"):
+        for table in ("chunks", "sections"):
             self.db.execute(f"delete from {table} where source_id = ?", (source_id,))  # noqa: S608
         self.db.execute("delete from sources where id = ?", (source_id,))
         self.db.commit()
-        self._matrices.clear()
+        self._matrix_cache = None
 
     @_locked
     def add_source(
@@ -195,23 +188,20 @@ class Index:
         sections: Sequence[DocSection],
         chunks: Sequence[Chunk],
         vectors: NDArray[np.float32],
-        claims: Iterable[ClaimCard] = (),
     ) -> None:
-        """Store a source with its sections, chunks, their vectors and claim cards.
+        """Store a source with its sections, chunks and their vectors.
 
         Args:
             source: The source.
             sections: Its sections.
             chunks: Its chunks.
             vectors: One normalised vector per chunk.
-            claims: Verified claim cards (ids are prefixed with the source id).
         """
         self.remove_source(source.id)
         self.db.execute(
-            "insert into sources values (?, ?, ?, ?, ?, ?, ?)",
-            (source.id, source.tier, source.name, source.title, source.year, source.venue,
-             ",".join(source.theses)),
-        )  # fmt: skip
+            "insert into sources values (?, ?, ?, ?, ?)",
+            (source.id, source.name, source.title, source.year, source.venue),
+        )
         self.db.executemany(
             "insert into sections values (?, ?, ?, ?, ?, ?, ?, ?)",
             [(s.id, s.source_id, s.level, s.number, s.title, " › ".join(s.path), s.page, s.text)
@@ -219,29 +209,24 @@ class Index:
         )  # fmt: skip
         for chunk, vector in zip(chunks, vectors, strict=True):
             cur = self.db.execute(
-                "insert into chunks(id, source_id, tier, section_id, kind, page, text, thesis,"
-                " vector) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (chunk.id, chunk.source_id, chunk.tier, chunk.section_id, chunk.kind,
-                 chunk.page, chunk.text, chunk.thesis, np.asarray(vector, np.float32).tobytes()),
+                "insert into chunks(id, source_id, section_id, kind, page, text, vector)"
+                " values (?, ?, ?, ?, ?, ?, ?)",
+                (chunk.id, chunk.source_id, chunk.section_id, chunk.kind, chunk.page,
+                 chunk.text, np.asarray(vector, np.float32).tobytes()),
             )  # fmt: skip
             self.db.execute(
                 "insert into chunks_fts(rowid, text) values (?, ?)", (cur.lastrowid, chunk.text)
             )
-        self.db.executemany(
-            "insert into claims values (?, ?, ?, ?, ?, ?, ?)",
-            [(f"{source.id}:{c.id}", source.id, c.claim, c.evidence_quote, c.kind, c.section,
-              c.page) for c in claims],
-        )  # fmt: skip
         self.db.commit()
-        self._matrices.clear()
+        self._matrix_cache = None
 
     # --- reading ---------------------------------------------------------------------------
 
     def _chunk(self, row: tuple[object, ...]) -> Chunk:
-        keys = ("id", "source_id", "tier", "section_id", "kind", "page", "text", "thesis")
+        keys = ("id", "source_id", "section_id", "kind", "page", "text")
         return Chunk.model_validate(dict(zip(keys, row, strict=True)))
 
-    _COLS = "id, source_id, tier, section_id, kind, page, text, thesis"
+    _COLS = "id, source_id, section_id, kind, page, text"
 
     @_locked
     def chunk(self, chunk_id: str) -> Chunk:
@@ -336,16 +321,15 @@ class Index:
         """The indexed sources.
 
         Returns:
-            Sources, tier first.
+            Sources, ordered by id.
         """
         rows = self.db.execute(
-            "select id, tier, label, title, year, venue, theses from sources order by tier, id"
+            "select id, label, title, year, venue from sources order by id"
         ).fetchall()
         return [
-            Source(id=i, file="", tier=t, label=lb, title=ti, year=y, venue=v or "",
-                   theses=[x for x in (th or "").split(",") if x])
-            for i, t, lb, ti, y, v, th in rows
-        ]  # fmt: skip
+            Source(id=i, file="", label=lb, title=ti, year=y, venue=v or "")
+            for i, lb, ti, y, v in rows
+        ]
 
     def source(self, source_id: str) -> Source:
         """Look up an indexed source.
@@ -364,87 +348,54 @@ class Index:
                 return source
         raise KeyError(source_id)
 
-    @_locked
-    def claims(self, tiers: Sequence[int] = (1, 2)) -> list[ClaimCard]:
-        """Claim cards of the given tiers (their quotes are the retrieval test set).
-
-        Args:
-            tiers: Source tiers.
-
-        Returns:
-            Claim cards, with ids prefixed by their source id.
-        """
-        marks = ",".join("?" * len(tiers))
-        rows = self.db.execute(
-            "select c.id, c.claim, c.quote, c.kind, c.section, c.page from claims c join"
-            f" sources s on s.id = c.source_id where s.tier in ({marks}) order by c.id",  # noqa: S608
-            tuple(tiers),
-        ).fetchall()
-        return [
-            ClaimCard(id=i, claim=cl, evidence_quote=q, kind=k, section=sec, page=p, match=100.0)
-            for i, cl, q, k, sec, p in rows
-        ]
-
     # --- search ----------------------------------------------------------------------------
 
     @_locked
-    def bm25(self, query: str, tiers: Sequence[int], k: int) -> list[Hit]:
+    def bm25(self, query: str, k: int) -> list[Hit]:
         """Full-text search ranked by BM25.
 
         Args:
             query: Natural-language query.
-            tiers: Source tiers to search.
             k: Maximum hits.
 
         Returns:
             Hits, best first.
         """
         expression = fts_query(query)
-        if not expression or not tiers:
+        if not expression:
             return []
-        marks = ",".join("?" * len(tiers))
         rows = self.db.execute(
-            f"select c.id, c.source_id, c.tier, c.section_id, c.kind, c.page, c.text, c.thesis,"
-            f" bm25(chunks_fts) from chunks_fts join chunks c on c.rowid = chunks_fts.rowid"
-            f" where chunks_fts match ? and c.tier in ({marks}) order by bm25(chunks_fts)"
-            f" limit ?",  # noqa: S608
-            (expression, *tiers, k),
+            "select c.id, c.source_id, c.section_id, c.kind, c.page, c.text,"
+            " bm25(chunks_fts) from chunks_fts join chunks c on c.rowid = chunks_fts.rowid"
+            " where chunks_fts match ? order by bm25(chunks_fts) limit ?",
+            (expression, k),
         ).fetchall()
         return [
-            Hit(chunk=self._chunk(r[:8]), score=-float(r[8]), bm25_rank=i)
+            Hit(chunk=self._chunk(r[:6]), score=-float(r[6]), bm25_rank=i)
             for i, r in enumerate(rows, start=1)
         ]
 
     @_locked
-    def _matrix(self, tiers: Sequence[int]) -> tuple[list[str], NDArray[np.float32]]:
-        key = tuple(sorted(tiers))
-        if key not in self._matrices:
-            marks = ",".join("?" * len(key))
-            rows = self.db.execute(
-                f"select id, vector from chunks where tier in ({marks}) order by rowid",  # noqa: S608
-                key,
-            ).fetchall()
-            ids = [r[0] for r in rows]
+    def _matrix(self) -> tuple[list[str], NDArray[np.float32]]:
+        if self._matrix_cache is None:
+            rows = self.db.execute("select id, vector from chunks order by rowid").fetchall()
             vectors = [np.frombuffer(r[1], dtype=np.float32) for r in rows]
             matrix = np.vstack(vectors) if vectors else np.zeros((0, 1), np.float32)
-            self._matrices[key] = (ids, matrix)
-        return self._matrices[key]
+            self._matrix_cache = ([r[0] for r in rows], matrix)
+        return self._matrix_cache
 
     @_locked
-    def dense(self, vector: NDArray[np.float32], tiers: Sequence[int], k: int) -> list[Hit]:
+    def dense(self, vector: NDArray[np.float32], k: int) -> list[Hit]:
         """Exact cosine search over the chunk vectors.
 
         Args:
             vector: Normalised query vector.
-            tiers: Source tiers to search.
             k: Maximum hits.
 
         Returns:
             Hits, best first.
         """
-        if not tiers:
-            return []
-        ids, matrix = self._matrix(tiers)
+        ids, matrix = self._matrix()
         if not ids:
             return []
         scores = matrix @ vector
@@ -455,34 +406,19 @@ class Index:
         ]
 
     @_locked
-    def search(
-        self,
-        query: str,
-        vector: NDArray[np.float32] | None,
-        tiers: Sequence[int],
-        k: int,
-        method: Method = "hybrid",
-    ) -> list[Hit]:
-        """Search the index.
+    def search(self, query: str, vector: NDArray[np.float32], k: int) -> list[Hit]:
+        """Hybrid search: BM25 and dense rankings fused with reciprocal rank fusion.
 
         Args:
             query: Natural-language query (for BM25).
-            vector: Its embedding (for dense and hybrid).
-            tiers: Source tiers to search.
+            vector: Its embedding (for dense search).
             k: Maximum hits.
-            method: ``bm25``, ``dense`` or ``hybrid`` (RRF of both).
 
         Returns:
             Hits, best first.
         """
-        if method == "bm25":
-            return self.bm25(query, tiers, k)
-        if vector is None:
-            raise ValueError(f"method {method!r} needs the query vector")
-        if method == "dense":
-            return self.dense(vector, tiers, k)
-        lexical = self.bm25(query, tiers, CANDIDATES)
-        semantic = self.dense(vector, tiers, CANDIDATES)
+        lexical = self.bm25(query, CANDIDATES)
+        semantic = self.dense(vector, CANDIDATES)
         ranks = {
             "bm25": {h.chunk.id: h.bm25_rank for h in lexical},
             "dense": {h.chunk.id: h.dense_rank for h in semantic},

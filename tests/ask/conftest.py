@@ -32,11 +32,6 @@ DISSERTATION = [
      "Training uses the union of CEW, ZJU and MRL Eye datasets. Heavy augmentation with "
      "lighting changes improves robustness to head pose variation. Each model trains for "
      "forty epochs on a single graphics card."),
-    (1, "3 Theses", 4,
-     "Thesis I: A linear multimodal transformer detects eye blinks better than previous "
-     "frame-wise methods on public benchmarks.\n"
-     "Thesis II: Training on a union of datasets improves generalisation across blink "
-     "benchmarks and recording conditions."),
     (1, "References", 5, "[1] Someone. A cited paper. 2020."),
 ]  # fmt: skip
 
@@ -86,7 +81,6 @@ id = "dissertation"
 file = "dissertation.pdf"
 title = "Multimodal transformers for affective computing"
 label = "Dissertation"
-tier = 1
 year = 2025
 
 [[source]]
@@ -94,16 +88,13 @@ id = "blinklinmult"
 file = "papers/blinklinmult.pdf"
 title = "BlinkLinMulT: Transformer-based Eye Blink Detection"
 label = "BlinkLinMulT"
-tier = 2
 year = 2023
-theses = ["I"]
 
 [[source]]
 id = "outside"
 file = "outside.pdf"
 title = "Attention over tokens"
 label = "Outside"
-tier = 3
 """
 
 
@@ -121,14 +112,10 @@ def library(tmp_path: Path) -> Path:
 @pytest.fixture
 def config(tmp_path: Path, library: Path) -> Config:
     cfg = Config()
-    cfg.replay.dir = tmp_path / "cassettes"
-    cfg.replay.lock_file = tmp_path / "models.lock"
-    cfg.tracing.runs_dir = tmp_path / "runs"
+    cfg.cache.path = tmp_path / "cache" / "replies.sqlite"
     cfg.ask.library = library
     cfg.ask.index = library / "index.sqlite"
-    cfg.ask.threads = library / "threads.sqlite"
     cfg.ask.chunk_words = 30
-    cfg.ask.summary_min_words = 10  # the test documents are tiny
     cfg.ask.top_k = 4
     return cfg
 
@@ -166,7 +153,7 @@ def _words(text: str) -> set[str]:
     return {w for w in re.findall(r"[a-z]{5,}", text.lower())}
 
 
-def ask_chat(body: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0911, PLR0912
+def ask_chat(body: dict[str, Any]) -> dict[str, Any]:
     """Answers every ask prompt deterministically; delegates the rest to agentic_chat."""
     props = (
         body.get("format", {}).get("properties", {}) if isinstance(body.get("format"), dict) else {}
@@ -175,24 +162,14 @@ def ask_chat(body: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0911, PL
     prompt = user[0]["content"] if user else ""  # the task (later user turns are feedback)
     if body.get("tools"):
         return _agent_turn(body)
-    if "standalone" in props:
-        question = _field(prompt, "New message")
+    if "on_topic" in props:
+        question = _field(prompt, "Question")
         if "weather" in question.lower():
-            return _reply(body, {"standalone": question, "intent": "off_topic", "options": []})
+            return _reply(body, {"on_topic": False, "options": [], "search": question})
         if "the transformer" in question.lower():
             options = ["BlinkLinMulT", "the outside transformer"]
-            return _reply(body, {"standalone": question, "intent": "own_work", "options": options})
-        if question.lower().startswith("and ") and "Q: " in prompt:
-            previous = re.findall(r"^Q: (.*)$", prompt, re.MULTILINE)[-1]
-            question = f"{previous.rstrip('?')} {question[4:]}"
-        intent = "related" if "outside" in question.lower() else "own_work"
-        if "thesis" in question.lower():
-            intent = "thesis"
-        return _reply(body, {"standalone": question, "intent": intent, "options": []})
-    if "queries" in props:
-        question = _field(prompt, "Question")
-        parts = [p.strip(" ?") for p in re.split(r"\band\b", question) if p.strip(" ?")]
-        return _reply(body, {"queries": parts[:4] or [question]})
+            return _reply(body, {"on_topic": True, "options": options, "search": question})
+        return _reply(body, {"on_topic": True, "options": [], "search": question})
     if "sufficient" in props:
         query = _field(prompt, "Search query")
         shown = _evidence(prompt)
@@ -204,25 +181,10 @@ def ask_chat(body: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0911, PL
     if set(props) == {"query"}:
         last = _field(prompt, "Last query")
         return _reply(body, {"query": last.replace("rarely", "").strip() + " details"})
-    if "items" in props and "Find values" in prompt:
-        shown = _evidence(prompt)
-        diss = next(
-            (c for c in shown if c.startswith("dissertation") and "0.912" in shown[c]), None
-        )
-        other = next(
-            (c for c in shown if c.startswith("blinklinmult") and "0.905" in shown[c]), None
-        )
-        items = []
-        if diss and other:
-            items.append({"topic": "F1 on RT-BENE", "dissertation_value": "0.912",
-                          "dissertation_chunk": diss, "other_value": "0.905",
-                          "other_chunk": other})  # fmt: skip
-        return _reply(body, {"items": items})
-    if "items" in props:
-        ids = re.findall(r"^(\S+:c\d+): (.*)$", prompt, re.MULTILINE)
-        items = [{"id": i, "question": f"What does the work say about {' '.join(c.split()[1:4])}?"}
-                 for i, c in ids]  # fmt: skip
-        return _reply(body, {"items": items})
+    if "verdicts" in props and "Sentences of the answer" in prompt:
+        numbered = re.findall(r"^Sentence (\d+): (.*)$", prompt, re.MULTILINE)
+        return _reply(body, {"verdicts": [{"sentence": int(n), "supported": "BOGUS" not in text}
+                                          for n, text in numbered]})  # fmt: skip
     if "sentences" in props:
         shown = _evidence(prompt)
         sentences = []
@@ -230,31 +192,18 @@ def ask_chat(body: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0911, PL
             first = re.split(r"(?<=\.)\s", text)[0]
             words = first.split()[:20]
             sentences.append({"text": " ".join(words).rstrip(".") + ".", "chunk_ids": [cid]})
+        if "BOGUS" in prompt:  # right words, wrong attribution: only the judge can tell
+            sentences.append({"text": "BOGUS: the model trains for forty epochs on CEW.",
+                              "chunk_ids": [next(iter(shown))]})  # fmt: skip
         if "WRONG" in prompt:
-            sentences.append({"text": "WRONG made-up sentence about everything.",
+            sentences.append({"text": "It reaches 99.9 F1 on every benchmark.",
                               "chunk_ids": [next(iter(shown))]})  # fmt: skip
         return _reply(body, {"sentences": sentences})
-    if "bullets" in props and "flagged problems" in prompt:
-        # rewrite: keep the bullets as they are (the WRONG one stays wrong and is dropped)
-        bullets = re.findall(r"^Bullet \d+: (.*) \(claims: (.*)\)$", prompt, re.MULTILINE)
-        return _reply(
-            body,
-            {
-                "title": "Answer",
-                "bullets": [
-                    {"text": t, "claim_ids": [c.strip() for c in ids.split(",")]}
-                    for t, ids in bullets
-                ],
-            },
-        )
-    if not body.get("format") and "Summarise one chapter" in prompt:
-        chapter = _field(prompt, "Chapter")
-        return _reply(body, f"The chapter {chapter} covers blink detection.")
     return agentic_chat(body)
 
 
 def _agent_turn(body: dict[str, Any]) -> dict[str, Any]:
-    """The prebuilt agent: search once, then answer citing the first hit."""
+    """The agent: search once, then answer citing the first hit."""
     tool_results = [m for m in body["messages"] if m["role"] == "tool"]
     question = next(m["content"] for m in body["messages"] if m["role"] == "user")
     if not tool_results:
@@ -277,7 +226,7 @@ def model(fake):
 
 @pytest.fixture
 def session(config, model):
-    s = open_ask(config, client=model.client())
+    s = open_ask(config, ollama=model.transport())
     yield s
     s.close()
 

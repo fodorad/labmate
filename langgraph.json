@@ -2,7 +2,7 @@
   "dependencies": ["."],
   "graphs": {
     "ask": "./labmate/ask/studio.py:make_graph",
-    "ask_prebuilt": "./labmate/ask/studio.py:make_prebuilt"
+    "ask_agent": "./labmate/ask/studio.py:make_agent"
   },
   "python_version": "3.13"
 }

@@ -1,40 +1,24 @@
-"""The library: which documents ask may answer from, and how much each one counts.
+"""The library: which documents ask may answer from.
 
-``library/library.toml`` lists the sources::
+``library.toml`` in the library folder lists the sources::
 
     [[source]]
     id = "dissertation"
-    file = "dissertation.pdf"
+    file = "pdf/dissertation.pdf"
     title = "Multimodal ... (PhD dissertation)"
     label = "Dissertation"
-    tier = 1
     year = 2025
+    venue = "ELTE"
 
-    [[source]]
-    id = "blinklinmult"
-    file = "papers/2023_Fodor_BlinkLinMulT.pdf"
-    label = "BlinkLinMulT"
-    tier = 2
-    theses = ["II"]          # thesis points of the dissertation this paper backs
-
-Tier 1 is the source of truth (the dissertation), tier 2 your papers, tier 3 outside
-context (e.g. papers run through paper2flow). Retrieval starts at tier 1 and widens only when
-the evidence is not enough.
+``label`` is the short name used in citations ("Dissertation §4.2, p. 57").
 """
 
 from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel, Field
-
-Tier = Literal[1, 2, 3]
-"""1 = source of truth, 2 = own papers, 3 = outside context."""
-
-TIER_NAMES = {1: "dissertation", 2: "own papers", 3: "outside context"}
-"""How tiers are described to the models and in the UI."""
 
 
 class Source(BaseModel):
@@ -45,20 +29,16 @@ class Source(BaseModel):
         file: PDF path relative to the library folder.
         title: Full title.
         label: Short name used in citations ("Dissertation", "BlinkLinMulT").
-        tier: 1, 2 or 3.
         year: Publication year.
         venue: Journal, conference or institution.
-        theses: Thesis points of the dissertation this source backs (tier 2).
     """
 
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
     file: str
     title: str = ""
     label: str = ""
-    tier: Tier = 2
     year: int | None = None
     venue: str = ""
-    theses: list[str] = Field(default_factory=list)
 
     @property
     def name(self) -> str:
@@ -120,7 +100,7 @@ def load_library(root: Path) -> Library:
         The library.
 
     Raises:
-        LibraryError: If the manifest is missing, ids repeat, or no source is tier 1.
+        LibraryError: If the manifest is missing or ids repeat.
     """
     manifest = root / "library.toml"
     if not manifest.exists():
@@ -132,6 +112,4 @@ def load_library(root: Path) -> Library:
     duplicates = sorted({i for i in ids if ids.count(i) > 1})
     if duplicates:
         raise LibraryError(f"duplicate source ids: {duplicates}")
-    if library.sources and not any(s.tier == 1 for s in library.sources):
-        raise LibraryError("no tier-1 source: the dissertation is the source of truth")
     return library

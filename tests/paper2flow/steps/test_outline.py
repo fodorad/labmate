@@ -2,7 +2,7 @@ import pytest
 
 from labmate.paper2flow.schemas import ClaimCard, Claims, Outline, PlannedCard, Route
 from labmate.paper2flow.steps.outline import check_outline, plan_outline
-from tests.conftest import agentic_chat, chat_model
+from tests.conftest import agentic_chat, chat
 
 CLAIMS = Claims(
     cards=[
@@ -13,7 +13,6 @@ CLAIMS = Claims(
             kind="result",
             section="S",
             page=i,
-            match=100,
         )
         for i in range(1, 5)
     ]
@@ -78,13 +77,16 @@ def test_planner_gets_rule_violations_fed_back(fake):
 
     def model(body):
         try:
-            return {"model": body["model"], "message": {"content": next(replies)}}
+            return {
+                "model": body["model"],
+                "message": {"role": "assistant", "content": next(replies)},
+            }
         except StopIteration:
             return agentic_chat(body)
 
     fake.chat_handler = model
     route = Route(paper_type="method", confidence=0.9, reason="r")
-    result = plan_outline("T", route, CLAIMS, chat_model(fake))
+    result = plan_outline("T", route, CLAIMS, chat(fake))
     assert [c.purpose for c in result.cards] == FOUR
     retry = fake.requests[1][1]["messages"][-1]["content"]
     assert "the cards must be exactly" in retry
@@ -93,4 +95,4 @@ def test_planner_gets_rule_violations_fed_back(fake):
 def test_planning_without_claims_is_an_error(fake):
     route = Route(paper_type="method", confidence=0.9, reason="r")
     with pytest.raises(ValueError, match="no verified claim cards"):
-        plan_outline("T", route, Claims(cards=[]), chat_model(fake))
+        plan_outline("T", route, Claims(cards=[]), chat(fake))
