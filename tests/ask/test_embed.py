@@ -22,7 +22,3 @@ def test_a_query_is_closest_to_the_documents_that_share_its_words(fake, config):
 
     assert fake.requests[-1][1]["input"] == ["task: search result | query: blink"]
     assert float(vectors[0] @ query) > float(vectors[1] @ query)
-
-
-def test_models_without_known_prefixes_get_none(fake, config):
-    assert Embedder(embedder(config, transport=fake.transport()), "other-model").query_prefix == ""

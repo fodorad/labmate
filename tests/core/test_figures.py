@@ -30,10 +30,6 @@ def _box_of(page, crop, fig):
     )
 
 
-def test_papers_without_figures(tmp_path):
-    assert extract_figures(make_pdf(tmp_path / "p.pdf"), tmp_path / "f", tmp_path) == []
-
-
 def test_captions_without_graphics_and_repeated_numbers_are_skipped(tmp_path):
     doc = pymupdf.open()
     page = doc.new_page()

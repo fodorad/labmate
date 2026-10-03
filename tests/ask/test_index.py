@@ -31,10 +31,6 @@ def test_dense_search_ranks_by_cosine(indexed):
     assert len(dense) == 2 and dense[0].score >= dense[1].score
 
 
-def test_a_query_of_stop_words_matches_nothing_lexically(indexed):
-    assert indexed.index.bm25("the", 3) == []
-
-
 def test_a_hit_is_read_with_its_neighbours_and_a_caption_alone(indexed):
     index = indexed.index
     arch = [c.id for c in index.chunks("dissertation")

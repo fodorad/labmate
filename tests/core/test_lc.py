@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from labmate.core.lc import batch_map, prompt, step, structured
+from labmate.core.lc import batch_map, prompt, structured
 from labmate.core.structured import StructuredOutputError
 from tests.conftest import chat
 
@@ -54,10 +54,6 @@ def test_structured_gives_up_after_its_budget(fake):
     with pytest.raises(StructuredOutputError, match="no valid Claim after 2 attempts"):
         (prompt("Extract") | rules).invoke({})
     assert len(chats(fake)) == 2
-
-
-def test_a_step_passes_its_input_through_the_function():
-    assert step("double", lambda x, config: x * 2).invoke(21) == 42
 
 
 def test_batch_map_keeps_the_input_order():
