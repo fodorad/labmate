@@ -22,7 +22,7 @@
 - question: How does the speech de-identification method remove personal characteristics?
   sources: [speech-deidentification]
 - question: How does LinMulT's attention differ from the attention in the original Transformer?
-  sources: [dissertation, attention]
+  sources: [dissertation, linmult]
 - question: What will the weather be in Budapest tomorrow?
   sources: []
   abstain: true

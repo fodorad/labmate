@@ -87,7 +87,7 @@ stopped and rerun. Delete the file to start fresh.
   `ask/graph.py`.
 - Tables flattened into number rows are not chunked (`chunk.MAX_NUMERIC_SHARE`): models read
   their numbers off the wrong column.
-- `library/` PDFs and `*.sqlite` are gitignored; `library.toml` and `golden.yaml` are committed.
+- `library/` holds the committed PDFs (`pdf/`), `library.toml` and `golden.yaml`; `index.sqlite` is gitignored.
 - Dissertation PDFs: LaTeX thesis classes letter-space headings ("I N T R O"), group
   chapters into unnumbered parts, and name the bibliography in the contents.
   `ask/chunk.py` handles all three; check `outline_sections` output on a new PDF first.

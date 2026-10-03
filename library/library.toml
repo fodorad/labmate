@@ -1,5 +1,5 @@
 # The documents `ask` answers from. `file` is relative to this folder; `label` is the short name
-# used in citations. The PDFs are gitignored: copy them here, keeping the paths below.
+# used in citations. The PDFs are committed under pdf/ (they are also on adamfodor.com).
 
 [[source]]
 id = "dissertation"
@@ -89,39 +89,3 @@ title = "Production trend identification and forecast for shop-floor business in
 label = "Production trends"
 year = 2016
 venue = "Acta IMEKO"
-
-# Left out: the 2018 student-conference thesis (Hungarian) and the CV.
-
-# --- other papers -------------------------------------------------------------------
-
-[[source]]
-id = "attention"
-file = "outside/1706.03762.pdf"
-title = "Attention Is All You Need"
-label = "Transformer (Vaswani et al.)"
-year = 2017
-venue = "NeurIPS 2017"
-
-[[source]]
-id = "agent-eval-survey"
-file = "outside/2503.16416.pdf"
-title = "A Survey on Evaluation of LLM-based Agents"
-label = "Agent evaluation survey"
-year = 2025
-venue = "arXiv:2503.16416"
-
-[[source]]
-id = "rrsi"
-file = "outside/2609.24972.pdf"
-title = "RRSI: Regularized Recursive Self-Improvement of Agent Harnesses"
-label = "RRSI"
-year = 2026
-venue = "arXiv:2609.24972"
-
-[[source]]
-id = "gamehorizon"
-file = "outside/2609.25001.pdf"
-title = "GameHorizon Suite: Multi-Horizon Data and Evaluation in Gameplay"
-label = "GameHorizon"
-year = 2026
-venue = "arXiv:2609.25001"
