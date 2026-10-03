@@ -17,10 +17,11 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from labmate.core.factcheck import numbers_in
-from labmate.core.lc import RecordedChatModel, batch_map, prompt, structured
+from labmate.core.lc import batch_map, prompt, structured
 from labmate.core.words import content_words
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import (
@@ -299,7 +300,7 @@ def plan_overview(
     bullets: list[str],
     cards: list[ClaimCard],
     sections: str,
-    model: RecordedChatModel,
+    model: BaseChatModel,
     config: RunnableConfig | None = None,
 ) -> FlowOverview:
     """Ask the planner for the end-to-end flow and the steps to expand.
@@ -336,7 +337,7 @@ def plan_detail(
     node_id: str,
     cards: list[ClaimCard],
     sections: str,
-    model: RecordedChatModel,
+    model: BaseChatModel,
     config: RunnableConfig | None = None,
 ) -> FlowDetail:
     """Ask a worker for the detail diagram of one overview step.
@@ -380,7 +381,7 @@ def plan_flows(
     paper_type: PaperType,
     bullets: list[str],
     cards: list[ClaimCard],
-    model: RecordedChatModel,
+    model: BaseChatModel,
     workers: int = 2,
     config: RunnableConfig | None = None,
 ) -> Flows:

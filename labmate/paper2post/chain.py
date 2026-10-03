@@ -18,10 +18,8 @@ import httpx
 from langchain_core.runnables import Runnable, RunnableConfig
 from pydantic import BaseModel
 
-from labmate.config import Config, ReplayMode
+from labmate.config import Config
 from labmate.core.lc import step
-from labmate.core.llm.client import OllamaClient
-from labmate.core.traceview import write_trace_html
 from labmate.paper2flow.chain import PaperRun, build_analyze, need, open_run
 from labmate.paper2flow.schemas import Analysis
 from labmate.paper2flow.steps.flow import flow_mermaid, legend, render_mermaid
@@ -101,40 +99,32 @@ def build_paper2post(run: PaperRun) -> Runnable[Analysis, Path]:
             need(state.post, "post"), need(a.paper, "paper"), pipeline, run.run_dir / "post.pdf"
         )
 
-    return (
-        build_analyze(run)
-        | step("post", draft, lambda s: {"takeaways": len(need(s.post, "post").takeaways)})
-        | step("icons", icons)
-        | step("render", render)
-    )
+    return build_analyze(run) | step("post", draft) | step("icons", icons) | step("render", render)
 
 
 def paper2post(
     config: Config,
     source: str,
     title: str | None = None,
-    mode: ReplayMode | None = None,
-    client: OllamaClient | None = None,
-    transport: httpx.BaseTransport | None = None,
+    web: httpx.BaseTransport | None = None,
+    ollama: httpx.BaseTransport | None = None,
 ) -> Path:
-    """Turn a paper into ``post.pdf`` (and write the HTML trace viewer next to it).
+    """Turn a paper into ``post.pdf``.
 
     Args:
         config: Loaded configuration.
         source: An arXiv id or URL, a PDF URL, or a local PDF path.
         title: Title override for PDFs without a usable title.
-        mode: Replay mode override.
-        client: Ollama client (built from the config if omitted).
-        transport: Live web transport (the network if omitted).
+        web: Transport for downloads (the network if omitted; tests).
+        ollama: Transport to the Ollama server (the configured host if omitted; tests).
 
     Returns:
         Path of ``post.pdf``.
     """
-    run = open_run(config, source, mode, client, transport)
+    run = open_run(config, source, web, ollama)
     try:
         post = run.invoke(build_paper2post(run), Analysis(source=source, title=title), "paper2post")
     finally:
         run.close()
-    write_trace_html(run.run_dir)
     log.info("post: %s", post)
     return post

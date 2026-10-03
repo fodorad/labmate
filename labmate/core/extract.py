@@ -11,10 +11,11 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 from rapidfuzz import fuzz
 
-from labmate.core.lc import RecordedChatModel, batch_map, prompt, structured
+from labmate.core.lc import batch_map, prompt, structured
 from labmate.core.prompts import load_prompt
 from labmate.core.schemas import ClaimCard, ClaimDraft, Claims, Paper, Section, SectionClaims
 
@@ -132,7 +133,7 @@ def extraction_units(paper: Paper) -> list[Section]:
 
 
 def extract_unit(
-    title: str, unit: Section, model: RecordedChatModel, config: RunnableConfig | None = None
+    title: str, unit: Section, model: BaseChatModel, config: RunnableConfig | None = None
 ) -> list[ClaimDraft]:
     """Draft claims for one unit (one model call).
 
@@ -188,7 +189,7 @@ def assemble_claims(units: list[Section], drafts: list[list[ClaimDraft]]) -> Cla
 
 
 def extract_claims(
-    paper: Paper, model: RecordedChatModel, workers: int = 2, config: RunnableConfig | None = None
+    paper: Paper, model: BaseChatModel, workers: int = 2, config: RunnableConfig | None = None
 ) -> Claims:
     """Extract and verify claim cards for the whole paper (parallel over units).
 

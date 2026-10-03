@@ -127,6 +127,10 @@ class FakeOllama:
     def client(self) -> OllamaClient:
         return OllamaClient(transport=httpx.MockTransport(self.handle))
 
+    def transport(self) -> httpx.MockTransport:
+        """A transport that reaches this fake from ``ChatOllama``."""
+        return httpx.MockTransport(self.handle)
+
     def paths(self) -> list[str]:
         return [p for p, _ in self.requests]
 
@@ -362,4 +366,7 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
         }
     else:
         return default_chat(body)
-    return {"model": body["model"], "message": {"content": json.dumps(content)}}
+    return {
+        "model": body["model"],
+        "message": {"role": "assistant", "content": json.dumps(content)},
+    }

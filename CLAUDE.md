@@ -17,7 +17,7 @@ models (Ollama on a Mac mini M4, 32 GB), and every model call is recorded and re
 - `labmate/paper2flow/`: a **LangChain chain**, paper → `overview.pdf`.
   - `chain.py` builds `analyze` (ingest … flows) and `paper2flow = analyze | render`; `steps/` are the step functions.
   - Diagrams: the model proposes typed graphs, code checks them and writes Mermaid, mermaid-cli renders PNGs.
-  - `evals/` holds the metrics, the labelling sheet and the judge agreement.
+  - `evals/` holds the run metrics.
 - `labmate/paper2post/`: a **LangChain chain**, paper → `post.pdf` (`analyze | post | icons | render`).
 - `labmate/ask/`: the **agent** feature, agentic RAG over the library.
   - Library and index: `library.py` (tiers), `chunk.py` (outline sections, chunks, thesis points), `embed.py`, `index.py` (SQLite FTS5 + vectors, RRF), `build.py`.
@@ -26,7 +26,7 @@ models (Ollama on a Mac mini M4, 32 GB), and every model call is recorded and re
   - Evaluation: `evals.py` (retrieval recall@k/MRR from claim cards; answers on `library/golden.yaml`).
   - UI: `live.py` + `dashboard.py` (NiceGUI), `studio.py` (LangGraph Studio).
 - `labmate/diagrams.py`: Mermaid diagrams. `make graphs` writes `docs/graphs.md`.
-- `labmate/cli.py`: `labmate paper2flow|paper2post <paper>`, `ask …`, `eval|labels|judges`, `probe|lock|trace|graphs`. The `Makefile` wraps it.
+- `labmate/cli.py`: `labmate paper2flow|paper2post <paper>`, `ask …`, `eval`, `probe|lock|trace|graphs`. The `Makefile` wraps it.
 
 ## Commands
 

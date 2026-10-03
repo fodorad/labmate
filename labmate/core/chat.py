@@ -164,10 +164,10 @@ def embedder(config: Config, *, transport: httpx.BaseTransport | None = None) ->
 
 @memoize
 def _open_cache(path: Path) -> SQLiteCache:
-    """One cache connection per file, shared by every model."""
+    """One cache connection per file (keyed by its absolute path), shared by every model."""
     return SQLiteCache(path)
 
 
 def _cache(config: Config) -> BaseCache | bool:
     """The configured cache, or ``False`` when caching is off."""
-    return _open_cache(config.cache.path) if config.cache.enabled else False
+    return _open_cache(config.cache.path.resolve()) if config.cache.enabled else False

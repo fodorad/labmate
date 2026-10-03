@@ -79,8 +79,6 @@ own model calls: the analysis replays from cassettes.
 
 ```bash
 make eval    # metrics of every finished run -> evals/results.md, results.json
-make labels  # blind labelling sheet -> evals/labels.csv
-make judges  # re-judge your labels with each judge model -> evals/judges.md
 ```
 
 - **Run metrics** come from the run artifacts and the trace, no model needed: verified vs
@@ -88,11 +86,6 @@ make judges  # re-judge your labels with each judge model -> evals/judges.md
   dropped after the loop, *card fit* (the share of bullets citing a claim of their card's
   kind, e.g. a result under Main results), the size of the flow diagrams, model calls,
   tokens, model swaps and compute time.
-- **Judge agreement:** `make labels` samples bullets from every fact-check round, about half
-  of them rejected by the pipeline's judge, and writes them with their evidence but
-  *without* the judge's verdict. You fill the `human` column (`s` / `p` / `u`).
-  `make judges` then re-judges them with each candidate model using the pipeline's own
-  judge prompt and reports accuracy and Cohen's κ, on the three labels and on pass/fail.
 
 ## ask
 

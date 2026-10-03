@@ -1,7 +1,7 @@
 """LangChain building blocks over labmate's recorded backend.
 
 LangChain provides the *composition*: prompts, chains (``|``), batching, run names and
-callbacks, which feed labmate's tracer, the UI and, when switched on, LangSmith. labmate
+callbacks, which feed LangSmith or Phoenix when tracing is switched on. labmate
 provides the *model access*: every call goes through the cassette store, so every chain
 and graph replays byte for byte without Ollama.
 
@@ -9,16 +9,16 @@ and graph replays byte for byte without Ollama.
 - :func:`structured` turns a prompt into a validated Pydantic object. It puts the JSON
   schema in the system prompt (the MLX model builds ignore Ollama's ``format=``), then
   validates the reply and retries with the error shown to the model.
-- :func:`step` names a function as a pipeline step, so it shows up by name in the trace,
-  the UI and LangSmith.
+- :func:`step` names a function as a pipeline step, so it shows up by name in the trace.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from langchain_core.callbacks import CallbackManagerForLLMRun, dispatch_custom_event
+from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -39,13 +39,9 @@ from labmate.core.llm.types import ChatRequest, Message, ToolCall, ToolFunction
 from labmate.core.model import LLM
 from labmate.core.phases import ModelSwitcher
 
+log = logging.getLogger(__name__)
+
 _ROLES = {"system": "system", "human": "user", "ai": "assistant", "tool": "tool"}
-
-STEP_KEY = "step"
-"""Metadata key that marks a run as a pipeline step (see :func:`step`)."""
-
-ATTRS_EVENT = "labmate.attrs"
-"""Custom event carrying a step's summary attributes (see :func:`step`)."""
 
 
 def to_messages(messages: Sequence[BaseMessage]) -> list[Message]:
@@ -196,7 +192,7 @@ def prompt(template: str) -> ChatPromptTemplate:
 
 
 def structured[M: BaseModel](
-    model: RecordedChatModel,
+    model: BaseChatModel,
     schema: type[M],
     check: Callable[[M], list[str]] | None = None,
     max_retries: int = 2,
@@ -218,7 +214,12 @@ def structured[M: BaseModel](
         ``prompt value -> schema instance``; raises
         :class:`~labmate.core.llm.structured.StructuredOutputError` when no attempt validates.
     """
-    constrained = model.with_json_schema(schema.model_json_schema())
+    json_schema = schema.model_json_schema()
+    constrained: Runnable[Any, AIMessage] = (
+        model.with_json_schema(json_schema)
+        if isinstance(model, RecordedChatModel)
+        else model.bind(format=json_schema)
+    )
     system = SystemMessage(content=schema_instruction(schema))
 
     def answer(value: PromptValue, config: RunnableConfig) -> M:
@@ -245,41 +246,34 @@ def structured[M: BaseModel](
                 HumanMessage(content=f"{feedback}\nReply again with only the corrected JSON."),
             ]
         raise StructuredOutputError(
-            f"{model.llm.model}: no valid {schema.__name__} after {max_retries + 1} attempts; "
+            f"{getattr(model, 'model', type(model).__name__)}: no valid {schema.__name__} "
+            f"after {max_retries + 1} attempts; "
             f"last output: {last[:200]!r}"
         )
 
     return RunnableLambda(answer, name=schema.__name__)
 
 
-def step[I, O](
-    name: str,
-    fn: Callable[[I, RunnableConfig], O],
-    summary: Callable[[O], dict[str, Any]] | None = None,
-) -> Runnable[I, O]:
+def step[I, O](name: str, fn: Callable[[I, RunnableConfig], O]) -> Runnable[I, O]:
     """Name a function as a pipeline step.
 
-    The run name and the ``step`` metadata make the step appear by name in labmate's
-    trace, the UI and LangSmith. ``fn`` receives the run's config, to pass callbacks on to
-    the runs it starts. ``summary`` turns the step's output into a few attributes (counts,
-    decisions) sent as the :data:`ATTRS_EVENT` custom event.
+    The run name shows the step by name in LangSmith or Phoenix when tracing is switched on
+    (``LANGSMITH_TRACING=true``), and the step is logged as it starts. ``fn`` receives the run's
+    config, to pass callbacks on to the runs it starts.
 
     Args:
         name: Step name, e.g. ``"route"``.
         fn: The step: ``(input, config) -> output``.
-        summary: Optional ``output -> attributes`` for the trace and the UI.
 
     Returns:
         The named Runnable.
     """
 
     def run(value: I, config: RunnableConfig) -> O:
-        out = fn(value, config)
-        if summary is not None:
-            dispatch_custom_event(ATTRS_EVENT, summary(out), config=config)
-        return out
+        log.info("step %s", name)
+        return fn(value, config)
 
-    return RunnableLambda(run, name=name).with_config(run_name=name, metadata={STEP_KEY: name})
+    return RunnableLambda(run, name=name)
 
 
 def batch_map[I, O](

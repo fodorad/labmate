@@ -1,22 +1,13 @@
-"""Run metrics computed from a finished run's artifacts and trace. No model needed.
-
-Because the artifacts are reproducible from cassettes (``--mode replay``), so are these
-numbers, which is what makes the results checkable.
-"""
+"""Run metrics computed from a finished run's artifacts. No model needed."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from pydantic import BaseModel
 
-from labmate.core.tracing import latest_completed, read_trace
 from labmate.paper2flow.chain import ARTIFACTS
 from labmate.paper2flow.schemas import Claims, FactChecked, Flows, Outline, Paper
-
-Span = dict[str, Any]
-"""A span as read back from ``trace.jsonl``."""
 
 CARD_KINDS = {
     "task": {"task"},
@@ -46,11 +37,6 @@ class RunMetrics(BaseModel):
         cards: Cards in the overview (four, unless one lost all its bullets).
         flow_nodes: Boxes in the end-to-end flow diagram.
         flow_details: Detail diagrams that break down its steps.
-        llm_calls: Distinct model requests the run needed.
-        tokens_in: Prompt tokens of those requests.
-        tokens_out: Generated tokens of those requests.
-        swaps: Times the loaded model changed during the latest run (each costs a load).
-        wall_s: Seconds spent in those model calls when they ran live (replays excluded).
     """
 
     paper_id: str
@@ -66,52 +52,11 @@ class RunMetrics(BaseModel):
     cards: int
     flow_nodes: int
     flow_details: int
-    llm_calls: int
-    tokens_in: int
-    tokens_out: int
-    swaps: int
-    wall_s: float
 
     @property
     def unsupported_first_pct(self) -> float:
         """Share of first-draft bullets that failed the fact-check, in percent."""
         return 100 * self.unsupported_first / self.bullets_first if self.bullets_first else 0.0
-
-
-def distinct_calls(spans: list[Span]) -> list[Span]:
-    """One span per distinct model request, preferring the live (uncached) call.
-
-    A paper is often run several times; a request answered live once and replayed later
-    counts once, with its live latency.
-
-    Args:
-        spans: All spans of a run directory's trace.
-
-    Returns:
-        The chosen ``llm.chat`` spans.
-    """
-    chosen: dict[str, Span] = {}
-    for s in spans:
-        if s["name"] != "llm.chat":
-            continue
-        key = str(s.get("key"))
-        if key not in chosen or (chosen[key].get("cached") and not s.get("cached")):
-            chosen[key] = s
-    return list(chosen.values())
-
-
-def model_swaps(spans: list[Span]) -> int:
-    """How often consecutive model calls used a different model.
-
-    Args:
-        spans: Spans of one run.
-
-    Returns:
-        The number of swaps.
-    """
-    models = [s.get("model") for s in sorted(spans, key=lambda s: s["start_ts"])
-              if s["name"] == "llm.chat"]  # fmt: skip
-    return sum(a != b for a, b in zip(models, models[1:], strict=False))
 
 
 def card_fit(claims: Claims, outline: Outline, checked: FactChecked) -> float:
@@ -155,8 +100,6 @@ def run_metrics(run_dir: Path) -> RunMetrics:
     claims, outline = load("claims", Claims), load("outline", Outline)
     checked = load("checked", FactChecked)
     flows = load("flows", Flows) if (run_dir / ARTIFACTS["flows"]).exists() else None
-    trace = run_dir / "trace.jsonl"
-    llm = distinct_calls(read_trace(trace) if trace.exists() else [])
     report = checked.report
     return RunMetrics(
         paper_id=run_dir.name,
@@ -172,13 +115,6 @@ def run_metrics(run_dir: Path) -> RunMetrics:
         cards=len(checked.cards.cards),
         flow_nodes=len(flows.overview.nodes) if flows else 0,
         flow_details=len(flows.details) if flows else 0,
-        llm_calls=len(llm),
-        tokens_in=sum(int(s.get("tokens_in") or 0) for s in llm),
-        tokens_out=sum(int(s.get("tokens_out") or 0) for s in llm),
-        swaps=model_swaps(latest_completed(trace)),
-        wall_s=round(
-            sum(float(s.get("latency_ms") or 0) for s in llm if not s.get("cached")) / 1000, 1
-        ),
     )
 
 
@@ -193,16 +129,15 @@ def results_markdown(metrics: list[RunMetrics]) -> str:
     """
     rows = [
         "| Paper | Claims (verified / rejected) | Unsupported in first draft | "
-        "Dropped after loop | Final bullets | Card fit | Flow diagrams | LLM calls | "
-        "Wall time |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "Dropped after loop | Final bullets | Card fit | Flow diagrams |",
+        "|---|---|---|---|---|---|---|",
     ]
     for m in metrics:
         rows.append(
             f"| {m.title} | {m.claims_verified} / {m.claims_rejected} | "
             f"{m.unsupported_first}/{m.bullets_first} ({m.unsupported_first_pct:.0f}%) | "
             f"{m.dropped} | {m.bullets_final} | {100 * m.card_fit:.0f}% | "
-            f"{m.flow_nodes} boxes + {m.flow_details} details | {m.llm_calls} | {m.wall_s:.0f} s |"
+            f"{m.flow_nodes} boxes + {m.flow_details} details |"
         )
     first = sum(m.bullets_first for m in metrics)
     unsupported = sum(m.unsupported_first for m in metrics)

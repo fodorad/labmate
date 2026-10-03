@@ -11,27 +11,25 @@ directory. The agentic patterns live *inside* the steps: routing, parallel extra
 orchestrator (outline), prompt chaining (write), an evaluator-optimizer loop (factcheck)
 and orchestrator-workers (flows). paper2post reuses ``analyze``.
 
-A :class:`PaperRun` holds what one run needs: the recorded models and web client, the
-tracer and the run directory. Model calls and downloads go through the cassettes, so a
-run replays without Ollama or the network.
+A :class:`PaperRun` holds what one run needs: the models, the web client, the tracer and
+the run directory. Model replies are cached (see :mod:`labmate.core.chat`), so rerunning
+a paper only calls the model for what changed.
 """
 
 from __future__ import annotations
 
 import logging
-import uuid
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import httpx
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable, RunnableConfig
 from pydantic import BaseModel
 
-from labmate.config import Config, ReplayMode
-from labmate.core.callbacks import TraceHandler
+from labmate.config import Config
+from labmate.core.chat import chat_model
 from labmate.core.extract import extract_claims
 from labmate.core.factcheck import fact_check
 from labmate.core.ingest import (
@@ -46,13 +44,7 @@ from labmate.core.ingest import (
     slugify,
     url_stem,
 )
-from labmate.core.lc import RecordedChatModel, step
-from labmate.core.llm.client import OllamaClient
-from labmate.core.llm.replay import CassetteStore, RecordedTransport, ReplayClient, read_lock
-from labmate.core.model import LLM
-from labmate.core.phases import ModelSwitcher
-from labmate.core.traceview import write_trace_html
-from labmate.core.tracing import Tracer
+from labmate.core.lc import step
 from labmate.paper2flow.schemas import Analysis, FactChecked, Outline
 from labmate.paper2flow.steps.flow import flow_cards, image_names, plan_flows, render_flows
 from labmate.paper2flow.steps.outline import LABELS, plan_outline
@@ -173,24 +165,16 @@ class PaperRun:
     Attributes:
         config: Loaded configuration.
         run_dir: ``runs/<paper id>``: the PDF, figures, artifacts, diagrams and trace.
-        mode: Replay mode in effect.
         writer: Writer / planner model.
         judge: Critic model (the fact-check judge).
-        switcher: Keeps one large model in memory at a time.
-        http: Recorded web client (arXiv, PDF downloads).
-        tracer: Writes ``trace.jsonl``.
-        own_client: The Ollama client the run opened itself (closed with it).
+        http: Web client (arXiv, PDF downloads).
     """
 
     config: Config
     run_dir: Path
-    mode: ReplayMode
-    writer: RecordedChatModel
-    judge: RecordedChatModel
-    switcher: ModelSwitcher
+    writer: BaseChatModel
+    judge: BaseChatModel
     http: httpx.Client
-    tracer: Tracer
-    own_client: OllamaClient | None = None
 
     @property
     def workers(self) -> int:
@@ -211,7 +195,7 @@ class PaperRun:
         return artifact
 
     def invoke[I, O](self, chain: Runnable[I, O], value: I, name: str) -> O:
-        """Run a chain with labmate's tracing (and LangSmith's, when it is switched on).
+        """Run a chain under a run name (shown in LangSmith or Phoenix when tracing is on).
 
         Args:
             chain: The chain.
@@ -221,76 +205,45 @@ class PaperRun:
         Returns:
             The chain's output.
         """
-        handler = TraceHandler(self.tracer, {"paper": self.run_dir.name, "mode": self.mode.value})
-        config: RunnableConfig = {"callbacks": [handler], "run_name": name}
-        return chain.invoke(value, config)
+        return chain.invoke(value, {"run_name": name})
 
     def close(self) -> None:
-        """Release the model, then close the web client and the run's own Ollama client."""
-        self.switcher.release()
+        """Close the web client."""
         self.http.close()
-        if self.own_client is not None:
-            self.own_client.close()
 
 
 def open_run(
     config: Config,
     source: str,
-    mode: ReplayMode | None = None,
-    client: OllamaClient | None = None,
-    transport: httpx.BaseTransport | None = None,
+    web: httpx.BaseTransport | None = None,
+    ollama: httpx.BaseTransport | None = None,
 ) -> PaperRun:
-    """Create the run directory, the recorded models and web client, and the tracer.
+    """Create the run directory, the models and web client, and the tracer.
 
     Args:
         config: Loaded configuration.
         source: The paper (see :func:`source_kind`).
-        mode: Replay mode override.
-        client: Ollama client (built from the config if omitted; unused in replay mode).
-        transport: Live web transport (the network if omitted; unused in replay mode).
+        web: Transport for downloads (the network if omitted; tests).
+        ollama: Transport to the Ollama server (the configured host if omitted; tests).
 
     Returns:
         The run.
     """
-    mode = mode or config.replay.mode
     run_dir = config.tracing.runs_dir / run_id_for(source)
     run_dir.mkdir(parents=True, exist_ok=True)
-    started = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
-    tracer = Tracer(
-        run_dir / "trace.jsonl", trace_id=f"{run_dir.name}@{started}-{uuid.uuid4().hex[:6]}"
-    )
-    store = CassetteStore(config.replay.dir)
-    live, own_client = None, None
-    if mode is not ReplayMode.REPLAY:
-        if client is None:
-            own_client = OllamaClient(config.ollama.host, config.ollama.timeout_s)
-        live = client or own_client
-        transport = transport or httpx.HTTPTransport(retries=2)
-    digests = read_lock(config.replay.lock_file)
-    backend = ReplayClient(live, store, mode, digests)
-    switcher = ModelSwitcher(live)
-    gen, models = config.generation, config.models
-
-    def chat_model(tag: str) -> RecordedChatModel:
-        llm = LLM(backend, tag, gen.seed, gen.temperature, gen.num_ctx, digests.get(tag))
-        return RecordedChatModel(llm=llm, switcher=switcher)
-
     http = httpx.Client(
-        transport=RecordedTransport(transport, store, mode),
+        transport=web or httpx.HTTPTransport(retries=2),
         timeout=120,
         follow_redirects=True,
         headers={"User-Agent": USER_AGENT},
     )
+    models = config.models
     return PaperRun(
         config=config,
         run_dir=run_dir,
-        mode=mode,
-        writer=chat_model(models.text),
-        judge=chat_model(models.critic),
-        switcher=switcher,
+        writer=chat_model(config, models.text, transport=ollama),
+        judge=chat_model(config, models.critic, transport=ollama),
         http=http,
-        tracer=tracer,
-        own_client=own_client,
     )
 
 
@@ -375,38 +328,16 @@ def build_analyze(run: PaperRun) -> Runnable[Analysis, Analysis]:
         render_flows(planned, run.run_dir)
         return update(a, "flows", planned)
 
-    def summary(**fields: Callable[[Analysis], Any]) -> Callable[[Analysis], dict[str, Any]]:
-        return lambda a: {name: get(a) for name, get in fields.items()}
-
-    def report(a: Analysis) -> Any:
-        return need(a.checked, "checked").report
-
     return (
-        step("ingest", ingest, summary(
-            sections=lambda a: len(need(a.paper, "paper").sections),
-            figures=lambda a: len(need(a.paper, "paper").figures)))
-        | step("publication", publication, summary(
-            venue=lambda a: need(a.paper, "paper").venue,
-            date=lambda a: need(a.paper, "paper").date))
-        | step("route", route, summary(
-            paper_type=lambda a: need(a.route, "route").paper_type,
-            confidence=lambda a: need(a.route, "route").confidence))
-        | step("extract", extract, summary(
-            cards=lambda a: len(need(a.claims, "claims").cards),
-            rejected=lambda a: len(need(a.claims, "claims").rejected)))
-        | step("outline", outline, summary(
-            cards=lambda a: len(need(a.outline, "outline").cards)))
-        | step("write", write, summary(
-            cards=lambda a: len(need(a.written, "written").cards)))
-        | step("factcheck", factcheck, summary(
-            rounds=lambda a: len(report(a).rounds),
-            failed_first=lambda a: report(a).failed_first,
-            total_first=lambda a: report(a).total_first,
-            dropped=lambda a: len(report(a).dropped)))
-        | step("flows", flows, summary(
-            nodes=lambda a: len(need(a.flows, "flows").overview.nodes),
-            details=lambda a: len(need(a.flows, "flows").details)))
-    )  # fmt: skip
+        step("ingest", ingest)
+        | step("publication", publication)
+        | step("route", route)
+        | step("extract", extract)
+        | step("outline", outline)
+        | step("write", write)
+        | step("factcheck", factcheck)
+        | step("flows", flows)
+    )
 
 
 def build_paper2flow(run: PaperRun) -> Runnable[Analysis, Path]:
@@ -439,30 +370,27 @@ def paper2flow(
     config: Config,
     source: str,
     title: str | None = None,
-    mode: ReplayMode | None = None,
-    client: OllamaClient | None = None,
-    transport: httpx.BaseTransport | None = None,
+    web: httpx.BaseTransport | None = None,
+    ollama: httpx.BaseTransport | None = None,
 ) -> Path:
-    """Turn a paper into ``overview.pdf`` (and write the HTML trace viewer next to it).
+    """Turn a paper into ``overview.pdf``.
 
     Args:
         config: Loaded configuration.
         source: An arXiv id or URL, a PDF URL, or a local PDF path.
         title: Title override for PDFs without a usable title.
-        mode: Replay mode override.
-        client: Ollama client (built from the config if omitted).
-        transport: Live web transport (the network if omitted).
+        web: Transport for downloads (the network if omitted; tests).
+        ollama: Transport to the Ollama server (the configured host if omitted; tests).
 
     Returns:
         Path of ``overview.pdf``.
     """
-    run = open_run(config, source, mode, client, transport)
+    run = open_run(config, source, web, ollama)
     try:
         overview = run.invoke(
             build_paper2flow(run), Analysis(source=source, title=title), "paper2flow"
         )
     finally:
         run.close()
-    write_trace_html(run.run_dir)
     log.info("overview: %s", overview)
     return overview

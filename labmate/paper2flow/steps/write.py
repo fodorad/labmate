@@ -8,10 +8,11 @@ verifies next.
 
 from __future__ import annotations
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from labmate.core.factcheck import check_card, format_evidence
-from labmate.core.lc import RecordedChatModel, batch_map, prompt, structured
+from labmate.core.lc import batch_map, prompt, structured
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Card, Cards, ClaimCard, Claims, Outline, PlannedCard
 
@@ -28,7 +29,7 @@ def write_card(
     position: int,
     planned: PlannedCard,
     by_id: dict[str, ClaimCard],
-    model: RecordedChatModel,
+    model: BaseChatModel,
     config: RunnableConfig | None = None,
 ) -> Card:
     """Write one card from its outline entry (one validated model call).
@@ -60,7 +61,7 @@ def write_card(
 def write_cards(
     outline: Outline,
     claims: Claims,
-    model: RecordedChatModel,
+    model: BaseChatModel,
     workers: int = 2,
     config: RunnableConfig | None = None,
 ) -> Cards:

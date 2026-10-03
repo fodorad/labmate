@@ -32,10 +32,10 @@ over them, tracing, ingest, claim extraction and the fact-check loop.
    :show-inheritance:
 .. automodule:: labmate.core.model
    :members:
-.. automodule:: labmate.core.lc
+.. automodule:: labmate.core.chat
    :members:
    :show-inheritance:
-.. automodule:: labmate.core.callbacks
+.. automodule:: labmate.core.lc
    :members:
    :show-inheritance:
 .. automodule:: labmate.core.schemas
@@ -55,8 +55,6 @@ over them, tracing, ingest, claim extraction and the fact-check loop.
 .. automodule:: labmate.core.tracing
    :members:
    :show-inheritance:
-.. automodule:: labmate.core.traceview
-   :members:
 .. automodule:: labmate.core.theme
    :members:
 .. automodule:: labmate.core.probe
@@ -87,10 +85,6 @@ A paper in, ``overview.pdf`` out: a LangChain chain.
 .. automodule:: labmate.paper2flow.steps.render
    :members:
 .. automodule:: labmate.paper2flow.evals.metrics
-   :members:
-.. automodule:: labmate.paper2flow.evals.labels
-   :members:
-.. automodule:: labmate.paper2flow.evals.agreement
    :members:
 
 paper2post

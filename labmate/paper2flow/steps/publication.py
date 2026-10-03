@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import re
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from labmate.core.lc import RecordedChatModel, prompt, structured
+from labmate.core.lc import prompt, structured
 from labmate.core.llm.structured import StructuredOutputError
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Paper, PublicationDraft
@@ -49,7 +50,7 @@ def check_publication(draft: PublicationDraft, source: str) -> list[str]:
 def read_publication(
     paper: Paper,
     first_page: str,
-    model: RecordedChatModel,
+    model: BaseChatModel,
     config: RunnableConfig | None = None,
 ) -> PublicationDraft:
     """Ask the model for the venue and publication date, checked against the source text.

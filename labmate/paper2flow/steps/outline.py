@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from collections import Counter
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from labmate.core.lc import RecordedChatModel, prompt, structured
+from labmate.core.lc import prompt, structured
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Claims, Outline, Route
 
@@ -85,7 +86,7 @@ def plan_outline(
     title: str,
     route: Route,
     claims: Claims,
-    model: RecordedChatModel,
+    model: BaseChatModel,
     config: RunnableConfig | None = None,
 ) -> Outline:
     """Plan the four cards from the claim cards.

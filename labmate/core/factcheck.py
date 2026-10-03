@@ -20,11 +20,12 @@ from __future__ import annotations
 
 import re
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from labmate.core.extract import normalize
-from labmate.core.lc import RecordedChatModel, batch_map, prompt, structured
+from labmate.core.lc import batch_map, prompt, structured
 from labmate.core.prompts import load_prompt
 from labmate.core.schemas import (
     BulletCheck,
@@ -199,7 +200,7 @@ def format_for_judge(card: Card, by_id: dict[str, ClaimCard]) -> str:
 def judge_card(
     card: Card,
     by_id: dict[str, ClaimCard],
-    judge: RecordedChatModel,
+    judge: BaseChatModel,
     config: RunnableConfig | None = None,
 ) -> CardVerdicts:
     """One critic call per card, exactly one verdict per bullet.
@@ -227,7 +228,7 @@ def rewrite_card(
     card: Card,
     failing: list[BulletCheck],
     evidence: list[ClaimCard],
-    writer: RecordedChatModel,
+    writer: BaseChatModel,
     config: RunnableConfig | None = None,
 ) -> Card:
     """Ask the writer to fix a card, given the judge's and the checks' findings.
@@ -298,7 +299,7 @@ def start_loop(written: Cards, paper_title: str = "") -> FactCheckLoop:
 def judge_pending(
     loop: FactCheckLoop,
     by_id: dict[str, ClaimCard],
-    judge: RecordedChatModel,
+    judge: BaseChatModel,
     workers: int = 2,
     config: RunnableConfig | None = None,
 ) -> FactCheckLoop:
@@ -364,7 +365,7 @@ def rewrite_pending(
     loop: FactCheckLoop,
     card_claims: list[list[str]],
     by_id: dict[str, ClaimCard],
-    writer: RecordedChatModel,
+    writer: BaseChatModel,
     workers: int = 2,
     config: RunnableConfig | None = None,
 ) -> FactCheckLoop:
@@ -424,8 +425,8 @@ def fact_check(
     written: Cards,
     card_claims: list[list[str]],
     claims: Claims,
-    writer: RecordedChatModel,
-    judge: RecordedChatModel,
+    writer: BaseChatModel,
+    judge: BaseChatModel,
     max_rounds: int = 2,
     workers: int = 2,
     paper_title: str = "",
