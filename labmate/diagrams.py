@@ -8,6 +8,7 @@ diagrams can't drift from the code: LangChain draws every chain and LangGraph ev
 from __future__ import annotations
 
 import re
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -26,6 +27,7 @@ def generated_diagrams() -> dict[str, str]:
     from labmate.ask.agent import build_agent  # noqa: PLC0415 - optional dependencies
     from labmate.ask.graph import build_graph  # noqa: PLC0415
     from labmate.core.chat import chat_model  # noqa: PLC0415
+    from labmate.cv2job.chain import build_cv2job  # noqa: PLC0415
     from labmate.paper2flow.chain import build_paper2flow  # noqa: PLC0415
     from labmate.paper2post.chain import build_paper2post  # noqa: PLC0415
 
@@ -35,6 +37,11 @@ def generated_diagrams() -> dict[str, str]:
     return {
         "paper2flow (chain)": _STEP_NOTE.sub("", build_paper2flow(stub).get_graph().draw_mermaid()),  # type: ignore[arg-type]
         "paper2post (chain)": _STEP_NOTE.sub("", build_paper2post(stub).get_graph().draw_mermaid()),  # type: ignore[arg-type]
+        "cv2job (chain with one agent step)": build_cv2job(
+            config, lambda question: "", Path("."), date.today()
+        )
+        .get_graph()
+        .draw_mermaid(),
         "ask (graph)": build_graph(stub).compile().get_graph().draw_mermaid(),  # type: ignore[arg-type]
         "ask (agent)": build_agent(stub).get_graph().draw_mermaid(),  # type: ignore[arg-type]
     }

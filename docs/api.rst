@@ -77,6 +77,25 @@ A paper in, ``post.pdf`` out: a LangChain chain that extends paper2flow's analys
 .. automodule:: labmate.paper2post.render
    :members:
 
+cv2job
+------
+
+A CV and a job posting in, a tailored CV, a cover letter and a gap report out.
+
+.. automodule:: labmate.cv2job
+.. automodule:: labmate.cv2job.schemas
+   :members:
+.. automodule:: labmate.cv2job.steps
+   :members:
+.. automodule:: labmate.cv2job.gaps
+   :members:
+.. automodule:: labmate.cv2job.letter
+   :members:
+.. automodule:: labmate.cv2job.render
+   :members:
+.. automodule:: labmate.cv2job.chain
+   :members:
+
 ask
 ---
 
