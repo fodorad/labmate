@@ -77,6 +77,15 @@ A paper in, ``post.pdf`` out: a LangChain chain that extends paper2flow's analys
 .. automodule:: labmate.paper2post.render
    :members:
 
+scout
+-----
+
+A topic in, notes on arXiv papers out.
+
+.. automodule:: labmate.scout
+.. automodule:: labmate.scout.agent
+   :members:
+
 cv2job
 ------
 

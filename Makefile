@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post cv eval index ask eval-answers graphs studio
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post scout cv eval index ask eval-answers graphs studio
 
 install:
 	uv sync --extra dev
@@ -43,6 +43,13 @@ flow:  ## a paper -> runs/<id>/overview.pdf, e.g. make flow PAPER=1706.03762
 
 post:  ## a paper -> runs/<id>/post.pdf (reuses the overview's analysis)
 	uv run labmate paper2post "$(PAPER)"
+
+# --- scout: an agent that searches arXiv and writes notes ---
+
+TOPIC ?= efficient attention for long sequences
+
+scout:  ## notes on a topic from arXiv -> runs/scout/<topic>/notes.md, e.g. make scout TOPIC="..."
+	uv run labmate scout "$(TOPIC)"
 
 # --- cv2job: a CV and a job posting -> tailored CV, cover letter, gap report ---
 

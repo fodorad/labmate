@@ -10,6 +10,7 @@ each step) or **the model** (an agent that picks its own tools).
 |---|---|---|---|
 | **paper2flow** | A research paper in, `overview.pdf` out: a cover, four fact-checked cards and data-flow diagrams | code | LangChain chain |
 | **paper2post** | A research paper in, `post.pdf` out: a fact-checked LinkedIn post, its links and the pipeline image | code | LangChain chain |
+| **scout** | A topic in, notes on papers found on arXiv out | the model | LangChain `create_agent` |
 | **cv2job** | A CV and a job posting in, a tailored CV, a cover letter and a gap report out | code, with one agent step | LangChain chain + `create_agent` |
 | **ask** (graph) | A question about a library of PDFs in, a cited answer out | code | LangGraph graph |
 | **ask** (agent) | The same task, with the model choosing its tools | the model | LangChain `create_agent` |
@@ -72,6 +73,25 @@ something specific in the paper, one icon per sentence (a bundled Tabler icon ch
 sentence's place in the story) and the links: the paper, its code if it names a repository, and your own links from `config.toml`
 `[post.links]`. Page 2 is the end-to-end pipeline diagram, to attach as the post's image. Every
 sentence passes the same fact-check as the overview, and the analysis is reused from the cache.
+
+## scout
+
+A research agent: give it a topic, and it searches arXiv, reads, and writes `notes.md` in
+`runs/scout/<topic>/`. Nothing fixes the order of its steps; it decides what to do from a few tools.
+
+| Tool | What it does |
+|---|---|
+| `search_arxiv(query)` | keyword search; it uses several queries |
+| `read_abstract(arxiv_id)` | a paper's title and abstract |
+| `read_overview(arxiv_id)` | a deep look: runs paper2flow on the paper and returns its fact-checked cards (slow, so limited to `--deep` papers, default 2) |
+| `write_notes(notes)` | saves the Markdown notes, refused if they cite an arXiv id the agent has not read |
+
+```bash
+make scout TOPIC="linear attention for long sequences"
+```
+
+The notes are plain Markdown: Qwen's tool-call format can fail to parse a long argument containing
+markup, and Ollama then returns an error; running again usually works.
 
 ## cv2job
 

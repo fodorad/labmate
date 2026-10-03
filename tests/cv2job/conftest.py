@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from labmate.cv2job.steps import load_cv
-from tests.conftest import reply
+from tests.conftest import reply, tool_call
 
 EXAMPLES = Path(__file__).parent.parent.parent / "examples" / "cv2job"
 NO_ANSWER = "(the candidate gave no answer)"
@@ -29,12 +29,6 @@ def job_text() -> str:
 
 def words(text: str) -> set[str]:
     return set(re.findall(r"[a-z]{5,}", text.lower()))
-
-
-def tool_call(body: dict[str, Any], name: str, **arguments: Any) -> dict[str, Any]:
-    call = {"function": {"name": name, "arguments": arguments}}
-    message = {"role": "assistant", "content": "", "tool_calls": [call]}
-    return {"model": body["model"], "message": message}
 
 
 def gap_agent(body: dict[str, Any]) -> dict[str, Any]:
