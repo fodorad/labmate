@@ -45,7 +45,7 @@ def test_a_hit_is_read_with_its_neighbours_and_a_caption_alone(indexed):
 
 
 def test_removing_a_source_removes_its_chunks_from_search(indexed):
-    index = Index(indexed.config.ask.index)
+    index = Index(indexed.config.ask.index_file)
     assert index.bm25("quadratically", 3)  # only the outside source says it
 
     index.remove_source("outside")

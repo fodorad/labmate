@@ -114,7 +114,6 @@ def config(tmp_path: Path, library: Path) -> Config:
     cfg = Config()
     cfg.cache.path = tmp_path / "cache" / "replies.sqlite"
     cfg.ask.library = library
-    cfg.ask.index = library / "index.sqlite"
     cfg.ask.chunk_words = 30
     cfg.ask.top_k = 4
     return cfg

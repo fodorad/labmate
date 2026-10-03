@@ -89,6 +89,11 @@ title = "..."
 label = "Dissertation"   # the short name used in citations
 ```
 
+**Your own library:** the library is just a folder with a `library.toml` and its PDFs, plus the
+`index.sqlite` built from them. Point labmate at any folder with `labmate ask --library DIR ...`
+or `LABMATE_LIBRARY=DIR`, for example a private repository next to this one; nothing from it
+enters this repository.
+
 **Index** (`make index`): each PDF is split along its outline into sections and sentence-packed
 chunks of about 180 words, plus one chunk per figure or table caption. Tables flattened into rows
 of numbers are left out, because a model reads their numbers wrongly. Chunks are searched with

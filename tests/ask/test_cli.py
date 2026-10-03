@@ -1,3 +1,5 @@
+import shutil
+
 import pytest
 
 from labmate.cli import main
@@ -8,7 +10,7 @@ def workdir(tmp_path, monkeypatch, config):
     monkeypatch.chdir(tmp_path)
     toml = (
         f'[cache]\npath = "{config.cache.path}"\n'
-        f'[ask]\nlibrary = "{config.ask.library}"\nindex = "{config.ask.index}"\n'
+        f'[ask]\nlibrary = "{config.ask.library}"\n'
         "chunk_words = 30\ntop_k = 4\n"
     )
     (tmp_path / "config.toml").write_text(toml)
@@ -63,3 +65,20 @@ def test_a_missing_library_manifest_is_an_error(workdir, model, config, capsys):
 
     assert main(["ask", "index"], ollama=model.transport()) == 1
     assert "library.toml" in capsys.readouterr().err
+
+
+def test_a_private_library_outside_the_repo_is_used_in_place(
+    workdir, model, library, tmp_path, capsys, monkeypatch
+):
+    private = tmp_path / "private-library"
+    shutil.copytree(library, private)
+    ollama = model.transport()
+
+    assert main(["ask", "--library", str(private), "index"], ollama=ollama) == 0
+
+    assert (private / "index.sqlite").exists()  # the index lives with the documents
+    assert not (library / "index.sqlite").exists()  # the repo's own library stays untouched
+    monkeypatch.setenv("LABMATE_LIBRARY", str(private))
+    capsys.readouterr()
+    assert main(["ask", "query", "Which datasets are used for training?"], ollama=ollama) == 0
+    assert "[1] Dissertation §" in capsys.readouterr().out
