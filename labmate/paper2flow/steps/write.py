@@ -12,7 +12,7 @@ from __future__ import annotations
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from labmate.core.factcheck import check_card, format_evidence
+from labmate.core.factcheck import check_card, format_evidence, numbers_in
 from labmate.core.lc import batch_map, prompt, structured
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Card, Cards, ClaimCard, Claims, Outline, PlannedCard
@@ -57,14 +57,18 @@ def plan_cards(claims: Claims) -> Outline:
 
     Returns:
         The cards that have at least one claim, in the order of :data:`PURPOSES`, each with up
-        to :data:`MAX_CARD_CLAIMS` claims in reading order.
+        to :data:`MAX_CARD_CLAIMS` claims in reading order (result claims whose quote holds a
+        number come first).
 
     Raises:
         ValueError: If no claim card fits any card.
     """
     planned = []
     for purpose in PURPOSES:
-        ids = [c.id for c in claims.cards if c.kind in CARD_KINDS[purpose]][:MAX_CARD_CLAIMS]
+        cards = [c for c in claims.cards if c.kind in CARD_KINDS[purpose]]
+        if purpose == "results":  # the headline numbers first, then the rest in reading order
+            cards.sort(key=lambda c: not numbers_in(c.evidence_quote))
+        ids = [c.id for c in cards][:MAX_CARD_CLAIMS]
         if ids:
             planned.append(PlannedCard(purpose=purpose, claim_ids=ids))
     if not planned:

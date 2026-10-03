@@ -11,6 +11,7 @@ each graph as Mermaid in a fixed house style and renders it locally with mermaid
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import subprocess
 import tempfile
@@ -22,6 +23,7 @@ from langchain_core.runnables import RunnableConfig
 
 from labmate.core.factcheck import numbers_in
 from labmate.core.lc import batch_map, prompt, structured
+from labmate.core.structured import StructuredOutputError
 from labmate.core.words import content_words
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import (
@@ -33,6 +35,8 @@ from labmate.paper2flow.schemas import (
     Outline,
     Paper,
 )
+
+log = logging.getLogger(__name__)
 
 MERMAID_CLI = ("npx", "--yes", "@mermaid-js/mermaid-cli@12.0.0")
 """The pinned mermaid-cli (``make install`` downloads it once; it runs a headless Chromium)."""
@@ -386,16 +390,24 @@ def plan_flows(
         config: The calling step's config (callbacks).
 
     Returns:
-        All diagrams, details in overview order.
+        All diagrams, details in overview order. A step whose detail diagram stays invalid
+        after the retries (the paper hardly describes it) is dropped from the overview's
+        ``expand`` list, so the other diagrams still ship.
     """
     sections = flow_sections(paper, cards)
     overview = plan_overview(paper, bullets, cards, sections, model, config)
-    details = batch_map(
-        lambda nid, cfg: plan_detail(paper, overview, nid, cards, sections, model, cfg),
-        detail_order(overview),
-        config,
-        workers,
-    )
+
+    def worker(node_id: str, cfg: RunnableConfig) -> FlowDetail | None:
+        try:
+            return plan_detail(paper, overview, node_id, cards, sections, model, cfg)
+        except StructuredOutputError as e:
+            log.warning("no detail diagram for %r: %s", node_id, e)
+            return None
+
+    results = batch_map(worker, detail_order(overview), config, workers)
+    details = [d for d in results if d is not None]
+    kept = [d.node_id for d in details]
+    overview = overview.model_copy(update={"expand": [n for n in overview.expand if n in kept]})
     return assemble_flows(overview, details)
 
 

@@ -5,9 +5,9 @@ from labmate.paper2flow.steps.write import MAX_CARD_CLAIMS, plan_cards, write_ca
 from tests.conftest import agentic_chat, chat
 
 
-def claim(i: int, kind: str) -> ClaimCard:
+def claim(i: int, kind: str, quote: str = "") -> ClaimCard:
     return ClaimCard(
-        id=f"c{i:02d}", claim=f"Claim {i}.", evidence_quote=f"Quote {i}.", kind=kind,
+        id=f"c{i:02d}", claim=f"Claim {i}.", evidence_quote=quote or f"Quote {i}.", kind=kind,
         section="S", page=1,
     )  # fmt: skip
 
@@ -33,6 +33,19 @@ def test_a_card_without_claims_is_left_out_and_each_card_is_capped():
 
     assert [c.purpose for c in outline.cards] == ["method", "results"]
     assert len(outline.cards[1].claim_ids) == MAX_CARD_CLAIMS
+
+
+def test_results_with_numbers_come_before_the_rest():
+    claims = Claims(cards=[
+        claim(1, "result", "The model is better."),
+        claim(2, "result", "It reaches 28.4 BLEU on WMT."),
+        claim(3, "result", "It is simple."),
+        claim(4, "result", "It trains in 3.5 days."),
+    ])  # fmt: skip
+
+    (card,) = plan_cards(claims).cards
+
+    assert card.claim_ids == ["c02", "c04", "c01", "c03"]
 
 
 def test_no_claims_means_nothing_to_write():

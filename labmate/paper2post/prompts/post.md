@@ -17,5 +17,15 @@ Paper: {title}
   must not fit any other paper: no "How has X impacted your workflow?". No facts in it.
 - Plain text, no emoji, no hashtags, no "In this paper".
 
+Example of the style, for a made-up paper (do not reuse its words or facts):
+  hook: Sorting 1M items without ever comparing two of them.
+  takeaways:
+  1. Comparison sorts hit an n log n wall, and GPUs sit idle while they wait on branches.
+  2. So the authors map each key to a bucket with a learned function and skip comparing.
+  3. Items land in buckets in one parallel pass, and a small fix-up pass orders each bucket.
+  4. The result: 3.1x faster than the best GPU radix sort on 1M random integers.
+  5. The catch: skewed keys make the buckets uneven and erase most of the gain.
+  question: How skewed are the keys you sort in production?
+
 The paper's overview (facts you may use, with their claim ids):
 {cards}
