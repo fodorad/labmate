@@ -36,7 +36,7 @@ def default_chat(body: dict[str, Any]) -> dict[str, Any]:
         message["content"] = ProbeClaim(
             claim="Accuracy improves to 84.6%", evidence_quote="from 82.1% to 84.6%", kind="result"
         ).model_dump_json()
-    elif "tools" in body:
+    elif body.get("tools"):
         message["tool_calls"] = [
             {"function": {"name": "use_paper_figure", "arguments": {"figure_id": "fig3"}}}
         ]

@@ -95,6 +95,18 @@ class ReplayConfig(BaseModel):
     lock_file: Path = Path("models.lock")
 
 
+class CacheConfig(BaseModel):
+    """Reply cache settings.
+
+    Attributes:
+        enabled: Serve repeated requests from the cache.
+        path: The SQLite file.
+    """
+
+    enabled: bool = True
+    path: Path = Path("cache/replies.sqlite")
+
+
 class TracingConfig(BaseModel):
     """Where run traces are written."""
 
@@ -119,6 +131,7 @@ class Config(BaseModel):
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     replay: ReplayConfig = Field(default_factory=ReplayConfig)
+    cache: CacheConfig = Field(default_factory=CacheConfig)
     tracing: TracingConfig = Field(default_factory=TracingConfig)
     ask: AskConfig = Field(default_factory=AskConfig)
     post: PostConfig = Field(default_factory=PostConfig)
