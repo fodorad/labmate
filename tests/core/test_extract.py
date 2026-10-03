@@ -6,9 +6,8 @@ from labmate.core.extract import (
     extract_claims,
     quote_score,
 )
-from labmate.core.lc import RecordedChatModel
-from labmate.core.model import LLM
 from labmate.paper2flow.schemas import Paper, Section
+from tests.conftest import chat, reply
 
 TEXT = (
     "The Transformer allows for signif-\nicantly more parallelization and reaches a new state "
@@ -56,7 +55,8 @@ def test_unverifiable_quotes_are_rejected_and_ids_are_sequential(fake):
                 "kind": "result",
             },
         ]
-        return {"model": body["model"], "message": {"content": json.dumps({"claims": claims})}}
+        content = json.dumps({"claims": claims})
+        return reply(body, content)
 
     fake.chat_handler = model
     paper = Paper(
@@ -68,7 +68,7 @@ def test_unverifiable_quotes_are_rejected_and_ids_are_sequential(fake):
             Section(title="Results", page=5, text=TEXT + " " * MIN_SECTION_CHARS),
         ],
     )
-    writer = RecordedChatModel(llm=LLM(fake.client(), "qwen3.6:35b-mlx"))
+    writer = chat(fake)
     claims = extract_claims(paper, writer, workers=2)
     assert [c.id for c in claims.cards] == ["c01", "c02"]
     assert [(c.section, c.page) for c in claims.cards] == [("Intro", 1), ("Results", 5)]

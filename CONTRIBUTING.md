@@ -17,8 +17,8 @@ locally, so there is no release or deploy pipeline.
 
 ## Test-driven development
 
-Write the test first. Each test states a behaviour a feature relies on ("replay
-reproduces the answer without a model"); no tests of wire formats, private helpers
+Write the test first. Each test states a behaviour a feature relies on ("an abstaining
+answer says why"); no tests of wire formats, private helpers
 already covered by behaviour tests, or constants. Never patch production code: pass the
 dependency in (an argument, a config value, the fake Ollama in `tests/conftest.py`).
 Target ≥90% coverage (`make test-cov`).

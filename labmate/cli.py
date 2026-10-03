@@ -3,7 +3,7 @@
 - ``paper2flow`` / ``paper2post``: a paper in, ``overview.pdf`` / ``post.pdf`` out.
 - ``ask``: questions about your research (see :mod:`labmate.ask.cli`).
 - ``eval``: metrics of the finished paper runs.
-- ``probe`` / ``lock`` / ``graphs``: model checks, pins, diagrams.
+- ``graphs``: Mermaid diagrams of the chains and graphs.
 """
 
 from __future__ import annotations
@@ -20,77 +20,9 @@ from ollama import ResponseError
 
 from labmate.config import Config, load_config
 from labmate.core.ingest import IngestError
-from labmate.core.llm.client import OllamaClient, OllamaError, normalize_tag
-from labmate.core.llm.replay import CassetteMissError, read_lock, write_lock
-from labmate.core.probe import run_probe
 from labmate.paper2flow.chain import ARTIFACTS, NothingSupportedError, paper2flow
 from labmate.paper2flow.evals.metrics import results_markdown, run_metrics
 from labmate.paper2post.chain import paper2post
-
-
-def configured_models(config: Config) -> list[str]:
-    """All model tags referenced by the config, fully qualified and de-duplicated.
-
-    Args:
-        config: Loaded configuration.
-
-    Returns:
-        Model tags in role order.
-    """
-    m = config.models
-    tags = [m.text, m.critic, m.embed]
-    return list(dict.fromkeys(normalize_tag(t) for t in tags))
-
-
-def cmd_lock(config: Config, client: OllamaClient) -> int:
-    """Pin the digests of all configured models into the lock file.
-
-    Args:
-        config: Loaded configuration.
-        client: Ollama client.
-
-    Returns:
-        Exit code: 0 on success, 1 if a configured model is not installed.
-    """
-    installed = client.list_models()
-    wanted = configured_models(config)
-    missing = [t for t in wanted if t not in installed]
-    if missing:
-        print(f"Not installed (run `ollama pull`): {', '.join(missing)}", file=sys.stderr)
-        return 1
-    lock_path = config.replay.lock_file
-    old = read_lock(lock_path)
-    new = {t: installed[t] for t in wanted}
-    write_lock(lock_path, {**old, **new})  # keeps other pinned models (extra judges)
-    for tag, digest in new.items():
-        flag = "" if old.get(tag) in (None, digest) else "  (CHANGED: old cassettes won't match)"
-        print(f"{tag:32s} {digest[:12]}{flag}")
-    print(f"Wrote {lock_path}")
-    return 0
-
-
-def cmd_probe(config: Config, client: OllamaClient, out: Path) -> int:
-    """Run the capability probe on all configured models.
-
-    Args:
-        config: Loaded configuration.
-        client: Ollama client.
-        out: Output directory for the report.
-
-    Returns:
-        Exit code: 0 if no check failed, 1 otherwise.
-    """
-    logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
-    logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per request is noise
-    print(
-        "Probing with a short built-in test passage (no paper needed). Each model is "
-        "cold-loaded once; a 20 GB model can take a minute before the first check finishes.",
-        flush=True,
-    )
-    report = run_probe(client, client.version(), [config.models.text, config.models.critic], out)
-    print(report.to_markdown())
-    print(f"Report written to {out}/probe_report.md")
-    return 1 if any(r.passed is False for r in report.results) else 0
 
 
 def cmd_paper(
@@ -187,38 +119,13 @@ def build_parser() -> argparse.ArgumentParser:
     eval_p.add_argument("runs", nargs="*", type=Path, help="run dirs (default: all)")
     eval_p.add_argument("--out", type=Path, default=Path("evals"), help="output directory")
 
-    probe = sub.add_parser("probe", help="verify model capabilities -> probe/probe_report.md")
-    probe.add_argument("--out", type=Path, default=Path("probe"), help="report directory")
-
-    sub.add_parser("lock", help="pin model digests into models.lock")
-
     graphs = sub.add_parser("graphs", help="Mermaid diagrams of the chains and graphs -> docs/")
     graphs.add_argument("--out", type=Path, default=Path("docs/graphs.md"))
     return parser
 
 
-def _model_error(error: Exception) -> int:
-    """Report a failed model call: Ollama unreachable, a model missing, or no cassette.
-
-    Args:
-        error: The error.
-
-    Returns:
-        Exit code 2.
-    """
-    print(f"error: {error}", file=sys.stderr)
-    if isinstance(error, CassetteMissError):
-        print(
-            "hint: a prompt, schema or model changed since the run was recorded; "
-            "run in auto mode (with Ollama) to record the missing calls",
-            file=sys.stderr,
-        )
-    return 2
-
-
 def main(
     argv: Sequence[str] | None = None,
-    client: OllamaClient | None = None,
     web: httpx.BaseTransport | None = None,
     ollama: httpx.BaseTransport | None = None,
 ) -> int:
@@ -226,24 +133,14 @@ def main(
 
     Args:
         argv: Arguments (defaults to ``sys.argv[1:]``).
-        client: Injected Ollama client for ask, probe and lock (tests); built from the
-            config otherwise.
         web: Injected web transport (tests); the network otherwise.
-        ollama: Injected transport to Ollama for the paper chains (tests); the configured
-            host otherwise.
+        ollama: Injected transport to Ollama (tests); the configured host otherwise.
 
     Returns:
         Process exit code.
     """
     args = build_parser().parse_args(argv)
     config = load_config(args.config)
-    if args.command == "ask":
-        from labmate.ask.cli import main as ask_main  # noqa: PLC0415 - needs the [ask] extra
-
-        try:
-            return ask_main(config, args, client)
-        except (OllamaError, CassetteMissError) as e:
-            return _model_error(e)
     if args.command == "graphs":
         from labmate.diagrams import write_diagrams  # noqa: PLC0415 - needs the [ask] extra
 
@@ -251,21 +148,15 @@ def main(
         return 0
     if args.command == "eval":
         return cmd_eval(config, args.runs, args.out)
-    if args.command in ("paper2flow", "paper2post"):
-        try:
-            return cmd_paper(config, args, web, ollama)
-        except (httpx.TransportError, ResponseError) as e:  # Ollama down, or the model not pulled
-            print(f"error: {e} (is Ollama running at {config.ollama.host}, with the models?)",
-                  file=sys.stderr)  # fmt: skip
-            return 2
-    own_client = client is None
-    client = client or OllamaClient(config.ollama.host, config.ollama.timeout_s)
     try:
-        if args.command == "lock":
-            return cmd_lock(config, client)
-        return cmd_probe(config, client, args.out)
-    except (OllamaError, CassetteMissError) as e:
-        return _model_error(e)
-    finally:
-        if own_client:
-            client.close()
+        if args.command == "ask":
+            from labmate.ask.cli import main as ask_main  # noqa: PLC0415 - needs the [ask] extra
+
+            return ask_main(config, args, ollama)
+        return cmd_paper(config, args, web, ollama)
+    except (httpx.TransportError, ResponseError) as e:  # Ollama down, or the model not pulled
+        print(
+            f"error: {e} (is Ollama running at {config.ollama.host}, with the models?)",
+            file=sys.stderr,
+        )
+        return 2

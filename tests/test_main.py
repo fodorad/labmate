@@ -7,4 +7,4 @@ def test_module_entrypoint_shows_help():
         [sys.executable, "-m", "labmate", "--help"], capture_output=True, text=True
     )
     assert out.returncode == 0
-    assert "probe" in out.stdout and "paper2flow" in out.stdout
+    assert "ask" in out.stdout and "paper2flow" in out.stdout

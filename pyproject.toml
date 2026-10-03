@@ -48,13 +48,11 @@ dev = [
     "types-pyyaml>=6.0",
     "labmate[ask]",
 ]
-# The ask feature: a LangGraph agent over your research, and its live dashboard.
+# The ask feature: a LangGraph graph and a tool-calling agent over a library of documents.
 ask = [
     "langgraph>=1.0",
-    "langgraph-checkpoint-sqlite>=2.0",
     "langchain>=1.0",
     "numpy>=2.0",
-    "nicegui>=2.0",
 ]
 
 [project.scripts]
@@ -99,9 +97,8 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["labmate"]
-# UI wiring only: the dashboard's logic is labmate.ask.live, which is tested, and studio.py
-# only hands the tested graphs to LangGraph Studio.
-omit = ["labmate/ask/dashboard.py", "labmate/ask/studio.py"]
+# studio.py only hands the tested graphs to LangGraph Studio.
+omit = ["labmate/ask/studio.py"]
 
 [tool.coverage.report]
 exclude_lines = [

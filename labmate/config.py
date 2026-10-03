@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import tomllib
-from enum import StrEnum
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -14,22 +13,6 @@ DEFAULT_CONFIG_PATH = Path("config.toml")
 HOST_ENV = "LABMATE_OLLAMA_HOST"
 """Environment variable that overrides ``[ollama].host`` (e.g. Ollama on another machine)."""
 """Config file used when no explicit path is given (relative to the working directory)."""
-
-
-class ReplayMode(StrEnum):
-    """How model calls interact with the cassette store.
-
-    Attributes:
-        LIVE: Always call Ollama and store nothing.
-        RECORD: Always call Ollama and (over)write cassettes.
-        AUTO: Use a cassette if present, otherwise call Ollama and record it.
-        REPLAY: Cassettes only; a missing cassette is an error.
-    """
-
-    LIVE = "live"
-    RECORD = "record"
-    AUTO = "auto"
-    REPLAY = "replay"
 
 
 class OllamaConfig(BaseModel):
@@ -63,36 +46,23 @@ class PipelineConfig(BaseModel):
 
 
 class AskConfig(BaseModel):
-    """Settings of the ask feature (questions about your research).
+    """Settings of the ask feature (questions about a library of documents).
 
     Attributes:
         library: Folder with ``library.toml`` and the source PDFs.
         index: The search index (SQLite: sections, chunks, full-text index, vectors).
-        threads: Conversation checkpoints (LangGraph ``SqliteSaver``).
         chunk_words: Target words per chunk (paragraphs are packed up to this size).
         top_k: Chunks retrieved per search.
-        max_loops: Retrieve-grade-rewrite rounds per sub-question.
+        max_loops: Retrieve-grade-rewrite rounds per question.
         embed_batch: Texts per embedding call.
-        summary_min_words: Chapters shorter than this are not summarised (their chunks
-            already say it all).
     """
 
     library: Path = Path("library")
     index: Path = Path("library/index.sqlite")
-    threads: Path = Path("library/threads.sqlite")
     chunk_words: int = 180
     top_k: int = 6
     max_loops: int = 2
     embed_batch: int = 32
-    summary_min_words: int = 300
-
-
-class ReplayConfig(BaseModel):
-    """Record/replay cache settings."""
-
-    mode: ReplayMode = ReplayMode.AUTO
-    dir: Path = Path("cassettes")
-    lock_file: Path = Path("models.lock")
 
 
 class CacheConfig(BaseModel):
@@ -130,7 +100,6 @@ class Config(BaseModel):
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
-    replay: ReplayConfig = Field(default_factory=ReplayConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     tracing: TracingConfig = Field(default_factory=TracingConfig)
     ask: AskConfig = Field(default_factory=AskConfig)

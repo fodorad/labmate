@@ -19,11 +19,11 @@ docs/_build/
 .DS_Store
 tmp/
 
-# Pipeline outputs. Anchored to the repo root: gallery/<paper>/cassettes/ are committed,
-# so CI can replay the published runs.
+# Pipeline outputs and the reply cache. Anchored to the repo root.
 /runs/
-/cassettes/
 /cache/
+# recordings of the old record/replay layer, no longer used
+/cassettes/
 /site/
 
 # ask: the library's PDFs and derived databases stay local (library.toml and golden.yaml are committed)

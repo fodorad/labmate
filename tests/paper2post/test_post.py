@@ -2,7 +2,7 @@ import json
 
 from labmate.core.schemas import Bullet, Card, Cards, Paper, Section
 from labmate.paper2post.post import pick_icons, post_links, write_post
-from tests.conftest import agentic_chat, chat_model
+from tests.conftest import agentic_chat, chat, reply
 from tests.core.test_factcheck import CLAIMS
 
 CARDS = Cards(
@@ -40,13 +40,18 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
 
     def model(body):
         if "takeaways" in body["format"]["properties"]:
-            return {"model": body["model"], "message": {"content": json.dumps(next(replies))}}
+            content = json.dumps(next(replies))
+            return reply(body, content)
         return agentic_chat(body)
 
     fake.chat_handler = model
-    fake.installed.update({"w": "w" * 64, "j": "j" * 64})
     post = write_post(
-        CARDS, CLAIMS, PAPER, chat_model(fake, "w"), chat_model(fake, "j"), max_rounds=0
+        CARDS,
+        CLAIMS,
+        PAPER,
+        chat(fake, "qwen3.6:35b-mlx"),
+        chat(fake, "gemma4:26b-mlx"),
+        max_rounds=0,
     )
     retry = fake.requests[1][1]["messages"][-1]["content"]
     assert "takeaway 1 cites unknown claims ['c99']" in retry
@@ -59,7 +64,7 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
     assert post.report.failed_first == 1
 
     fake.chat_handler = agentic_chat
-    assert pick_icons(post, chat_model(fake, "w")) == ["target", "bulb", "cpu"]  # one each
+    assert pick_icons(post, chat(fake)) == ["target", "bulb", "cpu"]  # one each
 
 
 def test_links_are_the_paper_its_code_and_yours():

@@ -1,6 +1,5 @@
-# Golden questions for `make eval-answers` (LangGraph agent vs prebuilt agent) and the
-# dashboard's question chips. `sources` are the ids a good answer should cite;
-# `abstain: true` marks questions the agent should decline.
+# Golden questions for `make eval-answers` (graph vs agent). `sources` are the ids a good answer
+# should cite; `abstain: true` marks questions the library cannot answer.
 
 - question: What is LinMulT and why is it cheaper than MulT?
   sources: [dissertation, linmult]

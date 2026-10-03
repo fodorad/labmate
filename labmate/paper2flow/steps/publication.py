@@ -14,7 +14,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from labmate.core.lc import prompt, structured
-from labmate.core.llm.structured import StructuredOutputError
+from labmate.core.structured import StructuredOutputError
 from labmate.paper2flow.prompts import load_prompt
 from labmate.paper2flow.schemas import Paper, PublicationDraft
 

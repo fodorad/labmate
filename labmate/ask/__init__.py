@@ -1,8 +1,7 @@
-"""ask: questions about your research, answered from your dissertation and papers.
+"""ask: questions about a library of PDFs, answered with citations.
 
-An agent, built with LangGraph: tiered hybrid retrieval over a library (the dissertation
-is the source of truth), grading and query-rewriting loops, a conflict check across
-sources, answers with page citations, self-verification with the shared fact-check loop,
-and multi-turn memory. A prebuilt LangChain tool-calling agent is kept as a baseline to
-compare against.
+Two ways to answer the same question. :mod:`labmate.ask.graph` is a LangGraph graph: hybrid
+retrieval, a grade-and-rewrite loop, a clarification ``interrupt`` and a judge-model check of
+every sentence, with the code fixing the path. :mod:`labmate.ask.agent` is a tool-calling
+agent that decides its own searches. Both answer through the same sentence checks.
 """

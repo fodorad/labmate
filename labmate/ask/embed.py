@@ -1,14 +1,12 @@
-"""Embeddings through the shared backend, so they are traced and recorded like chat calls."""
+"""Embeddings of queries and documents, L2-normalised so a dot product is the cosine."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
 import numpy as np
+from langchain_core.embeddings import Embeddings
 from numpy.typing import NDArray
-
-from labmate.core.llm.client import Backend
-from labmate.core.llm.types import EmbedRequest
 
 PREFIXES = {
     "embeddinggemma": ("task: search result | query: ", "title: none | text: "),
@@ -21,18 +19,16 @@ Vectors = NDArray[np.float32]
 
 
 class Embedder:
-    """Embeds queries and documents with an Ollama embedding model.
-
-    Vectors are L2-normalised, so a dot product is the cosine similarity.
+    """Embeds queries and documents with an embedding model.
 
     Args:
-        backend: Traced, replayed backend.
-        model: Embedding model tag.
+        embeddings: The embedding model (e.g. Ollama's).
+        model: Its tag, which selects the prefixes.
         batch: Texts per request.
     """
 
-    def __init__(self, backend: Backend, model: str, batch: int = 32) -> None:
-        self.backend = backend
+    def __init__(self, embeddings: Embeddings, model: str, batch: int = 32) -> None:
+        self.embeddings = embeddings
         self.model = model
         self.batch = batch
         family = model.split(":", 1)[0].rsplit("/", 1)[-1]
@@ -41,8 +37,7 @@ class Embedder:
     def _embed(self, texts: Sequence[str]) -> Vectors:
         rows: list[list[float]] = []
         for i in range(0, len(texts), self.batch):
-            request = EmbedRequest(model=self.model, input=list(texts[i : i + self.batch]))
-            rows += self.backend.embed(request).embeddings
+            rows += self.embeddings.embed_documents(list(texts[i : i + self.batch]))
         matrix = np.asarray(rows, dtype=np.float32).reshape(len(rows), -1)
         norms = np.linalg.norm(matrix, axis=1, keepdims=True)
         normalised: Vectors = (matrix / np.where(norms == 0, 1, norms)).astype(np.float32)

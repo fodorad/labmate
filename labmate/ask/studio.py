@@ -1,7 +1,7 @@
 """Graph factories for LangGraph Studio (``langgraph dev`` reads ``langgraph.json``).
 
-Studio runs the graphs with its own checkpointer and shows every node, the state and
-the interrupts; the models still go through labmate's recorded backend.
+Studio runs the graphs with its own checkpointer and shows every node, the state and the
+interrupts. Set ``LANGSMITH_TRACING=false`` to keep traces on this machine.
 """
 
 from __future__ import annotations
@@ -15,18 +15,18 @@ from labmate.config import load_config
 
 
 def make_graph() -> Any:
-    """The ask agent, compiled without a checkpointer (Studio brings its own).
+    """The ask graph, compiled without a checkpointer (Studio brings its own).
 
     Returns:
         The compiled graph.
     """
-    return build_graph(open_ask(load_config(), label="ask-studio")).compile()
+    return build_graph(open_ask(load_config())).compile()
 
 
-def make_prebuilt() -> Any:
-    """The prebuilt baseline agent.
+def make_agent() -> Any:
+    """The tool-calling agent.
 
     Returns:
         The compiled graph.
     """
-    return build_agent(open_ask(load_config(), label="ask-studio"))
+    return build_agent(open_ask(load_config()))

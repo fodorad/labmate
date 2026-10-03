@@ -1,4 +1,4 @@
-A search over a researcher's dissertation and papers did not find everything needed.
+A search over a library of research documents did not find everything needed.
 
 Last query: {query}
 Still missing: {missing}

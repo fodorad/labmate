@@ -6,7 +6,7 @@ from labmate.paper2flow.steps.publication import (
     read_publication,
     with_publication,
 )
-from tests.conftest import chat_model
+from tests.conftest import chat
 
 FIRST_PAGE = (
     "Journal of Imaging\nArticle\nBlinkLinMulT: Transformer-Based Eye Blink Detection\n"
@@ -49,7 +49,10 @@ def test_year_comes_from_the_date_then_the_venue_then_ingestion():
 
 
 def reply(content):
-    return lambda body: {"model": body["model"], "message": {"content": json.dumps(content)}}
+    return lambda body: {
+        "model": body["model"],
+        "message": {"role": "assistant", "content": json.dumps(content)},
+    }
 
 
 def test_reads_venue_and_date_with_feedback(fake):
@@ -62,7 +65,7 @@ def test_reads_venue_and_date_with_feedback(fake):
         return reply(next(answers))(body)
 
     fake.chat_handler = handler
-    llm = chat_model(fake)
+    llm = chat(fake)
     notes = PAPER.model_copy(update={"notes": "Comments: 12 pages"})
     result = read_publication(notes, FIRST_PAGE, llm)
     assert result == draft("J. Imaging 2023, 9, 196", "21 September 2023")
@@ -72,7 +75,7 @@ def test_reads_venue_and_date_with_feedback(fake):
 
 def test_gives_up_quietly_and_skips_empty_sources(fake):
     fake.chat_handler = reply({"venue": "Made Up Conference", "date": ""})
-    llm = chat_model(fake)
+    llm = chat(fake)
     assert read_publication(PAPER, FIRST_PAGE, llm) == draft()
     calls = len(fake.requests)
     assert read_publication(PAPER, "", llm) == draft() and len(fake.requests) == calls

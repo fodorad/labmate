@@ -10,11 +10,8 @@ from labmate.core.factcheck import (
     numbers_in,
     title_names,
 )
-from labmate.core.lc import RecordedChatModel
-from labmate.core.model import LLM
-from labmate.core.phases import ModelSwitcher
 from labmate.core.schemas import Bullet, Card, Cards, ClaimCard, Claims
-from tests.conftest import agentic_chat
+from tests.conftest import agentic_chat, chat, reply
 
 CARDS = [
     ClaimCard(
@@ -61,38 +58,33 @@ def test_deterministic_check_catches_number_drift_but_not_rewording():
     ]
 
 
-class Recorder(ModelSwitcher):
-    def __init__(self):
-        super().__init__(None)
-        self.order = []
-
-    def use(self, model):
-        super().use(model)
-        if not self.order or self.order[-1] != model:
-            self.order.append(model)
+WRITER, JUDGE = "qwen3.6:35b-mlx", "gemma4:26b-mlx"
 
 
 def run_loop(fake, written, max_rounds=2):
-    switcher = Recorder()
-    writer = RecordedChatModel(llm=LLM(fake.client(), "writer"), switcher=switcher)
-    judge = RecordedChatModel(llm=LLM(fake.client(), "judge"), switcher=switcher)
     scopes = [[b.claim_ids[0] for b in c.bullets] for c in written.cards]
-    result = fact_check(written, scopes, CLAIMS, writer, judge, max_rounds=max_rounds)
-    return result, switcher
+    return fact_check(
+        written, scopes, CLAIMS, chat(fake, WRITER), chat(fake, JUDGE), max_rounds=max_rounds
+    )
+
+
+def models_called(fake):
+    """The model of every chat request, consecutive repeats collapsed."""
+    called = [b["model"] for p, b in fake.requests if p == "/api/chat"]
+    return [m for i, m in enumerate(called) if i == 0 or m != called[i - 1]]
 
 
 @pytest.fixture
 def model(fake):
-    fake.installed.update({"writer": "w" * 64, "judge": "j" * 64})
     fake.chat_handler = agentic_chat
     return fake
 
 
 def test_clean_cards_pass_in_one_round_with_one_model(model):
     written = Cards(cards=[card(("Trained for 3.5 days.", ["c01"]))])
-    result, switcher = run_loop(model, written)
+    result = run_loop(model, written)
     assert len(result.report.rounds) == 1 and result.report.failed_first == 0
-    assert result.cards == written and switcher.order == ["judge"]
+    assert result.cards == written and models_called(model) == [JUDGE]
 
 
 def test_failing_bullet_is_rewritten_and_rejudged(model):
@@ -102,14 +94,14 @@ def test_failing_bullet_is_rewritten_and_rejudged(model):
             card(("WRONG: beats every model ever.", ["c02"])),
         ]
     )
-    result, switcher = run_loop(model, written)
+    result = run_loop(model, written)
     report = result.report
     assert report.failed_first == 1 and report.total_first == 2
     assert len(report.rounds) == 2 and all(c.passed for c in report.rounds[1])
     assert result.cards.cards[0] == written.cards[0]  # untouched
     assert "WRONG" not in result.cards.cards[1].bullets[0].text
-    assert switcher.order == ["judge", "writer", "judge"]  # phases, not interleaving
-    judged = [b for p, b in model.requests if p == "/api/chat" and b["model"] == "judge"]
+    assert models_called(model) == [JUDGE, WRITER, JUDGE]  # phases, not interleaving
+    judged = [b for p, b in model.requests if p == "/api/chat" and b["model"] == JUDGE]
     assert len(judged) == 3  # 2 cards, then only the rewritten one
 
 
@@ -123,14 +115,14 @@ def test_bullets_still_failing_after_budget_are_dropped(model):
                 "title": "Results",
                 "bullets": [{"text": "WRONG again", "claim_ids": ["c02"]}],
             }
-            return {"model": body["model"], "message": {"content": json.dumps(content)}}
+            return reply(body, json.dumps(content))  # fmt: skip
         return agentic_chat(body)
 
     model.chat_handler = stubborn
     written = Cards(
         cards=[card(("Trained for 3.5 days.", ["c01"])), card(("WRONG claim", ["c02"]))]
     )
-    result, _ = run_loop(model, written, max_rounds=1)
+    result = run_loop(model, written, max_rounds=1)
     report = result.report
     assert len(report.rounds) == 2 and len(report.dropped) == 1
     assert report.dropped_cards == [2] and len(result.cards.cards) == 1
@@ -138,23 +130,10 @@ def test_bullets_still_failing_after_budget_are_dropped(model):
 
 def test_number_drift_fails_even_if_the_judge_is_fooled(model):
     written = Cards(cards=[card(("Trained for 4 days.", ["c01"]))])
-    result, _ = run_loop(model, written, max_rounds=0)
+    result = run_loop(model, written, max_rounds=0)
     check = result.report.rounds[0][0]
     assert check.verdict == "supported" and not check.passed
     assert result.report.dropped_cards == [1]
-
-
-def test_switcher_unloads_previous_model(fake):
-    client = fake.client()
-    for m in ("qwen3.6:35b-mlx", "gemma4:26b-mlx"):
-        fake.loaded.add(m)
-    switcher = ModelSwitcher(client, unload_wait_s=0)
-    switcher.use("qwen3.6:35b-mlx")
-    switcher.use("qwen3.6:35b-mlx")
-    switcher.use("gemma4:26b-mlx")
-    assert switcher.swaps == 1 and "qwen3.6:35b-mlx" not in fake.loaded
-    switcher.release()
-    assert "gemma4:26b-mlx" not in fake.loaded and switcher.active is None
 
 
 def test_names_must_be_in_the_evidence_unless_generic_or_in_the_title():
