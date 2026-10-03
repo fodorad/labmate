@@ -381,7 +381,7 @@ class Index:
             tuple(tiers),
         ).fetchall()
         return [
-            ClaimCard(id=i, claim=cl, evidence_quote=q, kind=k, section=sec, page=p, match=100.0)
+            ClaimCard(id=i, claim=cl, evidence_quote=q, kind=k, section=sec, page=p)
             for i, cl, q, k, sec, p in rows
         ]
 

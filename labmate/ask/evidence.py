@@ -83,6 +83,5 @@ def evidence_cards(index: Index, chunk_ids: Sequence[str]) -> dict[str, ClaimCar
             kind="method",
             section=index.section(chunk.section_id).title,
             page=chunk.page,
-            match=100.0,
         )
     return cards

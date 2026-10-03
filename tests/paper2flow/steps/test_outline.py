@@ -13,7 +13,6 @@ CLAIMS = Claims(
             kind="result",
             section="S",
             page=i,
-            match=100,
         )
         for i in range(1, 5)
     ]

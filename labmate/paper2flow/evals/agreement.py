@@ -98,7 +98,6 @@ def judge_labels(
                 kind="result",
                 section="",
                 page=0,
-                match=100.0,
             )
             for i, quote in enumerate(item.evidence, start=1)
         }

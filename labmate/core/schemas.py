@@ -105,7 +105,6 @@ class ClaimCard(BaseModel):
         kind: What the claim is about.
         section: Section title.
         page: Page where the section starts.
-        match: Fuzzy-match score of the quote against the section text (0-100).
     """
 
     id: str
@@ -114,7 +113,6 @@ class ClaimCard(BaseModel):
     kind: ClaimKind
     section: str
     page: int
-    match: float
 
 
 class Claims(BaseModel):

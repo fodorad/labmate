@@ -23,7 +23,7 @@ from labmate.core.schemas import ClaimCard
 
 def card(cid, quote):
     return ClaimCard(id=cid, claim=quote, evidence_quote=quote, kind="result", section="s",
-                     page=1, match=100)  # fmt: skip
+                     page=1)  # fmt: skip
 
 
 def test_question_rules():

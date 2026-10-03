@@ -53,7 +53,6 @@ from labmate.ask.schemas import (
     Conflicts,
     Finding,
     Grade,
-    Intent,
     Plan,
     Rewrite,
     Sentence,
@@ -696,7 +695,3 @@ def ask(
         answer: Answer = result["answer"]
         root.update(abstained=answer.abstained, citations=len(answer.citations))
     return answer
-
-
-INTENTS: tuple[Intent, ...] = ("thesis", "own_work", "related", "off_topic")
-"""All intents (for the dashboard and tests)."""

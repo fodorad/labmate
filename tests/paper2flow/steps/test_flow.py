@@ -183,13 +183,13 @@ def test_rendering_explains_a_missing_node(tmp_path, monkeypatch):
 
 CARDS = [
     ClaimCard(id="c01", claim="c", evidence_quote="RGB texture", kind="task", section="Intro",
-              page=1, match=100),
+              page=1),
     ClaimCard(id="c02", claim="c", evidence_quote="linear attention", kind="method",
-              section="Method", page=2, match=100),
+              section="Method", page=2),
     ClaimCard(id="c03", claim="c", evidence_quote="0.99 F1", kind="result", section="Results",
-              page=3, match=100),
+              page=3),
     ClaimCard(id="c04", claim="c", evidence_quote="landmarks", kind="contribution",
-              section="Method", page=2, match=100),
+              section="Method", page=2),
 ]  # fmt: skip
 OUTLINE = Outline(
     cards=[

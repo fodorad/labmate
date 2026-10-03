@@ -182,7 +182,6 @@ def assemble_claims(units: list[Section], drafts: list[list[ClaimDraft]]) -> Cla
                     kind=draft.kind,
                     section=unit.title,
                     page=unit.page,
-                    match=round(score, 1),
                 )
             )
     return Claims(cards=cards, rejected=rejected)

@@ -47,7 +47,6 @@ def card(i: int, quote: str) -> ClaimCard:
         kind="result",
         section="Results",
         page=3,
-        match=100.0,
     )
 
 

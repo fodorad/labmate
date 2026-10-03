@@ -23,7 +23,6 @@ CARDS = [
         kind="result",
         section="Training",
         page=7,
-        match=100,
         evidence_quote="The big models were trained for 300,000 steps (3.5 days).",
     ),
     ClaimCard(
@@ -32,7 +31,6 @@ CARDS = [
         kind="result",
         section="Results",
         page=8,
-        match=100,
         evidence_quote="achieves 28.4 BLEU on the WMT 2014 English-to-German translation task",
     ),
 ]
