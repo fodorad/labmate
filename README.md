@@ -1,10 +1,9 @@
 # labmate
 
-> A local research assistant built from agentic patterns. Fully local, fully reproducible.
+> Local research tools on Ollama: paper overviews, LinkedIn posts, and cited answers about a paper library.
 
-labmate is a collection of features, each chosen to show a different way of building
-with LLMs, all on one shared core: local models via Ollama, every model call recorded and
-replayable, traced, and evaluated.
+labmate is a set of features on one shared core: local models via Ollama, every model
+call recorded and replayable, traced, and evaluated.
 
 | Feature | What it does | How it is built |
 |---|---|---|

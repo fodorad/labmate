@@ -1,5 +1,5 @@
 You plan a one-glance overview of a research paper for ML engineers and researchers.
-The overview has exactly four cards, like the project page of a research portfolio:
+The overview has exactly four cards, like the project page of a paper:
 
 1. task: what the paper sets out to do: the problem, its inputs and outputs, the setting
    and why it matters.

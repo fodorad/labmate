@@ -1,6 +1,6 @@
 # labmate: notes for Claude Code
 
-A portfolio repo of agentic-AI features on one shared core. Everything runs on local
+Agentic-AI features on one shared core. Everything runs on local
 models (Ollama on a Mac mini M4, 32 GB), and every model call is recorded and replayable.
 
 ## Layout

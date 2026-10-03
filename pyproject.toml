@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "labmate"
 version = "0.0.0"
-description = "A local research assistant built from agentic patterns: paper2flow and paper2post turn a paper into a fact-checked overview and a LinkedIn post (LangChain chains); ask answers questions about your research with citations (a LangGraph agent)."
+description = "Local research tools on Ollama: paper2flow and paper2post turn a paper into a fact-checked overview and a LinkedIn post (LangChain chains); ask answers questions about your research with citations (a LangGraph agent)."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]

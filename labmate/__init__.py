@@ -1,4 +1,4 @@
-"""labmate: a local research assistant, built from agentic patterns.
+"""labmate: local research tools on Ollama.
 
 Features:
 
