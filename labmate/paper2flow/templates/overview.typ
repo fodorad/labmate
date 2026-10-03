@@ -96,10 +96,13 @@
   })
 
 #pagebreak()
-#kicker("At a glance")
-#v(24pt)
-#grid(columns: (1fr, 1fr), rows: (1fr, 1fr), column-gutter: 12pt, row-gutter: 32pt,
-  ..data.cards.map(card))
+#block(height: 100%, {
+  kicker("At a glance")
+  v(24pt)
+  block(height: 1fr, width: 100%,
+    grid(columns: (1fr, 1fr), rows: (1fr, 1fr), column-gutter: 12pt, row-gutter: 32pt,
+      ..data.cards.map(card)))
+})
 
 // --- pages 3+: the flow diagrams --------------------------------------------------------
 #for d in data.diagrams {

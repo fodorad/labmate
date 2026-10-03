@@ -8,7 +8,6 @@ def test_run_metrics_on_a_finished_run(finished):
     assert m.claims_verified == 6 and m.claims_rejected == 0
     assert m.bullets_first == m.bullets_final > 0
     assert m.unsupported_first == 0 and m.dropped == 0 and m.rounds == 1
-    assert 0 <= m.card_fit <= 1
     assert m.cards == 4 and m.flow_nodes == 4 and m.flow_details == 2
     assert m.unsupported_first_pct == 0
 

@@ -16,7 +16,7 @@ from labmate.paper2flow.schemas import Flows
 from tests.conftest import agentic_chat, make_pdf
 
 REF = "2401.00001"
-CHATS = 17  # publication 1 + route 1 + extract 3 + outline 1 + write 4 + judge 4 + flows 1+2
+CHATS = 14  # extract 3 + write 4 + judge 4 + flows 1+2
 
 
 @pytest.fixture

@@ -82,7 +82,7 @@ def cards() -> Cards:
 
 def test_overview_has_cover_cards_flow_and_details(tmp_path):
     f = flows()
-    pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
+    pages = diagrams(f, render_flows(f, tmp_path), tmp_path)
     out = render_overview(PAPER, card_blocks(cards(), LABELS), pages, tmp_path / "overview.pdf")
     with pymupdf.open(out) as doc:
         assert doc.page_count == 4
@@ -106,7 +106,7 @@ def test_small_diagrams_are_not_blown_up(tmp_path):
 
 def test_without_a_figure_the_first_page_shows_the_abstract(tmp_path):
     f = flows()
-    pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
+    pages = diagrams(f, render_flows(f, tmp_path), tmp_path)
     paper = PAPER.model_copy(update={"abstract": "We study attention."})
     out = render_overview(paper, card_blocks(cards(), LABELS), pages, tmp_path / "o.pdf")
     with pymupdf.open(out) as doc:
@@ -116,7 +116,7 @@ def test_without_a_figure_the_first_page_shows_the_abstract(tmp_path):
 def test_paper_text_cannot_inject_typst_markup(tmp_path):
     nasty = '#set page(fill: red) *bold* $x$ @ref <label> [x] // comment "quote"'
     f = flows()
-    pages = diagrams(f, render_flows(f, tmp_path), "method", tmp_path)
+    pages = diagrams(f, render_flows(f, tmp_path), tmp_path)
     paper = PAPER.model_copy(update={"title": nasty})
     out = render_overview(
         paper, card_blocks(cards(), LABELS), pages, tmp_path / "o.pdf", theme=Theme()

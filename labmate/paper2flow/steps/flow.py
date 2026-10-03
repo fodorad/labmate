@@ -32,7 +32,6 @@ from labmate.paper2flow.schemas import (
     Flows,
     Outline,
     Paper,
-    PaperType,
 )
 
 MERMAID_CLI = ("npx", "--yes", "@mermaid-js/mermaid-cli@12.0.0")
@@ -90,17 +89,11 @@ MERMAID_THEME = {
 }
 """mermaid-cli configuration: the house style shared by every diagram."""
 
-GOALS: dict[str, str] = {
-    "method": "how data flows through the proposed method: from the raw input data, "
-    "through preprocessing and the model's components, to the target output",
-    "benchmark": "how the benchmark is built and used: from the raw data sources, through "
-    "collection, annotation and the tasks, to the evaluation results",
-    "survey": "how the survey organises its field: from the problem, through the "
-    "categories of approaches and how they are evaluated, to the open challenges",
-    "position": "how the argument flows: from the observed situation, through the "
-    "evidence and the reasoning, to the proposed position and its consequences",
-}
-"""What the overview shows, per paper type."""
+GOAL = (
+    "how data flows through the paper's pipeline: from the raw input data, through "
+    "preprocessing and the model's components, to the target output"
+)
+"""What the overview diagram shows."""
 
 # --- evidence ------------------------------------------------------------------------------
 
@@ -296,7 +289,6 @@ def _evidence(cards: list[ClaimCard], sections: str) -> str:
 
 def plan_overview(
     paper: Paper,
-    paper_type: PaperType,
     bullets: list[str],
     cards: list[ClaimCard],
     sections: str,
@@ -307,7 +299,6 @@ def plan_overview(
 
     Args:
         paper: The paper.
-        paper_type: What kind of paper (what the flow shows).
         bullets: The fact-checked method card's bullets.
         cards: Evidence cards (:func:`flow_cards`).
         sections: Evidence text (:func:`flow_sections`).
@@ -323,7 +314,7 @@ def plan_overview(
     return (prompt(load_prompt("flow_overview")) | planner).invoke(
         {
             "title": paper.title,
-            "goal": GOALS[paper_type],
+            "goal": GOAL,
             "bullets": "\n".join(f"- {b}" for b in bullets) or "(none)",
             "evidence": _evidence(cards, sections),
         },
@@ -378,7 +369,6 @@ def plan_detail(
 
 def plan_flows(
     paper: Paper,
-    paper_type: PaperType,
     bullets: list[str],
     cards: list[ClaimCard],
     model: BaseChatModel,
@@ -389,7 +379,6 @@ def plan_flows(
 
     Args:
         paper: The paper.
-        paper_type: What kind of paper.
         bullets: The fact-checked method card's bullets.
         cards: Evidence cards (:func:`flow_cards`).
         model: The writer model.
@@ -400,7 +389,7 @@ def plan_flows(
         All diagrams, details in overview order.
     """
     sections = flow_sections(paper, cards)
-    overview = plan_overview(paper, paper_type, bullets, cards, sections, model, config)
+    overview = plan_overview(paper, bullets, cards, sections, model, config)
     details = batch_map(
         lambda nid, cfg: plan_detail(paper, overview, nid, cards, sections, model, cfg),
         detail_order(overview),

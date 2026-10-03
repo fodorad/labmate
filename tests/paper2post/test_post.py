@@ -1,7 +1,7 @@
 import json
 
 from labmate.core.schemas import Bullet, Card, Cards, Paper, Section
-from labmate.paper2post.post import pick_icons, post_links, write_post
+from labmate.paper2post.post import STORY_ICONS, post_links, write_post
 from tests.conftest import agentic_chat, chat, reply
 from tests.core.test_factcheck import CLAIMS
 
@@ -63,8 +63,7 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
     ]
     assert post.report.failed_first == 1
 
-    fake.chat_handler = agentic_chat
-    assert pick_icons(post, chat(fake)) == ["target", "bulb", "cpu"]  # one each
+    assert post.icons == STORY_ICONS[:3]  # one per surviving sentence, by place in the story
 
 
 def test_links_are_the_paper_its_code_and_yours():

@@ -234,7 +234,7 @@ def test_planner_and_worker_prompts_and_checks(fake):
     llm = chat(fake)
     cards = flow_cards(OUTLINE, CARDS)
     sections = flow_sections(PAPER, cards)
-    ov = plan_overview(PAPER, "method", ["It fuses RGB and landmarks."], cards, sections, llm)
+    ov = plan_overview(PAPER, ["It fuses RGB and landmarks."], cards, sections, llm)
     assert ov == overview()
     assert "from the raw input data" in seen[0] and '- "linear attention"' in seen[0]
     assert "only a component or process" in seen[1]  # the rule was fed back

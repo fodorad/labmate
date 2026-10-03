@@ -240,6 +240,11 @@ def _last_user(body: dict[str, Any]) -> str:
     return next(m["content"] for m in reversed(body["messages"]) if m["role"] == "user")
 
 
+def _field(prompt: str, name: str) -> str:
+    match = re.search(rf"^{name}: (.*)$", prompt, re.MULTILINE)
+    return match.group(1).strip() if match else ""
+
+
 def _first_sentences(text: str, n: int) -> list[str]:
     sentences = [s.strip() for s in text.replace("\n", " ").split(". ") if len(s.split()) >= 4]
     return sentences[:n]
@@ -290,10 +295,13 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
         content: Any = {"paper_type": "method", "confidence": 0.9, "reason": "new model"}
     elif "claims" in props:
         text = prompt.split("SECTION TEXT:", 1)[1]
+        section = _field(prompt, "Section")
+        kinds = {"Introduction": ["task", "challenge"], "Method": ["method", "contribution"]}
+        wanted = kinds.get(section.split(" (")[0], ["result", "result"])
         content = {
             "claims": [
-                {"claim": f"Claim: {q}.", "evidence_quote": q, "kind": "result"}
-                for q in _first_sentences(text, 2)
+                {"claim": f"Claim: {q}.", "evidence_quote": q, "kind": kind}
+                for q, kind in zip(_first_sentences(text, 2), wanted, strict=False)
             ]
         }
     elif "cards" in props:

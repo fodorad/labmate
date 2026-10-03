@@ -2,8 +2,8 @@
 
 The post body (3 to 5 sentences telling the paper's story) goes through the same
 evaluator-optimizer loop as the overview's cards, so the post can't state anything the
-overview couldn't; a sentence that stays unsupported is dropped. The icons are picked
-afterwards, one per surviving sentence, from a fixed set.
+overview couldn't; a sentence that stays unsupported is dropped. Each surviving sentence gets
+the icon of its place in the story.
 """
 
 from __future__ import annotations
@@ -17,7 +17,11 @@ from labmate.core.factcheck import INLINE_ID, fact_check
 from labmate.core.lc import prompt, structured
 from labmate.core.schemas import Card, Cards, Claims, Paper
 from labmate.paper2post.prompts import load_prompt
-from labmate.paper2post.schemas import IconChoice, IconName, Link, Post, PostDraft
+from labmate.paper2post.schemas import IconName, Link, Post, PostDraft
+
+STORY_ICONS: list[IconName] = ["alert-triangle", "bulb", "cpu", "chart-bar", "rocket"]
+"""One icon per place in the story the post tells: the problem, the idea, how it works, the
+result, why it matters."""
 
 GROUP = 3
 """Sentences judged per fact-check call (the loop checks short cards)."""
@@ -87,35 +91,14 @@ def write_post(
         paper.title,
         config,
     )
+    takeaways = [b for c in checked.cards.cards for b in c.bullets]
     return Post(
         hook=draft.hook,
-        takeaways=[b for c in checked.cards.cards for b in c.bullets],
+        takeaways=takeaways,
         question=draft.question,
+        icons=STORY_ICONS[: len(takeaways)],
         report=checked.report,
     )
-
-
-def pick_icons(
-    post: Post, model: BaseChatModel, config: RunnableConfig | None = None
-) -> list[IconName]:
-    """One icon per takeaway, from the bundled set.
-
-    Args:
-        post: The fact-checked post.
-        model: The writer model.
-        config: The calling step's config (callbacks).
-
-    Returns:
-        Icon names, one per takeaway.
-    """
-    n = len(post.takeaways)
-
-    def check(choice: IconChoice) -> list[str]:
-        return [] if len(choice.icons) == n else [f"give exactly {n} icons, one per sentence"]
-
-    sentences = "\n".join(f"{i}. {t.text}" for i, t in enumerate(post.takeaways, start=1))
-    chooser = structured(model, IconChoice, check=check)
-    return (prompt(load_prompt("icons")) | chooser).invoke({"sentences": sentences}, config).icons
 
 
 def post_links(paper: Paper, own: dict[str, str]) -> list[Link]:

@@ -1,6 +1,7 @@
 import pymupdf
 
-from labmate.core.figures import extract_figures
+from labmate.core.figures import best_figure, extract_figures
+from labmate.core.schemas import Figure
 from tests.conftest import make_pdf
 
 
@@ -51,3 +52,28 @@ def test_captions_without_graphics_and_repeated_numbers_are_skipped(tmp_path):
     doc.save(tmp_path / "p.pdf")
     figures = extract_figures(tmp_path / "p.pdf", tmp_path / "f", tmp_path)
     assert [(f.id, f.page) for f in figures] == [("fig1", 2)]
+
+
+def figure(number: int, caption: str) -> Figure:
+    return Figure(id=f"fig{number}", number=number, page=1, path=f"figures/fig{number}.png",
+                  caption=caption)  # fmt: skip
+
+
+def test_the_overview_figure_wins_over_a_better_word_match():
+    figures = [
+        figure(1, "Figure 1: Attention heat-map of the encoder for the word making."),
+        figure(2, "Figure 2: The proposed model architecture with its two branches."),
+    ]
+
+    chosen = best_figure("encoder attention heat-map word making", figures)
+
+    assert chosen is not None and chosen.number == 2
+
+
+def test_without_an_overview_figure_the_caption_closest_to_the_text_wins():
+    figures = [figure(1, "Figure 1: Training loss curves."), figure(2, "Figure 2: Blink rate.")]
+
+    chosen = best_figure("blink rate of the subjects", figures)
+
+    assert chosen is not None and chosen.number == 2
+    assert best_figure("unrelated words", figures) is None

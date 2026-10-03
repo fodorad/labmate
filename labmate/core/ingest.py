@@ -291,22 +291,6 @@ def _year(date: str) -> int | None:
     return int(match.group(0)) if match else None
 
 
-def first_page_text(pdf: Path, limit: int = 4000) -> str:
-    """Text of the PDF's first page, where venue and publication date are usually printed.
-
-    Args:
-        pdf: PDF path.
-        limit: Characters to keep.
-
-    Returns:
-        The text, whitespace-normalised per line.
-    """
-    with pymupdf.open(pdf) as doc:
-        text = doc[0].get_text()
-    lines = (" ".join(line.split()) for line in text.splitlines())
-    return "\n".join(line for line in lines if line)[:limit]
-
-
 def is_url(ref: str) -> bool:
     """True for ``http(s)://`` references.
 

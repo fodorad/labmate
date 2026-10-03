@@ -31,15 +31,16 @@ each step) or **the model** (an agent that picks its own tools).
 ## paper2flow
 
 ```
-analyze    = ingest | publication | route | extract | outline | write | factcheck | flows
+analyze    = ingest | extract | write | factcheck | flows
 paper2flow = analyze | render                                          -> overview.pdf
 ```
 
 `overview.pdf` (A4 portrait):
 
-1. the **cover**: title, authors, venue and publication date, and the paper's main figure;
-2. the **four cards** of a project page: **Task**, **Challenges**, **Proposed method**,
-   **Main results**;
+1. the **cover**: title, authors, date and link, and the paper's overview figure (the one whose
+   caption names the architecture, overview, framework, pipeline or model);
+2. the **four cards** of a project page, on one page: **Task**, **Challenges**, **Proposed
+   method**, **Main results** (every result bullet names the task or dataset its number belongs to);
 3. the **end-to-end data flow**, top to bottom, from the raw data to the target output;
 4. one page per **detail flow** that breaks a step of the overview down ("detail A", ...).
 
@@ -49,11 +50,8 @@ artifact in `runs/<paper id>/`:
 | Step | Pattern | What it does |
 |---|---|---|
 | ingest | plain code | arXiv id or URL, PDF URL or PDF path: sections via the PDF outline, figures cropped, arXiv metadata |
-| publication | structured output + check | venue and publication date read off the first page; accepted only if copied verbatim from it |
-| route | routing | title + abstract: method / benchmark / survey / position |
 | extract | parallelisation | per section (`.batch`): claim cards with verbatim quotes; quotes not in the paper, or with other numbers, are dropped in code |
-| outline | orchestrator | assigns claim cards to the four cards; rules checked in code and fed back on violation |
-| write | prompt chaining | one call per card, in parallel; every bullet cites the claim ids it uses |
+| write | prompt chaining | claim cards are grouped into the four cards by their kind (code); one call per card, in parallel; every bullet cites the claim ids it uses |
 | factcheck | evaluator-optimizer | numbers and names must be in the cited quotes; a different model judges each bullet; failures are rewritten (at most 2 rounds), then dropped |
 | flows | orchestrator-workers | the planner draws the end-to-end flow and picks 1-3 steps; one worker per step draws its detail. Checked in code: starts at inputs, ends at outputs, grounded labels, no invented numbers |
 | render | plain code | typed graphs to Mermaid to PNG with mermaid-cli; Typst lays out the PDF without a creation date, so the same inputs render the same bytes |
@@ -64,12 +62,13 @@ Mermaid, so no model output reaches a diagram or a page unchecked.
 ## paper2post
 
 ```
-paper2post = analyze | post | icons | render                          -> post.pdf
+paper2post = analyze | post | render                                  -> post.pdf
 ```
 
-Page 1 of `post.pdf` (4:5) is the post text, ready to copy: a hook, 3-5 sentences, a question, one
-icon per sentence (from a bundled set of Tabler Icons, so the model can only pick valid ones) and
-the links: the paper, its code if it names a repository, and your own links from `config.toml`
+Page 1 of `post.pdf` (4:5) is the post text, ready to copy: a hook, 3-5 connected sentences that
+tell the paper's story (problem, idea, how it works, result, why it matters), a question about
+something specific in the paper, one icon per sentence (a bundled Tabler icon chosen by the
+sentence's place in the story) and the links: the paper, its code if it names a repository, and your own links from `config.toml`
 `[post.links]`. Page 2 is the end-to-end pipeline diagram, to attach as the post's image. Every
 sentence passes the same fact-check as the overview, and the analysis is reused from the cache.
 
@@ -137,8 +136,8 @@ make eval-answers   # ask: graph vs agent on library/golden.yaml -> evals/ask/an
 ```
 
 - **Run metrics** come from the run artifacts, no model needed: verified vs rejected claims, the
-  share of first-draft bullets that failed the fact-check, bullets dropped after the loop, *card
-  fit* (the share of bullets citing a claim of their card's kind) and the size of the diagrams.
+  share of first-draft bullets that failed the fact-check, bullets dropped after the loop and the
+  size of the diagrams.
 - **Answers:** `library/golden.yaml` lists questions, the sources a good answer cites and which
   questions the library cannot answer. The report scores correct refusals, cited sources and how
   many drafted sentences the checks removed, for the graph and the agent.

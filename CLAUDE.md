@@ -13,7 +13,7 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
   - `ingest.py`, `extract.py`: PDF sections and claim cards with verbatim quotes.
   - `factcheck.py`: the judge ⇄ rewrite loop.
 - `labmate/paper2flow/`: a **LangChain chain**, paper → `overview.pdf`.
-  - `chain.py` builds `analyze` (ingest … flows) and `paper2flow = analyze | render`; `steps/` are the step functions.
+  - `chain.py` builds `analyze` (ingest, extract, write, factcheck, flows) and `paper2flow = analyze | render`; `steps/` are the step functions.
   - Diagrams: the model proposes typed graphs, code checks them and writes Mermaid, mermaid-cli renders PNGs.
   - `evals/metrics.py` computes run metrics from the artifacts.
 - `labmate/paper2post/`: a **LangChain chain**, paper → `post.pdf` (`analyze | post | icons | render`).
