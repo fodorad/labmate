@@ -2,14 +2,14 @@
 
 The path through a paper is known in advance, so paper2flow is a chain, not an agent::
 
-    analyze    = ingest | publication | route | extract | outline | write | factcheck | flows
+    analyze    = ingest | extract | write | factcheck | flows
     paper2flow = analyze | render
 
 Every step is a named Runnable (:func:`~labmate.core.lc.step`) that fills in one field of
 :class:`~labmate.paper2flow.schemas.Analysis` and saves it as a JSON artifact in the run
-directory. The agentic patterns live *inside* the steps: routing, parallel extraction, an
-orchestrator (outline), prompt chaining (write), an evaluator-optimizer loop (factcheck)
-and orchestrator-workers (flows). paper2post reuses ``analyze``.
+directory. The patterns live *inside* the steps: parallel extraction, prompt chaining (write),
+an evaluator-optimizer loop (factcheck) and orchestrator-workers (flows). paper2post reuses
+``analyze``.
 
 A :class:`PaperRun` holds what one run needs: the models, the web client, the tracer and
 the run directory. Model replies are cached (see :mod:`labmate.core.chat`), so rerunning
@@ -36,7 +36,6 @@ from labmate.core.ingest import (
     USER_AGENT,
     IngestError,
     download_url,
-    first_page_text,
     ingest_arxiv,
     ingest_pdf,
     is_url,
@@ -47,22 +46,18 @@ from labmate.core.ingest import (
 from labmate.core.lc import step
 from labmate.paper2flow.schemas import Analysis, FactChecked, Outline
 from labmate.paper2flow.steps.flow import flow_cards, image_names, plan_flows, render_flows
-from labmate.paper2flow.steps.outline import LABELS, plan_outline
-from labmate.paper2flow.steps.publication import read_publication, with_publication
 from labmate.paper2flow.steps.render import card_blocks, diagrams, main_figure, render_overview
-from labmate.paper2flow.steps.route import route_paper
-from labmate.paper2flow.steps.write import write_cards
+from labmate.paper2flow.steps.write import LABELS, plan_cards, write_cards
 
 log = logging.getLogger(__name__)
 
 ARTIFACTS = {
     "paper": "00_paper.json",
-    "route": "01_route.json",
-    "claims": "02_claims.json",
-    "outline": "03_outline.json",
-    "written": "04_cards.json",
-    "checked": "05_factcheck.json",
-    "flows": "06_flows.json",
+    "claims": "01_claims.json",
+    "outline": "02_outline.json",
+    "written": "03_cards.json",
+    "checked": "04_factcheck.json",
+    "flows": "05_flows.json",
 }
 """The JSON artifact each field of :class:`Analysis` is saved to, in step order."""
 
@@ -272,27 +267,15 @@ def build_analyze(run: PaperRun) -> Runnable[Analysis, Analysis]:
             paper = ingest_pdf(Path(a.source), title=a.title, run_dir=run.run_dir)
         return update(a, "paper", paper)
 
-    def publication(a: Analysis, config: RunnableConfig) -> Analysis:
-        paper = need(a.paper, "paper")
-        first_page = first_page_text(run.run_dir / "paper.pdf")
-        draft = read_publication(paper, first_page, run.writer, config)
-        return update(a, "paper", with_publication(paper, draft))
-
-    def route(a: Analysis, config: RunnableConfig) -> Analysis:
-        return update(a, "route", route_paper(need(a.paper, "paper"), run.writer, config))
-
     def extract(a: Analysis, config: RunnableConfig) -> Analysis:
         claims = extract_claims(need(a.paper, "paper"), run.writer, run.workers, config)
         return update(a, "claims", claims)
 
-    def outline(a: Analysis, config: RunnableConfig) -> Analysis:
-        paper, claims = need(a.paper, "paper"), need(a.claims, "claims")
-        planned = plan_outline(paper.title, need(a.route, "route"), claims, run.writer, config)
-        return update(a, "outline", planned)
-
     def write(a: Analysis, config: RunnableConfig) -> Analysis:
-        outline, claims = need(a.outline, "outline"), need(a.claims, "claims")
-        return update(a, "written", write_cards(outline, claims, run.writer, run.workers, config))
+        claims = need(a.claims, "claims")
+        outline = plan_cards(claims)
+        written = write_cards(outline, claims, run.writer, run.workers, config)
+        return update(update(a, "outline", outline), "written", written)
 
     def factcheck(a: Analysis, config: RunnableConfig) -> Analysis:
         outline = need(a.outline, "outline")
@@ -318,7 +301,6 @@ def build_analyze(run: PaperRun) -> Runnable[Analysis, Analysis]:
         outline, checked = need(a.outline, "outline"), need(a.checked, "checked")
         planned = plan_flows(
             need(a.paper, "paper"),
-            need(a.route, "route").paper_type,
             method_bullets(outline, checked),
             flow_cards(outline, need(a.claims, "claims").cards),
             run.writer,
@@ -330,10 +312,7 @@ def build_analyze(run: PaperRun) -> Runnable[Analysis, Analysis]:
 
     return (
         step("ingest", ingest)
-        | step("publication", publication)
-        | step("route", route)
         | step("extract", extract)
-        | step("outline", outline)
         | step("write", write)
         | step("factcheck", factcheck)
         | step("flows", flows)
@@ -354,7 +333,7 @@ def build_paper2flow(run: PaperRun) -> Runnable[Analysis, Path]:
         outline, checked = need(a.outline, "outline"), need(a.checked, "checked")
         flows, paper = need(a.flows, "flows"), need(a.paper, "paper")
         labels = card_labels(outline, checked)
-        pages = diagrams(flows, image_names(flows), need(a.route, "route").paper_type, run.run_dir)
+        pages = diagrams(flows, image_names(flows), run.run_dir)
         return render_overview(
             paper,
             card_blocks(checked.cards, labels),

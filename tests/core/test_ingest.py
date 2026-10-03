@@ -7,7 +7,6 @@ from labmate.core.ingest import (
     download_pdf,
     download_url,
     fetch_metadata,
-    first_page_text,
     ingest_arxiv,
     ingest_pdf,
     parse_arxiv_id,
@@ -184,11 +183,9 @@ def test_arxiv_publication_date_and_notes(tmp_path):
     assert paper.notes == ("Journal reference: NeurIPS 30 (2017)\nComments: 15 pages, 5 figures")
 
 
-def test_pdf_year_falls_back_to_the_creation_date_and_first_page_text(tmp_path):
+def test_pdf_year_falls_back_to_the_creation_date(tmp_path):
     pdf = make_pdf(tmp_path / "p.pdf", metadata={"creationDate": "D:20230921120000Z"})
     assert ingest_pdf(pdf).year == 2023
-    text = first_page_text(pdf, limit=30)
-    assert text.startswith("1 Introduction") and len(text) == 30
 
 
 def test_urls_with_the_same_file_name_never_share_a_download(tmp_path):

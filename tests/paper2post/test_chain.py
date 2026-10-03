@@ -37,8 +37,8 @@ def test_the_post_reuses_the_overview_analysis(fake, arxiv, tmp_path):
     paper2flow(config, REF, web=arxiv.transport(), ollama=fake.transport())
     before = fake.paths().count("/api/chat")
     paper2post(config, REF, web=arxiv.transport(), ollama=fake.transport())
-    # only the post's own calls are new: draft, judge, icons
-    assert fake.paths().count("/api/chat") - before == 3
+    # only the post's own calls are new: draft, judge
+    assert fake.paths().count("/api/chat") - before == 2
     done = fake.paths().count("/api/chat")
     paper2post(config, REF, web=arxiv.transport(), ollama=fake.transport())
     assert fake.paths().count("/api/chat") == done  # a rerun is answered from the cache

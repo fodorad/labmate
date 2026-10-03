@@ -26,10 +26,11 @@ from labmate.paper2flow.steps.flow import (
     image_names,
     legend,
     plan_detail,
+    plan_flows,
     plan_overview,
     render_flows,
 )
-from tests.conftest import chat
+from tests.conftest import chat, reply
 
 EVIDENCE = (
     "We present a modified multi-modal transformer with linear attention, which considers "
@@ -234,7 +235,7 @@ def test_planner_and_worker_prompts_and_checks(fake):
     llm = chat(fake)
     cards = flow_cards(OUTLINE, CARDS)
     sections = flow_sections(PAPER, cards)
-    ov = plan_overview(PAPER, "method", ["It fuses RGB and landmarks."], cards, sections, llm)
+    ov = plan_overview(PAPER, ["It fuses RGB and landmarks."], cards, sections, llm)
     assert ov == overview()
     assert "from the raw input data" in seen[0] and '- "linear attention"' in seen[0]
     assert "only a component or process" in seen[1]  # the rule was fed back
@@ -243,3 +244,33 @@ def test_planner_and_worker_prompts_and_checks(fake):
     assert 'inside the step "Cross-modal transformer"' in seen[2]
     assert "It receives: RGB texture, Eye landmarks. It feeds: Blink presence." in seen[2]
     assert json.loads(ov.model_dump_json())["expand"] == ["x"]
+
+
+def test_a_step_whose_detail_stays_invalid_is_dropped_and_the_others_ship(fake):
+    two = overview(
+        nodes=[
+            node("rgb", "RGB texture", "input"),
+            node("lm", "Eye landmarks", "input"),
+            node("x", "Cross-modal transformer", "component"),
+            node("y", "Linear attention", "process"),
+            node("out", "Blink presence", "output"),
+        ],
+        edges=[edge("rgb", "x"), edge("lm", "x"), edge("x", "y"), edge("y", "out")],
+        expand=["x", "y"],
+    )
+
+    def handler(body):
+        prompt = body["messages"][-1]["content"]
+        if 'inside the step "Linear attention"' in prompt:
+            return reply(body, "no JSON here")
+        if "inside the step" in prompt:
+            return reply(body, detail().model_dump_json())
+        return reply(body, two.model_dump_json())
+
+    fake.chat_handler = handler
+    cards = flow_cards(OUTLINE, CARDS)
+
+    flows = plan_flows(PAPER, ["It fuses RGB."], cards, chat(fake), workers=1)
+
+    assert [d.node_id for d in flows.details] == ["x"]
+    assert flows.overview.expand == ["x"]  # the dropped step is no longer marked for a detail

@@ -53,12 +53,6 @@ A paper in, ``overview.pdf`` out: a LangChain chain.
 .. automodule:: labmate.paper2flow.schemas
    :members:
    :exclude-members: Bullet, BulletCheck, BulletVerdict, Card, CardVerdicts, Cards, ClaimCard, ClaimDraft, Claims, FactCheckReport, FactChecked, Figure, Paper, Section, SectionClaims
-.. automodule:: labmate.paper2flow.steps.publication
-   :members:
-.. automodule:: labmate.paper2flow.steps.route
-   :members:
-.. automodule:: labmate.paper2flow.steps.outline
-   :members:
 .. automodule:: labmate.paper2flow.steps.write
    :members:
 .. automodule:: labmate.paper2flow.steps.flow

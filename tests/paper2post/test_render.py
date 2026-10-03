@@ -39,7 +39,7 @@ def pipeline(tmp_path):
             caption="Tokens pass through linear attention.",
         )
     )  # fmt: skip
-    return diagrams(flows, render_flows(flows, tmp_path), "method", tmp_path)[0]
+    return diagrams(flows, render_flows(flows, tmp_path), tmp_path)[0]
 
 
 def test_the_post_is_its_text_with_icons_and_links_then_the_pipeline_image(tmp_path):

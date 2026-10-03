@@ -131,8 +131,16 @@ def short_caption(caption: str) -> str:
     return first if first.endswith(".") else first + "."
 
 
+OVERVIEW_WORDS = ("architecture", "overview", "framework", "pipeline", "model")
+"""Words that mark a figure as the picture of the whole method, strongest first."""
+
+
 def best_figure(text: str, figures: list[Figure], paper_title: str = "") -> Figure | None:
-    """The figure whose caption shares the most topic words with ``text``.
+    """The paper's overview figure, else the figure whose caption best matches ``text``.
+
+    A caption naming the architecture, overview, framework, pipeline or model wins (the
+    first such figure, strongest word first); otherwise the figure whose caption shares the
+    most topic words with ``text``.
 
     Args:
         text: E.g. the method block's title and bullets.
@@ -142,6 +150,10 @@ def best_figure(text: str, figures: list[Figure], paper_title: str = "") -> Figu
     Returns:
         The best figure, or ``None`` if no caption shares a topic word.
     """
+    for word in OVERVIEW_WORDS:
+        named = next((f for f in figures if word in f.caption.lower()), None)
+        if named is not None:
+            return named
     title_words = frozenset(content_words(paper_title, split_hyphens=True))
     words = content_words(text, title_words)
     scored = [

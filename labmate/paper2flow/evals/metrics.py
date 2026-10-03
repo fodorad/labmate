@@ -7,15 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from labmate.paper2flow.chain import ARTIFACTS
-from labmate.paper2flow.schemas import Claims, FactChecked, Flows, Outline, Paper
-
-CARD_KINDS = {
-    "task": {"task"},
-    "challenges": {"challenge", "limitation"},
-    "method": {"method", "contribution"},
-    "results": {"result"},
-}
-"""Claim kinds that belong on each of the four cards."""
+from labmate.paper2flow.schemas import Claims, FactChecked, Flows, Paper
 
 
 class RunMetrics(BaseModel):
@@ -31,9 +23,6 @@ class RunMetrics(BaseModel):
         bullets_final: Bullets on the final cards.
         dropped: Bullets removed after the rewrite budget.
         rounds: Fact-check rounds used.
-        card_fit: Share of final bullets that cite at least one claim of their card's
-            kind (a task claim on Task, a result on Main results, ...): whether the
-            orchestrator put the paper's claims in the right place.
         cards: Cards in the overview (four, unless one lost all its bullets).
         flow_nodes: Boxes in the end-to-end flow diagram.
         flow_details: Detail diagrams that break down its steps.
@@ -48,7 +37,6 @@ class RunMetrics(BaseModel):
     bullets_final: int
     dropped: int
     rounds: int
-    card_fit: float
     cards: int
     flow_nodes: int
     flow_details: int
@@ -57,28 +45,6 @@ class RunMetrics(BaseModel):
     def unsupported_first_pct(self) -> float:
         """Share of first-draft bullets that failed the fact-check, in percent."""
         return 100 * self.unsupported_first / self.bullets_first if self.bullets_first else 0.0
-
-
-def card_fit(claims: Claims, outline: Outline, checked: FactChecked) -> float:
-    """Share of final bullets citing a claim of their card's kind.
-
-    Args:
-        claims: Claim cards.
-        outline: The outline (each card's purpose).
-        checked: The final cards (a card that lost all bullets is not among them).
-
-    Returns:
-        The share, from 0 to 1 (0 without bullets).
-    """
-    kinds = {c.id: c.kind for c in claims.cards}
-    dropped = set(checked.report.dropped_cards)
-    kept = [p for i, p in enumerate(outline.cards, start=1) if i not in dropped]
-    placed = [
-        any(kinds.get(cid) in CARD_KINDS.get(planned.purpose, set()) for cid in b.claim_ids)
-        for card, planned in zip(checked.cards.cards, kept, strict=True)
-        for b in card.bullets
-    ]
-    return round(sum(placed) / len(placed), 3) if placed else 0.0
 
 
 def run_metrics(run_dir: Path) -> RunMetrics:
@@ -97,7 +63,7 @@ def run_metrics(run_dir: Path) -> RunMetrics:
     def load[M: BaseModel](field: str, model: type[M]) -> M:
         return model.model_validate_json((run_dir / ARTIFACTS[field]).read_text())
 
-    claims, outline = load("claims", Claims), load("outline", Outline)
+    claims = load("claims", Claims)
     checked = load("checked", FactChecked)
     flows = load("flows", Flows) if (run_dir / ARTIFACTS["flows"]).exists() else None
     report = checked.report
@@ -111,7 +77,6 @@ def run_metrics(run_dir: Path) -> RunMetrics:
         bullets_final=sum(len(c.bullets) for c in checked.cards.cards),
         dropped=len(report.dropped),
         rounds=len(report.rounds),
-        card_fit=card_fit(claims, outline, checked),
         cards=len(checked.cards.cards),
         flow_nodes=len(flows.overview.nodes) if flows else 0,
         flow_details=len(flows.details) if flows else 0,
@@ -129,14 +94,14 @@ def results_markdown(metrics: list[RunMetrics]) -> str:
     """
     rows = [
         "| Paper | Claims (verified / rejected) | Unsupported in first draft | "
-        "Dropped after loop | Final bullets | Card fit | Flow diagrams |",
-        "|---|---|---|---|---|---|---|",
+        "Dropped after loop | Final bullets | Flow diagrams |",
+        "|---|---|---|---|---|---|",
     ]
     for m in metrics:
         rows.append(
             f"| {m.title} | {m.claims_verified} / {m.claims_rejected} | "
             f"{m.unsupported_first}/{m.bullets_first} ({m.unsupported_first_pct:.0f}%) | "
-            f"{m.dropped} | {m.bullets_final} | {100 * m.card_fit:.0f}% | "
+            f"{m.dropped} | {m.bullets_final} | "
             f"{m.flow_nodes} boxes + {m.flow_details} details |"
         )
     first = sum(m.bullets_first for m in metrics)

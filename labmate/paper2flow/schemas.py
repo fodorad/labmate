@@ -55,53 +55,26 @@ __all__ = [
     "NodeKind",
     "Outline",
     "Paper",
-    "PaperType",
     "PlannedCard",
-    "PublicationDraft",
-    "Route",
     "Section",
     "SectionClaims",
     "VerdictLabel",
 ]
 
-# --- routing and the outline ---------------------------------------------------------------
-
-PaperType = Literal["method", "benchmark", "survey", "position"]
-"""What kind of paper it is; it changes how the four cards and the flow are read."""
-
-
-class Route(BaseModel):
-    """Routing decision: which kind of paper this is."""
-
-    paper_type: PaperType
-    confidence: float = Field(ge=0, le=1, description="0 to 1")
-    reason: str = Field(description="One sentence.")
+# --- the planned cards ---------------------------------------------------------------------
 
 
 class PlannedCard(BaseModel):
-    """One planned card of the overview."""
+    """One card of the overview and the claim cards it is built on."""
 
-    title: str = Field(description="Working title, at most 8 words.")
-    purpose: str = Field(description="One of the allowed purposes.")
-    claim_ids: list[str] = Field(description="Ids of the 3 to 5 claim cards it is built on.")
+    purpose: str = Field(description="One of task, challenges, method, results.")
+    claim_ids: list[str] = Field(description="Ids of the claim cards it is built on.")
 
 
 class Outline(BaseModel):
-    """The orchestrator's plan: the four cards and the claims each one is built on."""
+    """The cards of the overview in order, each with the claims it is built on."""
 
-    cards: list[PlannedCard] = Field(min_length=4, max_length=4)
-
-
-# --- publication info ----------------------------------------------------------------------
-
-
-class PublicationDraft(BaseModel):
-    """Venue and date as the model reads them from the paper's first page."""
-
-    venue: str = Field(
-        description="Journal or conference name exactly as written in the source, or ''."
-    )
-    date: str = Field(description="Publication date exactly as written in the source, or ''.")
+    cards: list[PlannedCard] = Field(min_length=1, max_length=4)
 
 
 # --- flow diagrams -------------------------------------------------------------------------
@@ -168,10 +141,9 @@ class Analysis(BaseModel):
     Attributes:
         source: The paper as given: an arXiv id or URL, a PDF URL, or a local PDF path.
         title: Title override for PDFs without a usable title.
-        paper: The ingested paper (venue and date added by the publication step).
-        route: What kind of paper it is.
+        paper: The ingested paper.
         claims: Verified claim cards.
-        outline: The four planned cards.
+        outline: The planned cards: claim cards grouped by kind (set by the write step).
         written: The cards as the writer drafted them.
         checked: The cards after the fact-check loop, with its audit.
         flows: The flow diagrams.
@@ -180,7 +152,6 @@ class Analysis(BaseModel):
     source: str
     title: str | None = None
     paper: Paper | None = None
-    route: Route | None = None
     claims: Claims | None = None
     outline: Outline | None = None
     written: Cards | None = None

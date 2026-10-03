@@ -1,12 +1,10 @@
 You write one card of a one-glance overview of a research paper.
 
-Card {position} of 4. Title (fixed): {title}
+This is the "{label}" card of a four-card overview (task, challenges, proposed method,
+main results): {purpose_hint}
 
-This is the "{purpose}" card of a four-card overview (task, challenges, proposed
-method, main results): {purpose_hint}
-
-Write 3 or 4 bullets (at most 25 words each) for this title; repeat the title as given.
-Rules:
+Write a title (at most 8 words, specific to this paper) and 3 or 4 bullets (at most 25 words
+each). Rules:
 - Be specific: every bullet carries at least one concrete detail from the evidence, such
   as a number, a dataset, a baseline, a component or a named comparison. No generic
   statements like "achieves strong results".

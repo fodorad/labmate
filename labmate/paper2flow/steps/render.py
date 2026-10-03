@@ -24,7 +24,7 @@ from labmate.core.figures import best_figure, short_caption
 from labmate.core.theme import FONTS_DIR, Theme
 from labmate.paper2flow.schemas import Cards, Flows, Paper
 from labmate.paper2flow.steps.flow import LETTERS, SCALE, legend
-from labmate.paper2flow.steps.outline import LABELS
+from labmate.paper2flow.steps.write import LABELS
 
 CARD_COLORS = {
     "Task": "#fff8d5",
@@ -34,13 +34,8 @@ CARD_COLORS = {
 }
 """Card backgrounds of the project pages on adamfodor.com."""
 
-FLOW_KICKERS = {
-    "method": "End-to-end data flow",
-    "benchmark": "How the benchmark works",
-    "survey": "How the survey maps the field",
-    "position": "How the argument flows",
-}
-"""Heading of the overview diagram, per paper type."""
+FLOW_KICKER = "End-to-end data flow"
+"""Heading of the overview diagram."""
 
 
 def author_line(authors: list[str], limit: int = 4) -> str:
@@ -140,22 +135,19 @@ def natural_size(png: Path) -> tuple[float, float]:
     return width / SCALE * 0.75, height / SCALE * 0.75
 
 
-def diagrams(
-    flows: Flows, images: list[str], paper_type: str, image_dir: Path
-) -> list[dict[str, Any]]:
+def diagrams(flows: Flows, images: list[str], image_dir: Path) -> list[dict[str, Any]]:
     """One page description per diagram: kicker, title, caption, image and legend.
 
     Args:
         flows: All diagrams.
         images: Their PNG file names (overview first).
-        paper_type: Route (picks the overview's kicker).
         image_dir: Where the PNGs are (the output directory).
 
     Returns:
         Page data, overview first.
     """
     labels = {n.id: n.label for n in flows.overview.nodes}
-    kickers = [FLOW_KICKERS.get(paper_type, FLOW_KICKERS["method"])] + [
+    kickers = [FLOW_KICKER] + [
         f"Detail {LETTERS[i]} · {labels.get(d.node_id, d.node_id)}"
         for i, d in enumerate(flows.details)
     ]

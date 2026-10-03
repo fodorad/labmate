@@ -1,4 +1,4 @@
-"""paper2post data model: the post draft, the icons and the finished post."""
+"""paper2post data model: the post draft and the finished post."""
 
 from __future__ import annotations
 
@@ -14,8 +14,7 @@ IconName = Literal[
     "math-function", "message-question", "microphone", "photo", "puzzle", "rocket", "route",
     "scale", "search", "stack-2", "target", "trophy", "users", "video", "world",
 ]  # fmt: skip
-"""The bundled icons (Tabler Icons, MIT; ``paper2post/icons``). The model picks from these,
-so every choice is valid by construction."""
+"""The bundled icons (Tabler Icons, MIT; ``paper2post/icons``)."""
 
 
 class PostDraft(BaseModel):
@@ -28,12 +27,6 @@ class PostDraft(BaseModel):
         max_length=5,
     )
     question: str = Field(description="A closing question to readers, with no factual claims.")
-
-
-class IconChoice(BaseModel):
-    """One icon per takeaway, in order."""
-
-    icons: list[IconName] = Field(description="One icon name per sentence, in order.")
 
 
 class Link(BaseModel):
@@ -50,7 +43,7 @@ class Post(BaseModel):
         hook: First line.
         takeaways: The sentences that passed the fact-check.
         question: Closing question.
-        icons: One icon per takeaway (empty until the icons step ran).
+        icons: One icon per takeaway .
         links: The paper, its code if it names a repository, and your own links.
         report: Fact-check audit of the takeaways.
     """

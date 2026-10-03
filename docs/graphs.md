@@ -13,21 +13,15 @@ config:
 graph TD;
 	ingest_input([ingest_input]):::first
 	ingest(ingest)
-	publication(publication)
-	route(route)
 	extract(extract)
-	outline(outline)
 	write(write)
 	factcheck(factcheck)
 	flows(flows)
 	render(render)
 	render_output([render_output]):::last
 	ingest_input --> ingest;
-	ingest --> publication;
-	publication --> route;
-	route --> extract;
-	extract --> outline;
-	outline --> write;
+	ingest --> extract;
+	extract --> write;
 	write --> factcheck;
 	factcheck --> flows;
 	render --> render_output;
@@ -48,29 +42,21 @@ config:
 graph TD;
 	ingest_input([ingest_input]):::first
 	ingest(ingest)
-	publication(publication)
-	route(route)
 	extract(extract)
-	outline(outline)
 	write(write)
 	factcheck(factcheck)
 	flows(flows)
 	post(post)
-	icons(icons)
 	render(render)
 	render_output([render_output]):::last
 	ingest_input --> ingest;
-	ingest --> publication;
-	publication --> route;
-	route --> extract;
-	extract --> outline;
-	outline --> write;
+	ingest --> extract;
+	extract --> write;
 	write --> factcheck;
 	factcheck --> flows;
 	flows --> post;
-	post --> icons;
 	render --> render_output;
-	icons --> render;
+	post --> render;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc

@@ -73,7 +73,7 @@ def structured[M: BaseModel](
     def answer(value: PromptValue, config: RunnableConfig) -> M:
         messages: list[BaseMessage] = [system, *value.to_messages()]
         last = ""
-        for _ in range(max_retries + 1):
+        for attempt in range(1, max_retries + 2):
             last = str(constrained.invoke(messages, config).content)
             parsed = parse_structured(last, schema)
             if parsed is not None:
@@ -88,6 +88,12 @@ def structured[M: BaseModel](
                     "That reply does not validate against the schema:\n"
                     f"{validation_error(last, schema)}"
                 )
+            log.info(
+                "%s rejected (attempt %d): %s",
+                schema.__name__,
+                attempt,
+                " ".join(feedback.split())[:500],
+            )
             messages = [
                 *messages,
                 AIMessage(content=last),
