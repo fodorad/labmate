@@ -143,6 +143,9 @@ title = "..."
 label = "Dissertation"   # the short name used in citations
 ```
 
+**The included library** (`library/`) holds the dissertation and ten papers by the repository's author
+(PDFs under `library/pdf/`, also on adamfodor.com), so `make index` then `make ask` work after a clone.
+
 **Your own library:** the library is just a folder with a `library.toml` and its PDFs, plus the
 `index.sqlite` built from them. Point labmate at any folder with `labmate ask --library DIR ...`
 or `LABMATE_LIBRARY=DIR`, for example a private repository next to this one; nothing from it
