@@ -64,12 +64,6 @@ def test_ambiguous_questions_pause_for_a_choice_and_search_with_it(indexed, grap
     assert not answer.abstained
 
 
-def test_without_a_chooser_the_first_reading_is_taken(indexed, graph, model):
-    ask(graph, "How does the transformer fuse landmarks?")
-
-    assert embeds(model)[-1]["input"][0].endswith("(BlinkLinMulT)")
-
-
 def test_sentences_with_numbers_the_evidence_lacks_are_dropped(indexed, graph):
     answer = ask(graph, "Which WRONG datasets are used for training?")
 

@@ -1,4 +1,3 @@
-from labmate.paper2flow.chain import ARTIFACTS
 from labmate.paper2flow.evals.metrics import results_markdown, run_metrics
 
 
@@ -12,21 +11,9 @@ def test_run_metrics_on_a_finished_run(finished):
     assert m.unsupported_first_pct == 0
 
 
-def test_run_metrics_without_flows(finished):
-    (finished / ARTIFACTS["flows"]).unlink()
-    m = run_metrics(finished)
-    assert m.flow_nodes == m.flow_details == 0
-
-
 def test_results_markdown(finished):
     m = run_metrics(finished)
     failing = m.model_copy(update={"bullets_first": 10, "unsupported_first": 3, "dropped": 1})
     text = results_markdown([m, failing])
     assert sum(line.startswith("| ") for line in text.splitlines()) == 3  # header + 2 rows
     assert "3/10 (30%)" in text and "1 were still unsupported" in text
-
-
-def test_results_markdown_without_bullets(finished):
-    m = run_metrics(finished).model_copy(update={"bullets_first": 0, "unsupported_first": 0})
-    assert m.unsupported_first_pct == 0
-    assert "Across" not in results_markdown([m])

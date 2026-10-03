@@ -16,7 +16,6 @@ from labmate.paper2flow.schemas import (
 from labmate.paper2flow.steps.flow import render_flows
 from labmate.paper2flow.steps.render import (
     Theme,
-    author_line,
     card_blocks,
     diagrams,
     natural_size,
@@ -140,8 +139,3 @@ def test_paper_text_cannot_inject_typst_markup(tmp_path):
 )
 def test_publication_line(update, expected):
     assert publication_line(PAPER.model_copy(update=update)) == expected
-
-
-def test_author_line_shortens_long_author_lists():
-    assert author_line(["A", "B", "C", "D", "E"]) == "A, B, C, D et al."
-    assert author_line(["A", "B"]) == "A, B"

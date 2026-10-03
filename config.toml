@@ -29,8 +29,7 @@ path = "cache/replies.sqlite"
 runs_dir = "runs"
 
 [ask]
-library = "library"                 # library.toml + the PDFs
-index = "library/index.sqlite"      # sections, chunks, full-text index and vectors
+library = "library"                 # library.toml + the PDFs; index.sqlite is kept inside it
 chunk_words = 180
 top_k = 6
 max_loops = 2                       # retrieve -> grade -> rewrite rounds per question

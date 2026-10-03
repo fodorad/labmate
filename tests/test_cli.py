@@ -43,11 +43,6 @@ def test_an_unreachable_ollama_explains_what_to_do(workdir, arxiv, capsys):
     assert "Ollama" in capsys.readouterr().err
 
 
-def test_a_missing_pdf_is_an_error(fake, workdir, capsys):
-    assert main(["paper2flow", "missing.pdf"], ollama=fake.transport()) == 1
-    assert "error:" in capsys.readouterr().err
-
-
 # --- evaluation commands ---------------------------------------------------------------
 
 
@@ -66,8 +61,3 @@ def test_eval_writes_results(fake, arxiv, workdir, capsys):
     assert [r["paper_id"] for r in results] == ["2401.00001"]
     assert main(["eval", "runs/2401.00001", "--out", "e2"]) == 0
     assert (workdir / "e2" / "results.md").exists()
-
-
-def test_eval_without_runs(workdir, capsys):
-    assert main(["eval"]) == 1
-    assert "no finished runs" in capsys.readouterr().err

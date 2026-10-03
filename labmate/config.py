@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 
 DEFAULT_CONFIG_PATH = Path("config.toml")
 
+LIBRARY_ENV = "LABMATE_LIBRARY"
+"""Environment variable that overrides ``[ask].library`` (a private library outside the repo)."""
+
 HOST_ENV = "LABMATE_OLLAMA_HOST"
 """Environment variable that overrides ``[ollama].host`` (e.g. Ollama on another machine)."""
 """Config file used when no explicit path is given (relative to the working directory)."""
@@ -49,8 +52,10 @@ class AskConfig(BaseModel):
     """Settings of the ask feature (questions about a library of documents).
 
     Attributes:
-        library: Folder with ``library.toml`` and the source PDFs.
-        index: The search index (SQLite: sections, chunks, full-text index, vectors).
+        library: Folder with ``library.toml`` and the source PDFs. ``LABMATE_LIBRARY`` and
+            ``labmate ask --library`` replace it, so a private library can live outside the repo.
+        index: The search index (SQLite: sections, chunks, full-text index, vectors); by default
+            ``index.sqlite`` inside the library.
         chunk_words: Target words per chunk (paragraphs are packed up to this size).
         top_k: Chunks retrieved per search.
         max_loops: Retrieve-grade-rewrite rounds per question.
@@ -58,11 +63,16 @@ class AskConfig(BaseModel):
     """
 
     library: Path = Path("library")
-    index: Path = Path("library/index.sqlite")
+    index: Path | None = None
     chunk_words: int = 180
     top_k: int = 6
     max_loops: int = 2
     embed_batch: int = 32
+
+    @property
+    def index_file(self) -> Path:
+        """The index file: ``index`` if set, else ``index.sqlite`` inside the library."""
+        return self.index or self.library / "index.sqlite"
 
 
 class CacheConfig(BaseModel):
@@ -119,7 +129,7 @@ def load_config(path: Path | None = None) -> Config:
     Raises:
         FileNotFoundError: If an explicit ``path`` is given but does not exist.
 
-    ``LABMATE_OLLAMA_HOST`` overrides the Ollama host.
+    ``LABMATE_OLLAMA_HOST`` overrides the Ollama host and ``LABMATE_LIBRARY`` the ask library.
     """
     if path is None and not DEFAULT_CONFIG_PATH.exists():
         config = Config()
@@ -128,4 +138,6 @@ def load_config(path: Path | None = None) -> Config:
             config = Config.model_validate(tomllib.load(f))
     if host := os.environ.get(HOST_ENV):
         config.ollama.host = host
+    if library := os.environ.get(LIBRARY_ENV):
+        config.ask.library = Path(library)
     return config

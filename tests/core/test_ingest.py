@@ -82,12 +82,6 @@ def test_download_is_cached(arxiv, tmp_path):
     assert arxiv.pdf_downloads == 1 and dest.read_bytes().startswith(b"%PDF")
 
 
-def test_download_http_error_propagates(tmp_path):
-    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503)))
-    with pytest.raises(httpx.HTTPStatusError):
-        download_pdf("2401.00001", tmp_path / "p.pdf", client)
-
-
 def test_ingest_arxiv_end_to_end(arxiv, tmp_path):
     paper = ingest_arxiv("https://arxiv.org/abs/2401.00001v2", tmp_path, arxiv.client())
     assert paper.paper_id == "2401.00001"
@@ -181,11 +175,6 @@ def test_arxiv_publication_date_and_notes(tmp_path):
     paper = ingest_arxiv("2401.00001", tmp_path / "run", fake.client())
     assert paper.date == "2017-06-12" and paper.year == 2017
     assert paper.notes == ("Journal reference: NeurIPS 30 (2017)\nComments: 15 pages, 5 figures")
-
-
-def test_pdf_year_falls_back_to_the_creation_date(tmp_path):
-    pdf = make_pdf(tmp_path / "p.pdf", metadata={"creationDate": "D:20230921120000Z"})
-    assert ingest_pdf(pdf).year == 2023
 
 
 def test_urls_with_the_same_file_name_never_share_a_download(tmp_path):

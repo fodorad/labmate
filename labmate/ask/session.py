@@ -52,5 +52,5 @@ def open_ask(config: Config, ollama: httpx.BaseTransport | None = None) -> AskSe
         writer=chat_model(config, models.text, transport=ollama),
         judge=chat_model(config, models.critic, transport=ollama),
         embedder=Embedder(embedder(config, transport=ollama), models.embed, config.ask.embed_batch),
-        index=Index(config.ask.index),
+        index=Index(config.ask.index_file),
     )

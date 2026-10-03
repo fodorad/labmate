@@ -26,6 +26,7 @@ def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-ar
         sub: The top-level subparsers.
     """
     ask = sub.add_parser("ask", help="questions about a library of documents, with citations")
+    ask.add_argument("--library", type=Path, help="library folder (default: [ask].library)")
     actions = ask.add_subparsers(dest="action", required=True)
 
     index = actions.add_parser("index", help="index the library (library/library.toml)")
@@ -70,6 +71,8 @@ def main(config: Config, args: argparse.Namespace, ollama: httpx.BaseTransport |
 
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    if args.library:
+        config.ask.library = args.library
     s = open_ask(config, ollama)
     try:
         if args.action == "index":
@@ -81,7 +84,7 @@ def main(config: Config, args: argparse.Namespace, ollama: httpx.BaseTransport |
                 print(f"error: {e}", file=sys.stderr)
                 return 1
             done = build_index(s, library, fresh=args.fresh)
-            print(f"Indexed {len(done)} source(s) into {config.ask.index}")
+            print(f"Indexed {len(done)} source(s) into {config.ask.index_file}")
             return 0
         if not s.index.sources():
             print("error: the index is empty (run `make index`)", file=sys.stderr)
