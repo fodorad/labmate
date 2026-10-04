@@ -7,54 +7,35 @@ timeout_s = 900
 
 [models]
 # Model roles. Tags must match `ollama list`.
-text = "qwen3.6:35b-mlx"
-critic = "gemma4:26b-mlx"
+text = "gemma4:26b-mlx"   # writer: 16.7 GB, a mixture of experts with ~4B active parameters
+critic = "gemma4:e4b"     # judge: 6.6 GB
 embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
 
 # Model profiles: `labmate --profile NAME ...` (or LABMATE_PROFILE=NAME) swaps the writer and the judge.
-# `make bench` compares them; sizes are what Ollama lists. This Mac has 32 GB of memory.
-[profiles.current]        # 37 GB together: Ollama swaps them
-text = "qwen3.6:35b-mlx"
-critic = "gemma4:26b-mlx"
-
-[profiles.gemma-26b]      # one model, 16 GB
-text = "gemma4:26b-mlx"
-critic = "gemma4:26b-mlx"
-
-[profiles.qwen]           # one model, 21 GB
-text = "qwen3.6:35b-mlx"
-critic = "qwen3.6:35b-mlx"
-
-[profiles.e4b]            # one small model, 6.6 GB
-text = "gemma4:e4b"
-critic = "gemma4:e4b"
-
-[profiles.mixed]          # 22.6 GB together: both stay loaded
+# `make bench` compares them. The sizes are what Ollama lists; the GPU can use about 26 GB of this Mac's
+# 32 GB, and only what is not used by other programs counts, so the pair has to be well below that.
+[profiles.mixed]          # the default, 23 GB together
 text = "gemma4:26b-mlx"
 critic = "gemma4:e4b"
 
-[profiles.reversed]       # 22.6 GB together: small writer, big judge
-text = "gemma4:e4b"
+[profiles.gemma-26b]      # one model for both roles, 16.7 GB
+text = "gemma4:26b-mlx"
 critic = "gemma4:26b-mlx"
 
-[profiles.gemma-12b]      # one model, about 8 GB
-text = "gemma4:12b"
-critic = "gemma4:12b"
-
-[profiles.e2b]            # one very small model, 4.6 GB
-text = "gemma4:e2b"
-critic = "gemma4:e2b"
-
-[profiles.mixed-12b]      # about 12.6 GB together
-text = "gemma4:12b"
-critic = "gemma4:e2b"
-
-[profiles.gemma-phi]      # about 27 GB together: a reasoning model as the judge (no tools needed)
+[profiles.fast]           # smaller judge, 21 GB together
 text = "gemma4:26b-mlx"
-critic = "phi4-reasoning:plus"
+critic = "gemma4:e2b"
 
-[profiles.e4b-phi]        # about 17.6 GB together
+[profiles.small]          # one small model for both roles, 6.6 GB
 text = "gemma4:e4b"
+critic = "gemma4:e4b"
+
+[profiles.qwen]           # fallback writer if the gemma writer is not good enough, 24.6 GB together
+text = "qwen3.8:27b-mlx"
+critic = "gemma4:e4b"
+
+[profiles.phi-judge]      # fallback judge if e4b is not good enough, 28 GB together (too tight)
+text = "gemma4:26b-mlx"
 critic = "phi4-reasoning:plus"
 
 [generation]
@@ -79,6 +60,7 @@ library = "library"                 # library.toml + the PDFs; index.sqlite is k
 chunk_words = 180
 top_k = 6
 max_loops = 2                       # retrieve -> grade -> rewrite rounds per question
+num_ctx = 8192                      # context window of the ask models (short prompts; keeps both loaded)
 
 [post.links]
 # Your links, shown under every LinkedIn post (label = URL)

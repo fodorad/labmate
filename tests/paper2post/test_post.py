@@ -49,7 +49,7 @@ def test_post_takeaways_are_fact_checked_and_unknown_claims_rejected(fake):
         CARDS,
         CLAIMS,
         PAPER,
-        chat(fake, "qwen3.6:35b-mlx"),
+        chat(fake, "qwen3.8:27b-mlx"),
         chat(fake, "gemma4:26b-mlx"),
         max_rounds=0,
     )

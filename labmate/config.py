@@ -32,8 +32,8 @@ class OllamaConfig(BaseModel):
 class ModelsConfig(BaseModel):
     """Model tag for each pipeline role."""
 
-    text: str = "qwen3.6:35b-mlx"
-    critic: str = "gemma4:26b-mlx"
+    text: str = "gemma4:26b-mlx"
+    critic: str = "gemma4:e4b"
     embed: str = "embeddinggemma:latest"
 
 
@@ -80,6 +80,8 @@ class AskConfig(BaseModel):
         top_k: Chunks retrieved per search.
         max_loops: Retrieve-grade-rewrite rounds per question.
         embed_batch: Texts per embedding call.
+        num_ctx: Context window for the ask models. The prompts are short, and a smaller window
+            makes each model smaller in memory, so the writer and the judge stay loaded together.
     """
 
     library: Path = Path("library")
@@ -88,6 +90,7 @@ class AskConfig(BaseModel):
     top_k: int = 6
     max_loops: int = 2
     embed_batch: int = 32
+    num_ctx: int = 8192
 
     @property
     def index_file(self) -> Path:

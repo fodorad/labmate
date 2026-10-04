@@ -58,7 +58,7 @@ def test_deterministic_check_catches_number_drift_but_not_rewording():
     ]
 
 
-WRITER, JUDGE = "qwen3.6:35b-mlx", "gemma4:26b-mlx"
+WRITER, JUDGE = "qwen3.8:27b-mlx", "gemma4:26b-mlx"
 
 
 def run_loop(fake, written, max_rounds=2):

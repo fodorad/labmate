@@ -15,7 +15,7 @@ def chat_calls(fake: FakeOllama) -> int:
 
 
 def test_a_repeated_request_is_answered_from_the_cache(fake, tmp_path):
-    model = chat_model(make_config(tmp_path), "qwen3.6:35b-mlx",
+    model = chat_model(make_config(tmp_path), "qwen3.8:27b-mlx",
                        transport=httpx.MockTransport(fake.handle))  # fmt: skip
 
     first = model.invoke("hello").content
@@ -30,7 +30,7 @@ def test_the_cache_survives_a_restart(fake, tmp_path):
     transport = httpx.MockTransport(fake.handle)
     for _ in range(2):  # the second round is a fresh process opening the same file
         cache = SQLiteCache(config.cache.path)
-        chat_model(config, "qwen3.6:35b-mlx", cache=cache, transport=transport).invoke("hello")
+        chat_model(config, "qwen3.8:27b-mlx", cache=cache, transport=transport).invoke("hello")
         cache.close()
 
     assert chat_calls(fake) == 1
@@ -39,7 +39,7 @@ def test_the_cache_survives_a_restart(fake, tmp_path):
 def test_a_different_prompt_or_model_is_a_new_request(fake, tmp_path):
     config = make_config(tmp_path)
     transport = httpx.MockTransport(fake.handle)
-    writer = chat_model(config, "qwen3.6:35b-mlx", transport=transport)
+    writer = chat_model(config, "qwen3.8:27b-mlx", transport=transport)
     judge = chat_model(config, "gemma4:26b-mlx", transport=transport)
 
     writer.invoke("hello")
@@ -50,7 +50,7 @@ def test_a_different_prompt_or_model_is_a_new_request(fake, tmp_path):
 
 
 def test_with_the_cache_off_every_request_reaches_the_model(fake, tmp_path):
-    model = chat_model(make_config(tmp_path, enabled=False), "qwen3.6:35b-mlx",
+    model = chat_model(make_config(tmp_path, enabled=False), "qwen3.8:27b-mlx",
                        transport=httpx.MockTransport(fake.handle))  # fmt: skip
 
     model.invoke("hello")
@@ -63,9 +63,9 @@ def test_a_different_output_schema_is_a_new_request(fake, tmp_path):
     config = make_config(tmp_path)
     transport = httpx.MockTransport(fake.handle)
 
-    chat_model(config, "qwen3.6:35b-mlx", transport=transport,
+    chat_model(config, "qwen3.8:27b-mlx", transport=transport,
                json_schema={"type": "object"}).invoke("hello")  # fmt: skip
-    chat_model(config, "qwen3.6:35b-mlx", transport=transport,
+    chat_model(config, "qwen3.8:27b-mlx", transport=transport,
                json_schema={"type": "array"}).invoke("hello")  # fmt: skip
 
     assert chat_calls(fake) == 2
@@ -73,7 +73,7 @@ def test_a_different_output_schema_is_a_new_request(fake, tmp_path):
 
 def test_a_cached_reply_keeps_its_tool_calls(fake, tmp_path):
     tool = {"type": "function", "function": {"name": "use_figure", "parameters": {}}}
-    model = chat_model(make_config(tmp_path), "qwen3.6:35b-mlx",
+    model = chat_model(make_config(tmp_path), "qwen3.8:27b-mlx",
                        transport=httpx.MockTransport(fake.handle))  # fmt: skip
     model = model.bind_tools([tool])
     messages = [HumanMessage("which figure?")]

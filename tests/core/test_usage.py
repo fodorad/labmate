@@ -10,7 +10,7 @@ def test_the_collector_sums_the_calls_and_counts_the_models_that_had_to_be_loade
     collector = UsageCollector(resident=lambda: next(gb))
     config = Config(cache=CacheConfig(enabled=False), callbacks=[collector])
     transport = httpx.MockTransport(fake.handle)
-    writer = chat_model(config, "qwen3.6:35b-mlx", transport=transport)
+    writer = chat_model(config, "qwen3.8:27b-mlx", transport=transport)
     judge = chat_model(config, "gemma4:26b-mlx", transport=transport)
 
     writer.invoke("a")
@@ -18,7 +18,7 @@ def test_the_collector_sums_the_calls_and_counts_the_models_that_had_to_be_loade
     writer.invoke("c")  # the writer was pushed out by the judge and loads again
 
     usage = collector.summary()
-    assert usage.calls == 3 and usage.models == ("qwen3.6:35b-mlx", "gemma4:26b-mlx")
+    assert usage.calls == 3 and usage.models == ("qwen3.8:27b-mlx", "gemma4:26b-mlx")
     assert usage.tokens_in == 60 and usage.tokens_out == 150
     assert usage.loads == 3 and usage.swaps == 1 and usage.load_s == 6.0
     assert usage.peak_gb == 37.0  # both did not fit at the same time on a 32 GB Mac

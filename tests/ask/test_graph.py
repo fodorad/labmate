@@ -88,7 +88,7 @@ def test_sentences_the_judge_finds_unsupported_are_dropped(indexed, graph, model
     judged = [
         b for p, b in model.requests if p == "/api/chat" and "verdicts" in str(b.get("format"))
     ]
-    assert judged and judged[-1]["model"] == "gemma4:26b-mlx"  # the judge, not the writer
+    assert judged and judged[-1]["model"] == "gemma4:e4b"  # the judge, not the writer
 
 
 def test_an_empty_index_means_no_answer(indexed, graph):
