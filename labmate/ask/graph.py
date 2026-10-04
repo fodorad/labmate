@@ -37,7 +37,7 @@ from labmate.ask.answer import (
     compose,
     structure_problems,
 )
-from labmate.ask.evidence import format_evidence
+from labmate.ask.evidence import GRADE_WINDOW, format_evidence
 from labmate.ask.index import Hit
 from labmate.ask.prompts import load_prompt
 from labmate.ask.schemas import (
@@ -139,9 +139,8 @@ def grade(s: AskSession, question: str, query: str, candidates: list[str]) -> Gr
         return [f"relevant lists ids that were not shown: {unknown}"] if unknown else []
 
     chain = prompt(load_prompt("grade")) | structured(s.judge, Grade, check=check)
-    return chain.invoke(
-        {"question": question, "query": query, "evidence": format_evidence(s.index, candidates)}
-    )
+    evidence = format_evidence(s.index, candidates, GRADE_WINDOW)
+    return chain.invoke({"question": question, "query": query, "evidence": evidence})
 
 
 def rewrite_query(s: AskSession, query: str, missing: str, tried: list[str]) -> str:

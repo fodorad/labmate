@@ -58,7 +58,7 @@ runs_dir = "runs"
 [ask]
 library = "library"                 # library.toml + the PDFs; index.sqlite is kept inside it
 chunk_words = 180
-top_k = 6
+top_k = 4
 max_loops = 2                       # retrieve -> grade -> rewrite rounds per question
 num_ctx = 8192                      # context window of the ask models (short prompts; keeps both loaded)
 

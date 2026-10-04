@@ -87,7 +87,7 @@ class AskConfig(BaseModel):
     library: Path = Path("library")
     index: Path | None = None
     chunk_words: int = 180
-    top_k: int = 6
+    top_k: int = 4
     max_loops: int = 2
     embed_batch: int = 32
     num_ctx: int = 8192
