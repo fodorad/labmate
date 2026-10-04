@@ -126,6 +126,12 @@ def model_sizes(host: str, transport: httpx.BaseTransport | None = None) -> dict
     return {m["name"]: m["size"] / 1e9 for m in models}
 
 
+JUDGE_MAX_TOKENS = 800
+"""Most tokens a judge may write for one card. A reasoning model that loops would otherwise stream
+for as long as it likes (the client timeout only fires when the stream goes quiet); cut off, its
+reply is not valid JSON and the judge test fails with an error instead of hanging."""
+
+
 def _bench_config(config: Config, collector: UsageCollector) -> Config:
     """A copy of the configuration that reports to ``collector`` and does not use the cache."""
     return config.model_copy(
@@ -222,7 +228,7 @@ def measure_model(config: Config, tag: str, tools: bool, judging: bool) -> Model
         if tools:
             result.tools_ok = _tool_calls(model)
         if judging:
-            result.judge = judge_test(model)
+            result.judge = judge_test(model.model_copy(update={"num_predict": JUDGE_MAX_TOKENS}))
     except (
         httpx.HTTPError,
         ValueError,

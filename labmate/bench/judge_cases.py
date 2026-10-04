@@ -22,6 +22,22 @@ DATA = (
     "We trained on the standard WMT 2014 English-German dataset consisting of about 4.5 million "
     "sentence pairs."
 )
+SPEED = (
+    "Self-attention layers are faster than recurrent layers when the sequence length n is smaller "
+    "than the representation dimensionality d, which is most often the case with sentence "
+    "representations used by state-of-the-art models in machine translation."
+)
+OPTIMIZER = (
+    "We used the Adam optimizer with beta1 = 0.9, beta2 = 0.98 and epsilon = 10^-9. We varied the "
+    "learning rate over the course of training: increasing it linearly for the first warmup_steps "
+    "training steps, and decreasing it thereafter proportionally to the inverse square root of the "
+    "step number. We used warmup_steps = 4000."
+)
+REGULARIZATION = (
+    "We apply dropout to the output of each sub-layer. For the base model, we use a rate of "
+    "P_drop = 0.1. During training, we employed label smoothing of value 0.1. This hurts "
+    "perplexity, as the model learns to be more unsure, but improves accuracy and BLEU score."
+)
 
 
 @dataclass(frozen=True)
@@ -62,5 +78,21 @@ CASES = [
     _wrong(TRANSLATION, "The big model was trained on 8 GPUs for 3.5 days.", "not in the evidence"),
     _wrong(DATA, "The sentences were filtered with a language classifier.", "not in the evidence"),
     _wrong(DATA, "Training used the English-French dataset of 4.5 million pairs.", "task swapped"),
+    _clean(SPEED, "Self-attention is faster than recurrence when n is smaller than d."),
+    _clean(OPTIMIZER, "The learning rate rises linearly for the first 4000 steps."),
+    _clean(REGULARIZATION, "Label smoothing hurts perplexity but improves BLEU."),
+    _clean(
+        REGULARIZATION, "Dropout is applied to the output of every sub-layer, at a rate of 0.1."
+    ),
+    _wrong(
+        SPEED, "Self-attention layers are always faster than recurrent layers.", "overgeneralized"
+    ),
+    _wrong(SPEED, "Self-attention is faster when n is larger than d.", "comparison reversed"),
+    _wrong(OPTIMIZER, "After warmup the learning rate decreases linearly.", "wrong shape"),
+    _wrong(OPTIMIZER, "The warmup lasts 4000 epochs.", "unit swapped"),
+    _wrong(OPTIMIZER, "The Adam optimizer uses beta2 = 0.9.", "number on the wrong thing"),
+    _wrong(REGULARIZATION, "Label smoothing improves perplexity and BLEU.", "comparison reversed"),
+    _wrong(REGULARIZATION, "Label smoothing was used to prevent overfitting.", "cause not stated"),
+    _wrong(REGULARIZATION, "Dropout is applied only to the final layer.", "scope changed"),
 ]
-"""Five clean statements and seven mistakes."""
+"""Nine clean statements and fifteen mistakes."""

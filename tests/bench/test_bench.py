@@ -27,7 +27,7 @@ def test_a_judge_that_trusts_everything_misses_every_mistake(fake):
 
     trusting = judge_test(chat(fake, "gemma4:26b-mlx"))
 
-    assert (trusting.caught, trusting.mistakes) == (0, 7)
+    assert (trusting.caught, trusting.mistakes) == (0, 15)
     assert trusting.false_alarms == 0 and "number on the wrong thing" in trusting.missed
 
 
@@ -36,7 +36,7 @@ def test_a_judge_that_doubts_everything_catches_all_mistakes_and_raises_false_al
 
     doubting = judge_test(chat(fake, "gemma4:26b-mlx"))
 
-    assert (doubting.caught, doubting.false_alarms, doubting.clean) == (7, 5, 5)
+    assert (doubting.caught, doubting.false_alarms, doubting.clean) == (15, 9, 9)
 
 
 def test_the_tables_say_which_profiles_fit_in_memory_together():
