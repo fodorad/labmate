@@ -86,6 +86,8 @@ stopped and rerun. Delete the file to start fresh.
 - `labmate bench` checks the free memory before it loads models (`bench/guard.py`), refuses pairs
   that do not fit, and unloads every model when a run ends. Do not start a second Ollama server
   or raise `OLLAMA_NUM_PARALLEL`: the MLX runner ignores it and `gemma4:e4b` gains no throughput.
+- The triage decider is `gemma4:e4b`. `clef-flash` (capability `decision` only) is refused by Ollama 0.35
+  for chat and generate ("does not support chat"), so it cannot be used through `ChatOllama`.
 - `gemma4:26b-mlx` with thinking off sometimes replies with nothing after a tool result;
   `core/agents.run_agent` sends a reminder.
 - `LABMATE_OLLAMA_HOST` overrides `[ollama].host`, e.g. `http://192.168.0.102:11434`

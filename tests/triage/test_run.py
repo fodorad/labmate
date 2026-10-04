@@ -67,7 +67,7 @@ def test_the_command_reads_the_interests_from_a_file(
     from tests.triage.conftest import decider
 
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "config.toml").write_text(f'[cache]\npath = "{tmp_path / "cache.sqlite"}"\n')
+    (tmp_path / "config.toml").write_text("[cache]\nenabled = false\n")
     (tmp_path / "interests.md").write_text("video emotion recognition")
     fake.chat_handler = decider("skip")
 

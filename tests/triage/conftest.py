@@ -39,7 +39,7 @@ def arxiv_five(tmp_path):
 @pytest.fixture
 def config(tmp_path):
     return Config(
-        cache=CacheConfig(path=tmp_path / "cache.sqlite"),
+        cache=CacheConfig(enabled=False),
         tracing=TracingConfig(runs_dir=tmp_path / "runs"),
     )
 
