@@ -33,7 +33,7 @@ class ModelsConfig(BaseModel):
     """Model tag for each pipeline role."""
 
     text: str = "gemma4:26b-mlx"
-    critic: str = "gemma4:e4b"
+    critic: str = "gemma4:26b-mlx"
     embed: str = "embeddinggemma:latest"
 
 

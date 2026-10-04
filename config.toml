@@ -8,19 +8,19 @@ timeout_s = 900
 [models]
 # Model roles. Tags must match `ollama list`.
 text = "gemma4:26b-mlx"   # writer: 16.7 GB, a mixture of experts with ~4B active parameters
-critic = "gemma4:e4b"     # judge: 6.6 GB
+critic = "gemma4:26b-mlx" # judge: the same model, so only one model is loaded (16.7 GB)
 embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
 
 # Model profiles: `labmate --profile NAME ...` (or LABMATE_PROFILE=NAME) swaps the writer and the judge.
 # `make bench` compares them. The sizes are what Ollama lists; the GPU can use about 26 GB of this Mac's
 # 32 GB, and only what is not used by other programs counts, so the pair has to be well below that.
-[profiles.mixed]          # the default, 23 GB together
-text = "gemma4:26b-mlx"
-critic = "gemma4:e4b"
-
-[profiles.gemma-26b]      # one model for both roles, 16.7 GB
+[profiles.gemma-26b]      # the default: one model for both roles, 16.7 GB
 text = "gemma4:26b-mlx"
 critic = "gemma4:26b-mlx"
+
+[profiles.mixed]          # a separate small judge, 23 GB together (tight: Ollama may evict one)
+text = "gemma4:26b-mlx"
+critic = "gemma4:e4b"
 
 [profiles.fast]           # smaller judge, 21 GB together
 text = "gemma4:26b-mlx"
