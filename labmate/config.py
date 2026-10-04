@@ -11,6 +11,9 @@ from pydantic import BaseModel, Field
 
 DEFAULT_CONFIG_PATH = Path("config.toml")
 
+PROFILE_ENV = "LABMATE_PROFILE"
+"""Environment variable that picks a model profile (see ``[profiles.<name>]``)."""
+
 LIBRARY_ENV = "LABMATE_LIBRARY"
 """Environment variable that overrides ``[ask].library`` (a private library outside the repo)."""
 
@@ -32,6 +35,22 @@ class ModelsConfig(BaseModel):
     text: str = "qwen3.6:35b-mlx"
     critic: str = "gemma4:26b-mlx"
     embed: str = "embeddinggemma:latest"
+
+
+class ProfileConfig(BaseModel):
+    """A named model setup: which model plays the writer and which the judge.
+
+    Attributes:
+        text: Writer model (generation, agents).
+        critic: Judge model (fact-check, grading, verification).
+        embed: Embedding model; the ``[models]`` one if omitted.
+        num_ctx: Context window; the ``[generation]`` one if omitted.
+    """
+
+    text: str
+    critic: str
+    embed: str | None = None
+    num_ctx: int | None = None
 
 
 class GenerationConfig(BaseModel):
@@ -109,6 +128,7 @@ class Config(BaseModel):
 
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     models: ModelsConfig = Field(default_factory=ModelsConfig)
+    profiles: dict[str, ProfileConfig] = Field(default_factory=dict)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
@@ -119,18 +139,41 @@ class Config(BaseModel):
     """LangChain callbacks added to every chat model (the benchmark's usage collector)."""
 
 
-def load_config(path: Path | None = None) -> Config:
+def apply_profile(config: Config, name: str) -> None:
+    """Switch the configuration to a named model profile, in place.
+
+    Args:
+        config: The configuration.
+        name: A key of ``[profiles]``.
+
+    Raises:
+        ValueError: If there is no such profile.
+    """
+    if name not in config.profiles:
+        known = ", ".join(sorted(config.profiles)) or "none defined"
+        raise ValueError(f"unknown profile {name!r} (known: {known})")
+    profile = config.profiles[name]
+    config.models.text, config.models.critic = profile.text, profile.critic
+    if profile.embed:
+        config.models.embed = profile.embed
+    if profile.num_ctx:
+        config.generation.num_ctx = profile.num_ctx
+
+
+def load_config(path: Path | None = None, profile: str | None = None) -> Config:
     """Load configuration from a TOML file.
 
     Args:
         path: Path to the TOML file. Defaults to :data:`DEFAULT_CONFIG_PATH`. If the default
             file does not exist, built-in defaults are returned.
+        profile: A model profile to apply (default: ``LABMATE_PROFILE``, else none).
 
     Returns:
         The validated configuration.
 
     Raises:
         FileNotFoundError: If an explicit ``path`` is given but does not exist.
+        ValueError: If the profile is not defined.
 
     ``LABMATE_OLLAMA_HOST`` overrides the Ollama host and ``LABMATE_LIBRARY`` the ask library.
     """
@@ -143,4 +186,6 @@ def load_config(path: Path | None = None) -> Config:
         config.ollama.host = host
     if library := os.environ.get(LIBRARY_ENV):
         config.ask.library = Path(library)
+    if name := profile or os.environ.get(PROFILE_ENV):
+        apply_profile(config, name)
     return config

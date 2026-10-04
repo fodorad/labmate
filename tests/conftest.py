@@ -120,8 +120,9 @@ def fake() -> FakeOllama:
 
 @pytest.fixture(autouse=True)
 def no_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tests never follow the developer's LABMATE_OLLAMA_HOST."""
-    monkeypatch.delenv("LABMATE_OLLAMA_HOST", raising=False)
+    """Tests never follow the developer's LABMATE_* environment."""
+    for name in ("LABMATE_OLLAMA_HOST", "LABMATE_PROFILE", "LABMATE_LIBRARY"):
+        monkeypatch.delenv(name, raising=False)
 
 
 # --- synthetic papers and a fake arXiv ----------------------------------------------------

@@ -106,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(prog="labmate", description=__doc__)
     parser.add_argument("--config", type=Path, default=None, help="path to config.toml")
+    parser.add_argument("--profile", help="model profile from [profiles] (or LABMATE_PROFILE)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     for name, output in (("paper2flow", "overview.pdf"), ("paper2post", "post.pdf")):
@@ -231,7 +232,11 @@ def main(
         Process exit code.
     """
     args = build_parser().parse_args(argv)
-    config = load_config(args.config)
+    try:
+        config = load_config(args.config, args.profile)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     if args.command == "graphs":
         from labmate.diagrams import write_diagrams  # noqa: PLC0415 - needs the [ask] extra
 

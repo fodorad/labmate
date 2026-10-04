@@ -11,6 +11,44 @@ text = "qwen3.6:35b-mlx"
 critic = "gemma4:26b-mlx"
 embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
 
+# Model profiles: `labmate --profile NAME ...` (or LABMATE_PROFILE=NAME) swaps the writer and the judge.
+# `make bench` compares them; sizes are what Ollama lists. This Mac has 32 GB of memory.
+[profiles.current]        # 37 GB together: Ollama swaps them
+text = "qwen3.6:35b-mlx"
+critic = "gemma4:26b-mlx"
+
+[profiles.gemma-26b]      # one model, 16 GB
+text = "gemma4:26b-mlx"
+critic = "gemma4:26b-mlx"
+
+[profiles.qwen]           # one model, 21 GB
+text = "qwen3.6:35b-mlx"
+critic = "qwen3.6:35b-mlx"
+
+[profiles.e4b]            # one small model, 6.6 GB
+text = "gemma4:e4b"
+critic = "gemma4:e4b"
+
+[profiles.mixed]          # 22.6 GB together: both stay loaded
+text = "gemma4:26b-mlx"
+critic = "gemma4:e4b"
+
+[profiles.reversed]       # 22.6 GB together: small writer, big judge
+text = "gemma4:e4b"
+critic = "gemma4:26b-mlx"
+
+[profiles.gemma-12b]      # one model, about 8 GB
+text = "gemma4:12b"
+critic = "gemma4:12b"
+
+[profiles.e2b]            # one very small model, 4.6 GB
+text = "gemma4:e2b"
+critic = "gemma4:e2b"
+
+[profiles.mixed-12b]      # about 12.6 GB together
+text = "gemma4:12b"
+critic = "gemma4:e2b"
+
 [generation]
 temperature = 0.0
 seed = 42
