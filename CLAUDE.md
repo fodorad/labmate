@@ -25,6 +25,7 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
   - `answer.py` (sentence checks, citations), `verify.py` (judge checks each sentence), `evidence.py`.
   - `evals.py`: graph vs agent on `library/golden.yaml`. `studio.py`: factories for LangGraph Studio.
 - `labmate/scout/`: the **agent** `scout`: topic → `notes.md` (tools: arXiv search, abstract, paper2flow overview, write_notes that only accepts cited papers it read).
+- `labmate/triage/`: a **workflow with a decision model**, topic + interests → `triage.md`. `decide.py` (the small `decider` model rates one paper: deep/post/skip), `run.py` (arXiv search, budget enforced by code, `--run` calls paper2flow/paper2post).
 - `labmate/cv2job/`: a **LangChain chain with one agent step**, CV + posting → `cv.pdf`, `cover_letter.pdf`, `gap_report.pdf`.
   - `steps.py` (requirements, match, tailor, highlights; the checks), `gaps.py` (the agent), `letter.py` (fixed template), `render.py`, `chain.py`.
   - Input: `cv.yaml` (see `examples/cv2job/`) and a text posting. Your own files go in `private/` (git-ignored).
@@ -32,7 +33,7 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
 - `labmate/diagrams.py`: Mermaid diagrams drawn by LangChain/LangGraph. `make graphs` writes `docs/graphs.md`.
   The per-use-case pipeline diagrams are hand-drawn in `docs/pipelines.md` and copied into the README and
   `docs/index.md`; `tests/test_diagrams.py` fails if the copies differ or a chain step is missing.
-- `labmate/cli.py`: `labmate paper2flow|paper2post <paper>`, `scout <topic>`, `cv2job <cv> <job>`, `ask index|query|eval-answers`, `eval`, `graphs`. The `Makefile` wraps it.
+- `labmate/cli.py`: `labmate paper2flow|paper2post <paper>`, `scout <topic>`, `triage <topic>`, `cv2job <cv> <job>`, `ask index|query|eval-answers`, `eval`, `graphs`. The `Makefile` wraps it.
 
 ## Commands
 
@@ -44,6 +45,7 @@ make index          # ask: index library/ (library.toml + PDFs)
 make ask Q="…"      # [AGENT=agent]
 make cv CV=… JOB=…  # cv2job
 make scout TOPIC=…  # scout (needs the network for arXiv)
+make triage TOPIC=… # decider model sorts arXiv hits; RUN=1 also makes the PDFs
 make eval           # paper2flow run metrics
 make eval-answers   # evals/ask/answers.md
 make bench-micro    # per model: load, speed, tools, judging (minutes, needs Ollama)
@@ -84,6 +86,8 @@ stopped and rerun. Delete the file to start fresh.
 - `labmate bench` checks the free memory before it loads models (`bench/guard.py`), refuses pairs
   that do not fit, and unloads every model when a run ends. Do not start a second Ollama server
   or raise `OLLAMA_NUM_PARALLEL`: the MLX runner ignores it and `gemma4:e4b` gains no throughput.
+- The triage decider is `gemma4:e4b`. `clef-flash` (capability `decision` only) is refused by Ollama 0.35
+  for chat and generate ("does not support chat"), so it cannot be used through `ChatOllama`.
 - `gemma4:26b-mlx` with thinking off sometimes replies with nothing after a tool result;
   `core/agents.run_agent` sends a reminder.
 - `LABMATE_OLLAMA_HOST` overrides `[ollama].host`, e.g. `http://192.168.0.102:11434`

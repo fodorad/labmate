@@ -34,6 +34,7 @@ class ModelsConfig(BaseModel):
 
     text: str = "gemma4:26b-mlx"
     critic: str = "gemma4:26b-mlx"
+    decider: str = "gemma4:e4b"
     embed: str = "embeddinggemma:latest"
 
 

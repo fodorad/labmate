@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post scout cv bench-micro bench bench-report eval index ask eval-answers graphs studio
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post scout triage cv bench-micro bench bench-report eval index ask eval-answers graphs studio
 
 install:
 	uv sync --extra dev
@@ -50,6 +50,13 @@ TOPIC ?= efficient attention for long sequences
 
 scout:  ## notes on a topic from arXiv -> runs/scout/<topic>/notes.md, e.g. make scout TOPIC="..."
 	uv run labmate scout "$(TOPIC)"
+
+# --- triage: a small decision model sorts arXiv hits (deep read, post, skip) ---
+
+INTEREST ?= video and multimodal emotion recognition
+
+triage:  ## sort arXiv hits -> runs/triage/<topic>/triage.md, e.g. make triage TOPIC="..." [RUN=1]
+	uv run labmate triage "$(TOPIC)" $(if $(INTERESTS),--interests "$(INTERESTS)",--interest "$(INTEREST)") $(if $(RUN),--run)
 
 # --- cv2job: a CV and a job posting -> tailored CV, cover letter, gap report ---
 

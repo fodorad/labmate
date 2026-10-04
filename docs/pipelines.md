@@ -9,7 +9,7 @@ chain step is missing from its diagram. `make graphs` writes LangChain's own dra
 | Shape and colour | Meaning |
 |---|---|
 | grey box | plain code, no model |
-| blue box | a model call (the writer, `[models].text`) |
+| blue box | a model call (the writer, `[models].text`; in triage the decider, `[models].decider`) |
 | purple box | the judge model (`[models].critic`) |
 | orange trapezoid | an agent: the model chooses the next action |
 | red hexagon | a check in code that can send the model back or drop its output |
@@ -238,3 +238,39 @@ flowchart TD
     agent <-->|"calls"| tools
     agent -->|"final text"| parse --> verify --> out
 ```
+
+## triage
+
+Type: workflow with a decision model
+
+A topic and your interests in, a sorted reading list out. The code searches arXiv and loops over the
+papers; the decider model (`[models].decider`, a small fast one) makes one decision per paper: read
+it deeply, make a post of it, or skip it. The code keeps the deep reads within a budget. With `--run`
+the chosen papers go through paper2flow or paper2post.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef llm fill:#e3f2f8,stroke:#4c8aa8,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    topic(["<b>topic</b> and <b>interests</b><br/>for example efficient attention for video"]):::data
+    search["<b>search</b> · code<br/>live arXiv search, the first --limit papers (default 8)"]:::code
+    decide["<b>decide</b> · decider model, once per paper<br/>reads the title and abstract against the interests<br/>deep, post or skip, relevance 1 to 5, a reason of at most 25 words"]:::llm
+    budget{{"<b>budget</b> · code<br/>only the --budget most relevant deep papers stay deep (default 2), the rest become skip"}}:::guard
+    report(["<b>runs/triage/topic/triage.md</b><br/>and decisions.jsonl"]):::data
+    run["<b>--run</b> · code<br/>deep: paper2flow, post: paper2post"]:::code
+    out(["<b>runs/id/overview.pdf</b> or <b>post.pdf</b>"]):::data
+
+    topic --> search --> decide --> budget --> report
+    budget -.->|"only with --run"| run --> out
+```
+
+```bash
+make triage TOPIC="efficient attention for video" INTEREST="video emotion recognition"
+make triage TOPIC="..." INTERESTS=private/interests.md RUN=1   # also make the PDFs
+```
+
+Without `--run` nothing but the table is made, so a triage costs one short model call per paper.
