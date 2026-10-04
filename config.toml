@@ -49,6 +49,14 @@ critic = "gemma4:e2b"
 text = "gemma4:12b"
 critic = "gemma4:e2b"
 
+[profiles.gemma-phi]      # about 27 GB together: a reasoning model as the judge (no tools needed)
+text = "gemma4:26b-mlx"
+critic = "phi4-reasoning:plus"
+
+[profiles.e4b-phi]        # about 17.6 GB together
+text = "gemma4:e4b"
+critic = "phi4-reasoning:plus"
+
 [generation]
 temperature = 0.0
 seed = 42

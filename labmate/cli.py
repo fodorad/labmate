@@ -1,6 +1,7 @@
 """Command-line interface: ``labmate <command>``; every command is also a Makefile target.
 
 - ``paper2flow`` / ``paper2post``: a paper in, ``overview.pdf`` / ``post.pdf`` out.
+- ``bench``: measure models and use cases (speed, memory, quality); not part of ``make check``.
 - ``scout``: a research agent that searches arXiv and writes notes on a topic.
 - ``cv2job``: a CV and a job posting in, a tailored CV, a cover letter and a gap report out.
 - ``ask``: questions about your research (see :mod:`labmate.ask.cli`).
@@ -125,8 +126,10 @@ def build_parser() -> argparse.ArgumentParser:
     cv.add_argument("--out", type=Path, help="output folder (default: runs/cv2job/<job file>)")
 
     from labmate.ask.cli import add_parser as add_ask  # noqa: PLC0415 - light imports only
+    from labmate.bench.cli import add_parser as add_bench  # noqa: PLC0415
 
     add_ask(sub)
+    add_bench(sub)
 
     eval_p = sub.add_parser("eval", help="metrics of the finished paper runs -> evals/results.md")
     eval_p.add_argument("runs", nargs="*", type=Path, help="run dirs (default: all)")
@@ -249,6 +252,10 @@ def main(
             from labmate.ask.cli import main as ask_main  # noqa: PLC0415 - needs the [ask] extra
 
             return ask_main(config, args, ollama)
+        if args.command == "bench":
+            from labmate.bench.cli import main as bench_main  # noqa: PLC0415
+
+            return bench_main(config, args)
         if args.command == "scout":
             return cmd_scout(config, args, web, ollama)
         if args.command == "cv2job":

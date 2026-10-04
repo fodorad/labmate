@@ -1,4 +1,4 @@
-.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post scout cv eval index ask eval-answers graphs studio
+.PHONY: install check lint format type-check test test-cov docs docs-serve build clean flow post scout cv bench-micro eval index ask eval-answers graphs studio
 
 install:
 	uv sync --extra dev
@@ -58,6 +58,11 @@ JOB ?= examples/cv2job/job.txt
 
 cv:  ## tailor a CV to a job posting -> runs/cv2job/<job>/, e.g. make cv CV=my-cv.yaml JOB=job.txt
 	uv run labmate cv2job "$(CV)" "$(JOB)"
+
+# --- bench: which models are fast enough, fit in memory and answer well (not part of make check) ---
+
+bench-micro:  ## per model: cold load, speed, tools, structured output, judging -> evals/bench/micro.md
+	uv run labmate bench micro
 
 # --- evaluation of the paper chains ---
 
