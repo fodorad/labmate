@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tomllib
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -114,6 +115,8 @@ class Config(BaseModel):
     tracing: TracingConfig = Field(default_factory=TracingConfig)
     ask: AskConfig = Field(default_factory=AskConfig)
     post: PostConfig = Field(default_factory=PostConfig)
+    callbacks: list[Any] = Field(default_factory=list, exclude=True)
+    """LangChain callbacks added to every chat model (the benchmark's usage collector)."""
 
 
 def load_config(path: Path | None = None) -> Config:
