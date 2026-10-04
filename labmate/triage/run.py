@@ -15,7 +15,7 @@ from labmate.core.ingest import USER_AGENT, ArxivMetadata, search_arxiv
 from labmate.core.lc import batch_map
 from labmate.paper2flow.chain import paper2flow
 from labmate.paper2post.chain import paper2post
-from labmate.triage.decide import decide
+from labmate.triage.decide import decide, is_decision_model
 
 log = logging.getLogger(__name__)
 
@@ -130,9 +130,18 @@ def run_triage(
     ) as web:
         hits = search_arxiv(topic, web, limit)
 
+    decision_model = is_decision_model(config, ollama)
+
     def judge(hit: tuple[str, ArxivMetadata], config_: RunnableConfig) -> Verdict:
         arxiv_id, meta = hit
-        d = decide(config, meta, interests, run_config=config_, transport=ollama)
+        d = decide(
+            config,
+            meta,
+            interests,
+            decision_model=decision_model,
+            run_config=config_,
+            transport=ollama,
+        )
         return Verdict(arxiv_id, meta.title, d.action, d.relevance, d.reason)
 
     verdicts = apply_budget(

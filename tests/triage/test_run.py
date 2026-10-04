@@ -67,7 +67,9 @@ def test_the_command_reads_the_interests_from_a_file(
     from tests.triage.conftest import decider
 
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "config.toml").write_text("[cache]\nenabled = false\n")
+    (tmp_path / "config.toml").write_text(
+        '[cache]\nenabled = false\n[models]\ndecider = "gemma4:e4b"\n'
+    )
     (tmp_path / "interests.md").write_text("video emotion recognition")
     fake.chat_handler = decider("skip")
 
@@ -76,5 +78,27 @@ def test_the_command_reads_the_interests_from_a_file(
                 web=arxiv_five.transport(), ollama=fake.transport())  # fmt: skip
 
     assert code == 0
-    assert "video emotion recognition" in fake.requests[0][1]["messages"][-1]["content"]
+    sent = next(b for p, b in fake.requests if p == "/api/chat")
+    assert "video emotion recognition" in sent["messages"][-1]["content"]
     assert str(tmp_path / "out" / "triage.md") in capsys.readouterr().out
+
+
+def test_a_decision_model_scores_every_paper_in_one_request_and_code_picks_the_action(
+    fake, arxiv_five, decision_config, tmp_path
+):
+    from tests.triage.conftest import scorer
+
+    fake.systemone_handler = scorer(
+        {"Alpha": 3.4, "Bravo": 0.4, "Charlie": 2.2, "Delta": 3.1, "Echo": 1.0}
+    )
+
+    decisions = run_triage(decision_config, "attention", "video", tmp_path / "out", budget=1,
+                           http=arxiv_five.transport(), ollama=fake.transport())  # fmt: skip
+
+    actions = {d.title: d.action for d in decisions}
+    assert actions == {"Alpha": "deep", "Bravo": "skip", "Charlie": "post",
+                       "Delta": "skip", "Echo": "skip"}  # fmt: skip
+    assert "over the deep-read budget" in decisions[3].reason  # Delta also scored deep
+    assert "/api/chat" not in fake.paths() and fake.paths().count("/v1/systemone") == 5
+    sent = next(b for p, b in fake.requests if p == "/v1/systemone")
+    assert sent["model"] == "clef-flash" and "video" in sent["state"]

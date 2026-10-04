@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from labmate.config import CacheConfig, Config, TracingConfig
+from labmate.config import CacheConfig, Config, ModelsConfig, TracingConfig
 from tests.conftest import FakeArxiv, agentic_chat, make_pdf, reply
 
 TITLES = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"]
@@ -38,10 +38,31 @@ def arxiv_five(tmp_path):
 
 @pytest.fixture
 def config(tmp_path):
+    """A chat model as the decider (see ``decision_config`` for a decision model)."""
     return Config(
         cache=CacheConfig(enabled=False),
+        models=ModelsConfig(decider="gemma4:e4b"),
         tracing=TracingConfig(runs_dir=tmp_path / "runs"),
     )
+
+
+@pytest.fixture
+def decision_config(tmp_path):
+    return Config(
+        cache=CacheConfig(enabled=False),
+        models=ModelsConfig(decider="clef-flash"),
+        tracing=TracingConfig(runs_dir=tmp_path / "runs"),
+    )
+
+
+def scorer(scores: dict[str, float]):
+    """A decision model that scores the paper whose title is in the state."""
+
+    def handler(body: dict[str, Any]) -> dict[str, Any]:
+        title = re.search(r"Paper title: (\w+)", body["state"]).group(1)
+        return {"answers": {"relevance": {"type": "score", "score": scores[title]}}}
+
+    return handler
 
 
 def decider(action: str = "deep", reason: str = "Fits the interests.", scores=None):

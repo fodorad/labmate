@@ -244,9 +244,17 @@ flowchart TD
 Type: workflow with a decision model
 
 A topic and your interests in, a sorted reading list out. The code searches arXiv and loops over the
-papers; the decider model (`[models].decider`, a small fast one) makes one decision per paper: read
-it deeply, make a post of it, or skip it. The code keeps the deep reads within a budget. With `--run`
-the chosen papers go through paper2flow or paper2post.
+papers; the decider model (`[models].decider`, by default the decision model `clef-flash`) rates each
+paper against your interests, and the code turns the rating into one decision: read it deeply, make a
+post of it, or skip it. The code keeps the deep reads within a budget. With `--run` the chosen papers
+go through paper2flow or paper2post.
+
+A decision model does not write text. Ollama serves it on `/v1/systemone`: it gets the paper and a
+typed question and scores every option in one pass, so a paper costs one short request and the answer
+is a number, not a sentence. Any other model (for example `gemma4:e4b`) also works as the decider and
+is then asked for the action and a reason as validated JSON. Which kind it is comes from the
+capabilities Ollama lists for it. On 36 hand-labelled cases `clef-flash` gets the action right 30
+times, `nimble` 29, `tev1` 28 and `gemma4:e4b` 16 (see `docs/benchmarks.md`).
 
 ```mermaid
 %%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
@@ -258,13 +266,14 @@ flowchart TD
 
     topic(["<b>topic</b> and <b>interests</b><br/>for example efficient attention for video"]):::data
     search["<b>search</b> · code<br/>live arXiv search, the first --limit papers (default 8)"]:::code
-    decide["<b>decide</b> · decider model, once per paper<br/>reads the title and abstract against the interests<br/>deep, post or skip, relevance 1 to 5, a reason of at most 25 words"]:::llm
+    decide["<b>rate</b> · decision model, once per paper<br/>scores the title and abstract against the interests on five levels in one pass (/v1/systemone)"]:::llm
+    action["<b>action</b> · code<br/>score from 3 deep, from 1.75 post, else skip; relevance 1 to 5 and the level as the reason"]:::code
     budget{{"<b>budget</b> · code<br/>only the --budget most relevant deep papers stay deep (default 2), the rest become skip"}}:::guard
     report(["<b>runs/triage/topic/triage.md</b><br/>and decisions.jsonl"]):::data
     run["<b>--run</b> · code<br/>deep: paper2flow, post: paper2post"]:::code
     out(["<b>runs/id/overview.pdf</b> or <b>post.pdf</b>"]):::data
 
-    topic --> search --> decide --> budget --> report
+    topic --> search --> decide --> action --> budget --> report
     budget -.->|"only with --run"| run --> out
 ```
 
@@ -273,4 +282,4 @@ make triage TOPIC="efficient attention for video" INTEREST="video emotion recogn
 make triage TOPIC="..." INTERESTS=private/interests.md RUN=1   # also make the PDFs
 ```
 
-Without `--run` nothing but the table is made, so a triage costs one short model call per paper.
+Without `--run` nothing but the table is made, so a triage costs one short request per paper.
