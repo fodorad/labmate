@@ -11,8 +11,16 @@ from pathlib import Path
 import httpx
 
 from labmate.bench.cells import Cell, cells_markdown, load, save
+from labmate.bench.guard import NotEnoughMemory, require_room
 from labmate.bench.macro import FULL_USE_CASES, USE_CASES, run_cell
-from labmate.bench.micro import ModelResult, from_dict, measure_model, to_dict
+from labmate.bench.micro import (
+    ModelResult,
+    from_dict,
+    measure_model,
+    model_sizes,
+    to_dict,
+    unload_all,
+)
 from labmate.bench.report import HEADROOM_GB, machine, memory_gb, micro_markdown, profile_rows
 from labmate.config import Config
 
@@ -65,6 +73,16 @@ def profile_models(config: Config) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(writers)), list(dict.fromkeys(judges))
 
 
+PARALLEL = (
+    "Two models loaded together both answer at once, but share the GPU (each at about half "
+    "speed, 15% more in total). With `OLLAMA_NUM_PARALLEL=2`, two requests to `gemma4:26b-mlx` "
+    "still run one after the other (the MLX runner ignores it), and two to `gemma4:e4b` run "
+    "together at 10.3 tok/s each, against 19.7 alone: no gain in throughput, and each slot "
+    "costs context memory. It stays at 1."
+)
+"""What was measured about parallel requests (a 200-token reply, same prompt)."""
+
+
 def _micro_results(out: Path) -> list[ModelResult]:
     file = out / "micro.json"
     return [from_dict(d) for d in json.loads(file.read_text()).values()] if file.exists() else []
@@ -92,8 +110,15 @@ def run_micro(config: Config, args: argparse.Namespace) -> int:
         if tag in done:
             log.info("  have %s", tag)
             continue
+        unload_all(config.ollama.host)
+        require_room(model_sizes(config.ollama.host).get(tag, 0.0), memory_gb())
         log.info("measuring %s", tag)
-        done[tag] = to_dict(measure_model(config, tag, tools=tag in writers, judging=tag in judges))
+        try:
+            done[tag] = to_dict(
+                measure_model(config, tag, tools=tag in writers, judging=tag in judges)
+            )
+        finally:
+            unload_all(config.ollama.host)
         file.write_text(json.dumps(done, indent=2) + "\n")
     text = micro_markdown(_micro_results(out), config, memory_gb())
     (out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
@@ -102,7 +127,7 @@ def run_micro(config: Config, args: argparse.Namespace) -> int:
 
 
 def fitting_profiles(config: Config, out: Path) -> list[str]:
-    """The profiles whose models fit in memory together, and the baseline ``current``.
+    """The profiles whose models fit in memory together.
 
     Args:
         config: Loaded configuration.
@@ -113,7 +138,14 @@ def fitting_profiles(config: Config, out: Path) -> list[str]:
     """
     sizes = {r.model: r.size_gb for r in _micro_results(out)}
     rows = profile_rows(config, sizes, memory_gb())
-    return [r.profile for r in rows if r.fits or r.profile == "current"]
+    return [r.profile for r in rows if r.fits]
+
+
+def _profile_gb(config: Config, profile: str) -> float:
+    """Size of the models a profile loads together."""
+    chosen = config.profiles[profile]
+    sizes = model_sizes(config.ollama.host)
+    return sum(sizes.get(tag, 0.0) for tag in dict.fromkeys([chosen.text, chosen.critic]))
 
 
 def run_macro(config: Config, args: argparse.Namespace) -> int:
@@ -135,8 +167,13 @@ def run_macro(config: Config, args: argparse.Namespace) -> int:
             if (directory / name).exists() and not args.force:
                 log.info("  have %s on %s", use_case, profile)
                 continue
+            unload_all(config.ollama.host)
+            require_room(_profile_gb(config, profile), memory_gb())
             log.info("running %s on %s", use_case, profile)
-            cell = run_cell(use_case, profile, config)
+            try:
+                cell = run_cell(use_case, profile, config)
+            finally:
+                unload_all(config.ollama.host)
             save(cell, directory)
             log.info("  %.0f s, quality %.0f%% %s", cell.seconds, cell.quality, cell.error)
     print(cells_markdown(load(directory)))
@@ -183,6 +220,10 @@ def run_report(config: Config, args: argparse.Namespace) -> int:
         "## Use cases",
         "",
         cells_markdown(cells) if cells else "No use case has been run yet.",
+        "",
+        "## Parallel requests",
+        "",
+        PARALLEL,
     ]
     args.docs.write_text("\n".join(page).rstrip("\n") + "\n")
     print(f"Wrote {args.docs}")
@@ -202,4 +243,8 @@ def main(config: Config, args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     actions = {"micro": run_micro, "macro": run_macro, "report": run_report}
-    return actions[args.action](config, args)
+    try:
+        return actions[args.action](config, args)
+    except NotEnoughMemory as e:
+        log.error("stopped before loading anything more: %s", e)
+        return 1

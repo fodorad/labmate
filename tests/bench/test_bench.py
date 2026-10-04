@@ -1,9 +1,11 @@
 import json
 
 import httpx
+import pytest
 
 from labmate.ask.evals import AnswerCase
 from labmate.bench.cells import Cell, cells_markdown, load, save
+from labmate.bench.guard import NotEnoughMemory, parse_vm_stat, require_room
 from labmate.bench.micro import ModelResult, judge_test, unload_all
 from labmate.bench.quality import ask_quality
 from labmate.bench.report import micro_markdown, profile_rows
@@ -102,3 +104,23 @@ def test_the_table_marks_runs_over_the_target_and_cells_survive_a_round_trip(tmp
     assert sorted(c.profile for c in cells) == ["current", "mixed"]
     assert table.index("| mixed |") < table.index("| current |")  # fastest first
     assert "| 40 s | yes |" in table and "| 83 s | **no** |" in table
+
+
+VM_STAT = """Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                  100000.
+Pages active:                                500000.
+Pages inactive:                               50000.
+Pages speculative:                            10000.
+Pages purgeable:                               5000.
+"""
+
+
+def test_the_guard_reads_free_memory_and_refuses_models_that_do_not_fit():
+    free = parse_vm_stat(VM_STAT)
+
+    assert round(free, 1) == 2.7  # free + inactive + speculative + purgeable pages
+    require_room(models_gb=10.0, ram_gb=32, free_gb=20.0)
+    with pytest.raises(NotEnoughMemory, match="do not fit in 19.0 GB"):
+        require_room(models_gb=23.3, ram_gb=32, free_gb=30.0)
+    with pytest.raises(NotEnoughMemory, match="only 8.0 GB are free"):
+        require_room(models_gb=10.0, ram_gb=32, free_gb=8.0)
