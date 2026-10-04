@@ -28,6 +28,8 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
   - `steps.py` (requirements, match, tailor, highlights; the checks), `gaps.py` (the agent), `letter.py` (fixed template), `render.py`, `chain.py`.
   - Input: `cv.yaml` (see `examples/cv2job/`) and a text posting. Your own files go in `private/` (git-ignored).
 - `labmate/diagrams.py`: Mermaid diagrams drawn by LangChain/LangGraph. `make graphs` writes `docs/graphs.md`.
+  The per-use-case pipeline diagrams are hand-drawn in `docs/pipelines.md` and copied into the README and
+  `docs/index.md`; `tests/test_diagrams.py` fails if the copies differ or a chain step is missing.
 - `labmate/cli.py`: `labmate paper2flow|paper2post <paper>`, `scout <topic>`, `cv2job <cv> <job>`, `ask index|query|eval-answers`, `eval`, `graphs`. The `Makefile` wraps it.
 
 ## Commands
