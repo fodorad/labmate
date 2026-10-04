@@ -2,7 +2,10 @@ import json
 
 import httpx
 
+from labmate.ask.evals import AnswerCase
+from labmate.bench.cells import Cell, cells_markdown, load, save
 from labmate.bench.micro import ModelResult, judge_test, unload_all
+from labmate.bench.quality import ask_quality
 from labmate.bench.report import micro_markdown, profile_rows
 from labmate.config import Config, ProfileConfig
 from tests.conftest import chat, reply
@@ -68,3 +71,34 @@ def test_unloading_asks_ollama_to_drop_every_loaded_model():
     unload_all("http://ollama", httpx.MockTransport(handler))
 
     assert len(asked) == 2 and all(b'"keep_alive":0' in a.replace(b" ", b"") for a in asked)
+
+
+def test_ask_quality_averages_answer_source_and_kept_sentences():
+    def case(ok, hit, kept, dropped):
+        return AnswerCase(
+            question="q", agent="graph", abstained=False, abstain_ok=ok, source_hit=hit,
+            sentences=kept, dropped=dropped, seconds=1.0, answer="a",
+        )  # fmt: skip
+
+    quality = ask_quality([case(True, True, 3, 1), case(True, False, 1, 3)])
+
+    assert quality.parts == {
+        "right answer or refusal": 1.0,
+        "expected source cited": 0.5,
+        "sentences kept": 0.5,
+    }
+    assert quality.score == 66.7
+
+
+def test_the_table_marks_runs_over_the_target_and_cells_survive_a_round_trip(tmp_path):
+    fast = Cell("cv2job", "mixed", "a", "b", seconds=40, quality=90, parts={"x": 0.9})
+    slow = Cell("cv2job", "current", "a", "c", seconds=83, quality=95, parts={"x": 0.95})
+    save(fast, tmp_path)
+    save(slow, tmp_path)
+
+    cells = load(tmp_path)
+    table = cells_markdown(cells)
+
+    assert sorted(c.profile for c in cells) == ["current", "mixed"]
+    assert table.index("| mixed |") < table.index("| current |")  # fastest first
+    assert "| 40 s | yes |" in table and "| 83 s | **no** |" in table

@@ -262,3 +262,17 @@ def to_dict(result: ModelResult) -> dict[str, Any]:
         Nested dictionaries and lists.
     """
     return asdict(result)
+
+
+def from_dict(data: dict[str, Any]) -> ModelResult:
+    """A result read back from the JSON file.
+
+    Args:
+        data: One entry of ``micro.json``.
+
+    Returns:
+        The measurements.
+    """
+    data = dict(data)
+    judge = data.pop("judge")
+    return ModelResult(**data, judge=JudgeResult(**judge) if judge else None)
