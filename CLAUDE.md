@@ -81,6 +81,9 @@ stopped and rerun. Delete the file to start fresh.
   on every call. Look for `predicted to exceed available memory, evicting` in
   `~/.ollama/logs/server.log`. `[ask].num_ctx` is small for this reason. Changing a setting in
   the Ollama app restarts the server and kills a running benchmark.
+- `labmate bench` checks the free memory before it loads models (`bench/guard.py`), refuses pairs
+  that do not fit, and unloads every model when a run ends. Do not start a second Ollama server
+  or raise `OLLAMA_NUM_PARALLEL`: the MLX runner ignores it and `gemma4:e4b` gains no throughput.
 - `gemma4:26b-mlx` with thinking off sometimes replies with nothing after a tool result;
   `core/agents.run_agent` sends a reminder.
 - `LABMATE_OLLAMA_HOST` overrides `[ollama].host`, e.g. `http://192.168.0.102:11434`

@@ -89,3 +89,8 @@ Target: under 180 s. Quality parts are between 0 and 1.
 | mixed | `gemma4:26b-mlx` | `gemma4:e4b` | 49 s | yes | 8 s | 0 | 22.0 GB | 10 | 14895/565 | **80%** | notes written 1.00, papers cited (of 5) 0.60 |
 | small | `gemma4:e4b` | `gemma4:e4b` | 109 s | yes | 2 s | 0 | 0.4 GB | 11 | 23570/2495 | **100%** | notes written 1.00, papers cited (of 5) 1.00 |
 | ornith | `ornith-1.5:9b` | `gemma4:e4b` | 276 s | **no** | 1 s | 0 | 6.7 GB | 10 | 48581/3835 | **100%** | notes written 1.00, papers cited (of 5) 1.00 |
+
+
+## Parallel requests
+
+Two models loaded together both answer at once, but share the GPU (each at about half speed, 15% more in total). With `OLLAMA_NUM_PARALLEL=2`, two requests to `gemma4:26b-mlx` still run one after the other (the MLX runner ignores it), and two to `gemma4:e4b` run together at 10.3 tok/s each, against 19.7 alone: no gain in throughput, and each slot costs context memory. It stays at 1.
