@@ -11,6 +11,7 @@ import re
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 from labmate.config import Config
 
@@ -18,12 +19,8 @@ _STEP_NOTE = re.compile(r"<hr/><small><em>step = [\w.]+</em></small>")
 """The metadata note LangChain adds to every named step (the step name, again)."""
 
 
-def generated_diagrams() -> dict[str, str]:
-    """Mermaid source of every compiled chain and graph, as LangChain and LangGraph draw it.
-
-    Returns:
-        Title to Mermaid source.
-    """
+def _compiled() -> dict[str, Any]:
+    """Every chain and graph, built without running anything (nothing calls a model)."""
     from labmate.ask.agent import build_agent  # noqa: PLC0415 - optional dependencies
     from labmate.ask.graph import build_graph  # noqa: PLC0415
     from labmate.core.chat import chat_model  # noqa: PLC0415
@@ -35,15 +32,41 @@ def generated_diagrams() -> dict[str, str]:
     model = chat_model(config, config.models.text)  # builds the client only; nothing is called
     stub = SimpleNamespace(config=config, writer=model, judge=model, index=None, embedder=None)
     return {
-        "paper2flow (chain)": _STEP_NOTE.sub("", build_paper2flow(stub).get_graph().draw_mermaid()),  # type: ignore[arg-type]
-        "paper2post (chain)": _STEP_NOTE.sub("", build_paper2post(stub).get_graph().draw_mermaid()),  # type: ignore[arg-type]
+        "paper2flow (chain)": build_paper2flow(stub),  # type: ignore[arg-type]
+        "paper2post (chain)": build_paper2post(stub),  # type: ignore[arg-type]
         "cv2job (chain with one agent step)": build_cv2job(
             config, lambda question: "", Path("."), date.today()
-        )
-        .get_graph()
-        .draw_mermaid(),
-        "ask (graph)": build_graph(stub).compile().get_graph().draw_mermaid(),  # type: ignore[arg-type]
-        "ask (agent)": build_agent(stub).get_graph().draw_mermaid(),  # type: ignore[arg-type]
+        ),
+        "ask (graph)": build_graph(stub).compile(),  # type: ignore[arg-type]
+        "ask (agent)": build_agent(stub),  # type: ignore[arg-type]
+    }
+
+
+def generated_diagrams() -> dict[str, str]:
+    """Mermaid source of every compiled chain and graph, as LangChain and LangGraph draw it.
+
+    Returns:
+        Title to Mermaid source.
+    """
+    return {
+        title: _STEP_NOTE.sub("", runnable.get_graph().draw_mermaid())
+        for title, runnable in _compiled().items()
+    }
+
+
+def pipeline_steps() -> dict[str, set[str]]:
+    """The step names of every chain and graph, for checking the README's hand-drawn diagrams.
+
+    Returns:
+        Title to the names of its steps (the entry and exit markers are left out).
+    """
+    return {
+        title: {
+            node.name
+            for node in runnable.get_graph().nodes.values()
+            if not node.name.startswith("__") and not node.name.endswith(("_input", "_output"))
+        }
+        for title, runnable in _compiled().items()
     }
 
 

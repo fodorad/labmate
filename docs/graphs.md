@@ -118,7 +118,6 @@ graph TD;
 	grade -.-> rewrite;
 	retrieve --> grade;
 	rewrite --> retrieve;
-	understand -.-> abstain;
 	understand -.-> clarify;
 	understand -.-> retrieve;
 	abstain --> __end__;

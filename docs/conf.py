@@ -29,7 +29,8 @@ autodoc_default_options = {
 autodoc_member_order = "bysource"
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "graphs.md"]  # Mermaid, rendered by GitHub
+# graphs.md and pipelines.md hold Mermaid diagrams, which GitHub renders
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "graphs.md", "pipelines.md"]
 
 html_theme = "furo"
 html_static_path = ["_static"]

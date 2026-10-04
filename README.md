@@ -20,6 +20,21 @@ in. In an agent the model picks the next action from a set of tools. LangChain c
 graphs are used for both: paper2flow, paper2post and the ask graph are workflows; the ask agent and
 scout are agents; cv2job is a workflow whose `gaps` step is an agent.
 
+**Reading the diagrams.** Each use case below has one.
+
+| Shape and colour | Meaning |
+|---|---|
+| grey box | plain code, no model |
+| blue box | a model call (the writer, `qwen3.6:35b-mlx`) |
+| purple box | the judge model (`gemma4:26b-mlx`) |
+| orange trapezoid | an agent: the model chooses the next action |
+| red hexagon | a check in code that can send the model back or drop its output |
+| white (rounded or cylinder) | an input, an output or a file |
+
+Every diagram reads top to bottom. Every model call goes through the reply cache
+(`cache/replies.sqlite`): an unchanged request is answered from it, so a rerun only calls the model
+for what changed.
+
 ## Shared core (`labmate.core`)
 
 - **Models:** `ChatOllama` from `langchain-ollama`, built in one place (`core/chat.py`) with the
@@ -37,9 +52,32 @@ scout are agents; cv2job is a workflow whose `gaps` step is an agent.
 
 ## paper2flow
 
-```
-analyze    = ingest | extract | write | factcheck | flows
-paper2flow = analyze | render                                          -> overview.pdf
+Type: chain
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef llm fill:#e3f2f8,stroke:#4c8aa8,color:#222b35
+    classDef judge fill:#efe6f8,stroke:#8a64b0,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    src(["<b>paper</b><br/>arXiv id or URL, PDF URL or PDF file"]):::data
+    ingest["<b>ingest</b> · code<br/>download the PDF and the arXiv metadata<br/>sections from the PDF outline<br/>figures cropped with their captions"]:::code
+    extract["<b>extract</b> · writer, one call per section<br/>claim cards: a claim and the<br/>verbatim quote that supports it"]:::llm
+    quote{{"<b>quote guard</b> · code<br/>the quote must be in the section and carry<br/>the same numbers, else the claim is dropped"}}:::guard
+    write["<b>write</b> · code, then writer<br/>code groups the claims by kind into Task,<br/>Challenges, Method and Results; the writer writes<br/>each card in parallel, every bullet cites its claim ids"]:::llm
+    factcheck["<b>factcheck</b> · judge model<br/>numbers and names are checked in code,<br/>then the judge rules on every bullet:<br/>supported, partial or unsupported"]:::judge
+    rewrite["<b>rewrite</b> · writer<br/>redo the failed bullets, at most 2 rounds,<br/>bullets still failing are dropped"]:::llm
+    flows["<b>flows</b> · writer, then one worker per step<br/>plans the end-to-end diagram, picks 1 to 3 steps<br/>to open up, each worker draws its detail"]:::llm
+    rules{{"<b>diagram guard</b> · code<br/>starts at inputs, ends at outputs, labels named<br/>in the paper, at most 8 boxes; a detail still<br/>invalid after the retries is dropped"}}:::guard
+    render["<b>render</b> · code<br/>typed graph to Mermaid to PNG with mermaid-cli<br/>cover figure: the one whose caption names the architecture<br/>Typst lays out the PDF"]:::code
+    out(["<b>runs/id/overview.pdf</b><br/>cover, four cards, data flow, detail pages"]):::data
+
+    src --> ingest --> extract --> quote --> write --> factcheck
+    factcheck -->|"bullets that fail"| rewrite --> factcheck
+    factcheck -->|"all supported, or rounds used up"| flows --> rules --> render --> out
 ```
 
 `overview.pdf` (A4 portrait):
@@ -68,8 +106,29 @@ Mermaid, so no model output reaches a diagram or a page unchecked.
 
 ## paper2post
 
-```
-paper2post = analyze | post | render                                  -> post.pdf
+Type: chain
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef llm fill:#e3f2f8,stroke:#4c8aa8,color:#222b35
+    classDef judge fill:#efe6f8,stroke:#8a64b0,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    src(["<b>paper</b><br/>arXiv id or URL, PDF URL or PDF file"]):::data
+    subgraph analyze ["analyze · the paper2flow chain up to the diagrams (reused from the reply cache if it already ran)"]
+        direction LR
+        ingest["ingest"]:::code --> extract["extract"]:::llm --> write["write"]:::llm --> factcheck["factcheck"]:::judge --> flows["flows"]:::llm
+    end
+    post["<b>post</b> · writer<br/>drafts a hook, 3 to 5 sentences that tell the story<br/>(problem, idea, how, result, why it matters)<br/>and a question about something specific in the paper"]:::llm
+    shape{{"<b>draft guard</b> · code<br/>every sentence cites known claims<br/>and has no ids in its text"}}:::guard
+    recheck["<b>factcheck the sentences</b> · judge model<br/>the same loop as for the cards, 1 rewrite round,<br/>sentences still unsupported are dropped"]:::judge
+    render["<b>render</b> · code<br/>icons by place in the story<br/>links: the paper, its code repository if named, yours<br/>the pipeline diagram as the post image"]:::code
+    out(["<b>runs/id/post.pdf</b><br/>page 1 the text, page 2 the diagram"]):::data
+
+    src --> analyze --> post --> shape --> recheck --> render --> out
 ```
 
 Page 1 of `post.pdf` (4:5) is the post text, ready to copy: a hook, 3-5 connected sentences that
@@ -81,8 +140,32 @@ sentence passes the same fact-check as the overview, and the analysis is reused 
 
 ## scout
 
+Type: agent
+
 A research agent: give it a topic, and it searches arXiv, reads, and writes `notes.md` in
 `runs/scout/<topic>/`. Nothing fixes the order of its steps; it decides what to do from a few tools.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef agent fill:#ffe9d2,stroke:#c9772b,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    topic(["<b>topic</b><br/>for example linear attention for long sequences"]):::data
+    agent[/"<b>agent</b> · the model decides<br/>plans, picks a tool, reads what comes back, repeats<br/>up to 40 steps"\]:::agent
+    tools["<b>tools</b> · code<br/>search_arxiv: live arXiv search, several queries<br/>read_abstract: title and abstract of one paper<br/>read_overview: runs paper2flow on one paper and returns<br/>its fact-checked cards (slow, at most --deep papers, default 2)"]:::code
+    notes["<b>write_notes</b> · code<br/>saves the Markdown notes"]:::code
+    guard{{"<b>citation guard</b> · code<br/>every arXiv id in the notes must have been read with<br/>read_abstract or read_overview, else the notes are refused"}}:::guard
+    out(["<b>runs/scout/topic/notes.md</b>"]):::data
+
+    topic --> agent
+    agent <-->|"calls"| tools
+    agent -->|"writes the notes"| notes --> guard
+    guard -->|"refused, the agent fixes them"| agent
+    guard -->|"saved"| out
+```
 
 | Tool | What it does |
 |---|---|
@@ -100,11 +183,46 @@ markup, and Ollama then returns an error; running again usually works.
 
 ## cv2job
 
+Type: chain with one agent step
+
 A CV (YAML) and a job posting (text) in; `cv.pdf`, `cover_letter.pdf` and a separate
 `gap_report.pdf` out, in `runs/cv2job/<posting file name>/`.
 
-```
-cv2job = requirements | match | gaps | tailor | letter | render
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef llm fill:#e3f2f8,stroke:#4c8aa8,color:#222b35
+    classDef agent fill:#ffe9d2,stroke:#c9772b,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    inputs(["<b>cv.yaml and job.txt</b><br/>roles with bullet ids and skills with a start year,<br/>and the posting as plain text"]):::data
+    requirements["<b>requirements</b> · writer<br/>position, company and the requirements,<br/>each a must-have or a nice-to-have"]:::llm
+    quote{{"<b>quote guard</b> · code<br/>each requirement quotes the posting word for word,<br/>else the writer is sent back"}}:::guard
+    match["<b>match</b> · writer, one call per requirement<br/>which CV bullets and skills show it,<br/>empty when the CV shows nothing"]:::llm
+    ids{{"<b>id guard</b> · code<br/>bullet ids and skill names must exist in the CV"}}:::guard
+    open{"requirements<br/>without evidence?"}:::code
+    gaps[/"<b>gaps</b> · agent, only for requirements nothing matched<br/>the model decides: search the CV with other words,<br/>read a bullet, ask you a question, report covered or gap"\]:::agent
+    tools["<b>tools</b> · code<br/>search_cv, read_cv_item,<br/>ask_candidate (asks you in the terminal), report_finding"]:::code
+    honest{{"<b>finding guard</b> · code<br/>covered needs CV bullets that exist or your own answer,<br/>stored word for word; a requirement never reported stays a gap"}}:::guard
+    tailor["<b>tailor</b> · writer, one call per role<br/>picks up to 4 bullets, orders them for the job,<br/>rewords them in the posting's terms"]:::llm
+    reword{{"<b>reword guard</b> · code<br/>no number, identifier or tool name<br/>that the source bullet does not have"}}:::guard
+    letter["<b>letter</b> · writer<br/>up to 4 highlights, must-haves first, one sentence each<br/>years of experience come from the CV, not the model<br/>everything else is a fixed template"]:::llm
+    render["<b>render</b> · code<br/>Typst"]:::code
+    cvpdf(["<b>cv.pdf</b><br/>the tailored CV"]):::data
+    letterpdf(["<b>cover_letter.pdf</b>"]):::data
+    gappdf(["<b>gap_report.pdf</b>, for you only<br/>not covered (do not claim), covered and by what,<br/>what you told the agent"]):::data
+
+    inputs --> requirements --> quote --> match --> ids --> open
+    open -->|"yes"| gaps
+    gaps <-->|"calls"| tools
+    gaps --> honest --> tailor
+    open -->|"no"| tailor
+    tailor --> reword --> letter --> render
+    render --> cvpdf
+    render --> letterpdf
+    render --> gappdf
 ```
 
 | Step | Who decides | What it does |
@@ -128,6 +246,8 @@ make cv CV=private/cv.yaml JOB=private/job.txt                   # yours (privat
 
 ## ask
 
+Type: graph and agent
+
 Questions about a library of PDFs, answered with citations such as "[Dissertation §4.2, p. 57]".
 `library/library.toml` lists the documents:
 
@@ -147,25 +267,69 @@ label = "Dissertation"   # the short name used in citations
 or `LABMATE_LIBRARY=DIR`, for example a private repository next to this one; nothing from it
 enters this repository.
 
-**Index** (`make index`): each PDF is split along its outline into sections and sentence-packed
+### ask: index
+
+Type: pipeline
+
+Run with `make index`. Each PDF is split along its outline into sections and sentence-packed
 chunks of about 180 words, plus one chunk per figure or table caption. Tables flattened into rows
 of numbers are left out, because a model reads their numbers wrongly. Chunks are searched with
 BM25 (SQLite FTS5) and dense vectors (`embeddinggemma`), fused with reciprocal rank fusion. Only
 the embedding model runs at index time.
 
-**Graph** (`--agent graph`, the default): the code fixes the path.
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef llm fill:#e3f2f8,stroke:#4c8aa8,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    inputs(["<b>library.toml and the PDFs</b><br/>id, file, title and label per document"]):::data
+    sections["<b>sections</b> · code<br/>from the PDF outline, with their numbers, references dropped"]:::code
+    chunks["<b>chunks</b> · code<br/>sentence-packed, about 180 words, never across a section,<br/>one chunk per figure or table caption<br/>rows of numbers from tables are left out"]:::code
+    embed["<b>embeddings</b> · embedding model<br/>embeddinggemma, one vector per chunk"]:::llm
+    out[("<b>index.sqlite</b>, inside the library folder<br/>full-text index (BM25) and vectors")]:::data
+
+    inputs --> sections --> chunks --> embed --> out
+```
+
+### ask: graph
+
+Type: graph
+
+The default (`--agent graph`): the code fixes the path.
 
 ```mermaid
-flowchart LR
-    q([question]) --> understand
-    understand -->|off topic| abstain
-    understand -->|ambiguous| clarify{{"clarify (interrupt)"}}
-    understand --> retrieve
-    clarify --> retrieve
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef llm fill:#e3f2f8,stroke:#4c8aa8,color:#222b35
+    classDef judge fill:#efe6f8,stroke:#8a64b0,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    q(["<b>question</b>"]):::data
+    understand["<b>understand</b> · writer<br/>a search query, whether it could mean different things,<br/>whether it looks on topic"]:::llm
+    clarify["<b>clarify</b> · code, you decide<br/>the graph pauses (interrupt) and you choose one reading"]:::code
+    retrieve["<b>retrieve</b> · code<br/>hybrid search in index.sqlite: BM25 and vectors fused (RRF)<br/>skips chunks already judged relevant"]:::code
+    grade["<b>grade</b> · judge model<br/>which chunks help, is it enough to answer"]:::judge
+    rewrite["<b>rewrite</b> · writer<br/>a new query for what is missing"]:::llm
+    answer["<b>answer</b> · writer<br/>sentences, each citing chunk ids"]:::llm
+    verify["<b>verify</b> · judge model, then code<br/>the judge reads every sentence with the chunks it cites;<br/>code drops a sentence whose numbers are not in them"]:::judge
+    abstain["<b>abstain</b> · code<br/>no sentence survived or nothing relevant: says so instead of guessing"]:::code
+    out(["<b>answer</b><br/>sentences with numbered citations,<br/>for example Dissertation §5.4.3, p. 83"]):::data
+
+    q --> understand
+    understand -->|"ambiguous"| clarify --> retrieve
+    understand -->|"clear"| retrieve
     retrieve --> grade
-    grade -->|not enough| rewrite --> retrieve
-    grade -->|enough| answer --> verify --> a([answer])
-    grade -->|nothing relevant| abstain --> a
+    grade -->|"not enough, rounds left"| rewrite --> retrieve
+    grade -->|"enough, or rounds used up"| answer
+    grade -->|"nothing relevant"| abstain
+    answer --> verify
+    verify -->|"some sentences supported"| out
+    verify -->|"none"| abstain
+    abstain --> out
 ```
 
 - **understand:** decides whether the library can answer the question, and writes the search query.
@@ -177,9 +341,34 @@ flowchart LR
   then reads every sentence with its chunks and drops the unsupported ones. Code also drops a
   sentence whose numbers are not in its chunks. If nothing survives, the graph abstains.
 
-**Agent** (`--agent agent`): LangChain's `create_agent` with the tools `search_library`,
+### ask: agent
+
+Type: agent
+
+Selected with `--agent agent`: LangChain's `create_agent` with the tools `search_library`,
 `read_context` and `list_sources`. The model decides what to search, whether to read more and when
 to stop. Its answer goes through the same sentence checks as the graph's.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef judge fill:#efe6f8,stroke:#8a64b0,color:#222b35
+    classDef agent fill:#ffe9d2,stroke:#c9772b,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    q(["<b>question</b>"]):::data
+    agent[/"<b>agent</b> · the model decides<br/>which tool, what to search for, when it has enough<br/>up to 16 steps"\]:::agent
+    tools["<b>tools</b> · code<br/>search_library: hybrid search, best chunks with their ids<br/>read_context: a chunk with its neighbours<br/>list_sources: the documents in the library"]:::code
+    parse{{"<b>parse</b> · code<br/>split the final text into sentences with their chunk ids in brackets;<br/>a sentence without a valid citation is dropped"}}:::guard
+    verify["<b>verify</b> · judge model, then code<br/>the judge reads every sentence with the chunks it cites;<br/>code drops a sentence whose numbers are not in them"]:::judge
+    out(["<b>answer</b><br/>numbered citations, or a refusal"]):::data
+
+    q --> agent
+    agent <-->|"calls"| tools
+    agent -->|"final text"| parse --> verify --> out
+```
 
 ```bash
 make index                                  # library/*.pdf -> library/index.sqlite
