@@ -25,11 +25,11 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
   - `answer.py` (sentence checks, citations), `verify.py` (judge checks each sentence), `evidence.py`.
   - `evals.py`: graph vs agent on `library/golden.yaml`. `studio.py`: factories for LangGraph Studio.
 - `labmate/scout/`: the **agent** `scout`: topic → `notes.md` (tools: arXiv search, abstract, paper2flow overview, write_notes that only accepts cited papers it read).
-- `labmate/triage/`: a **workflow with a decision model**, topic + interests → `triage.md`. `decide.py` (the small `decider` model rates one paper: deep/post/skip), `run.py` (arXiv search, budget enforced by code, `--run` calls paper2flow/paper2post).
+- `labmate/triage/`: a **workflow with a decision model**, topic + interests → `triage.md`. `systemone.py` (client of Ollama's `/v1/systemone`, the endpoint decision models are served on), `decide.py` (a decision model scores one paper on five levels and code maps the score to deep/post/skip; a chat model as `decider` gets the JSON prompt instead), `run.py` (arXiv search, budget enforced by code, `--run` calls paper2flow/paper2post).
 - `labmate/cv2job/`: a **LangChain chain with one agent step**, CV + posting → `cv.pdf`, `cover_letter.pdf`, `gap_report.pdf`.
   - `steps.py` (requirements, match, tailor, highlights; the checks), `gaps.py` (the agent), `letter.py` (fixed template), `render.py`, `chain.py`.
   - Input: `cv.yaml` (see `examples/cv2job/`) and a text posting. Your own files go in `private/` (git-ignored).
-- `labmate/bench/`: `labmate bench micro|macro|report`, not part of `make check`. `micro.py` measures each model (and a judge test with planted mistakes, `judge_cases.py`), `macro.py` runs each use case on each profile (`quality.py` scores it from the existing checks), `cells.py`/`report.py` write the tables. Results are in `evals/bench/`, the page is `docs/benchmarks.md`.
+- `labmate/bench/`: `labmate bench micro|macro|report`, not part of `make check`. `micro.py` measures each model (and a judge test with planted mistakes, `judge_cases.py`), `triage.py` compares triage deciders, `macro.py` runs each use case on each profile (`quality.py` scores it from the existing checks), `cells.py`/`report.py` write the tables. Results are in `evals/bench/`, the page is `docs/benchmarks.md`.
 - `labmate/diagrams.py`: Mermaid diagrams drawn by LangChain/LangGraph. `make graphs` writes `docs/graphs.md`.
   The per-use-case pipeline diagrams are hand-drawn in `docs/pipelines.md` and copied into the README and
   `docs/index.md`; `tests/test_diagrams.py` fails if the copies differ or a chain step is missing.
@@ -50,6 +50,7 @@ make eval           # paper2flow run metrics
 make eval-answers   # evals/ask/answers.md
 make bench-micro    # per model: load, speed, tools, judging (minutes, needs Ollama)
 make bench          # use cases on each model profile (~1 h; FULL=1 adds paper2*)
+make bench-triage   # triage deciders on the labelled set (minutes)
 make bench-report   # docs/benchmarks.md from the saved results
 ```
 
@@ -86,8 +87,9 @@ stopped and rerun. Delete the file to start fresh.
 - `labmate bench` checks the free memory before it loads models (`bench/guard.py`), refuses pairs
   that do not fit, and unloads every model when a run ends. Do not start a second Ollama server
   or raise `OLLAMA_NUM_PARALLEL`: the MLX runner ignores it and `gemma4:e4b` gains no throughput.
-- The triage decider is `gemma4:e4b`. `clef-flash` (capability `decision` only) is refused by Ollama 0.35
-  for chat and generate ("does not support chat"), so it cannot be used through `ChatOllama`.
+- Decision models (`clef-flash`, `nimble`, `tev1`; capability `decision`) are refused by `/api/chat` and
+  `/api/generate`; they are served on `/v1/systemone` (`triage/systemone.py`). `[models].decider` may also be
+  a chat model. `labmate bench triage` compares deciders on `evals/triage/golden.yaml`.
 - `gemma4:26b-mlx` with thinking off sometimes replies with nothing after a tool result;
   `core/agents.run_agent` sends a reminder.
 - `LABMATE_OLLAMA_HOST` overrides `[ollama].host`, e.g. `http://192.168.0.102:11434`

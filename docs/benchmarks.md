@@ -1,6 +1,6 @@
 # Models: speed, memory and quality
 
-Measured on arm64, 34 GB memory, Darwin 25.6.0, Ollama 0.35.1, 2026-10-04. Every run starts cold (models unloaded) with the reply cache off, so it pays what a first request pays. The GPU may use about three quarters of the memory, 'fits' keeps 5 GB of that free for other programs, and a pair that does not fit is evicted and loaded again during a run. Quality is the mean of deterministic checks the code already has (no model grades another); the parts are listed. Peak memory is read from `ollama ps`, which under-reports models run by llama-server (`gemma4:e4b`, `gemma4:e2b`). Run-to-run variation is about 30% (the same ask run took 25 and 32 s). `make bench-micro`, `make bench` and `make bench-report` reproduce this page.
+Measured on arm64, 34 GB memory, Darwin 25.6.0, Ollama 0.35.1, 2026-10-05. Every run starts cold (models unloaded) with the reply cache off, so it pays what a first request pays. The GPU may use about three quarters of the memory, 'fits' keeps 5 GB of that free for other programs, and a pair that does not fit is evicted and loaded again during a run. Quality is the mean of deterministic checks the code already has (no model grades another); the parts are listed. Peak memory is read from `ollama ps`, which under-reports models run by llama-server (`gemma4:e4b`, `gemma4:e2b`). Run-to-run variation is about 30% (the same ask run took 25 and 32 s). `make bench-micro`, `make bench` and `make bench-report` reproduce this page.
 
 ## Single models
 
@@ -90,6 +90,18 @@ Target: under 180 s. Quality parts are between 0 and 1.
 | small | `gemma4:e4b` | `gemma4:e4b` | 109 s | yes | 2 s | 0 | 0.4 GB | 11 | 23570/2495 | **100%** | notes written 1.00, papers cited (of 5) 1.00 |
 | ornith | `ornith-1.5:9b` | `gemma4:e4b` | 276 s | **no** | 1 s | 0 | 6.7 GB | 10 | 48581/3835 | **100%** | notes written 1.00, papers cited (of 5) 1.00 |
 
+
+## Triage deciders
+
+36 cases: 18 arXiv papers, each labelled `deep`, `post` or `skip` by hand for two sets of interests (`evals/triage/golden.yaml`). A decision model scores relevance in one pass and code maps the score to an action (`>= 3.0` deep, `>= 1.75` post); a chat model is asked for the action as validated JSON. The two thresholds were picked on these cases; picked on one set of interests and tested on the other, `clef-flash` gets 30, `nimble` 29 and `tev1` 28 of 36 right. `clef` (27B, 18 GB) does not fit next to the writer.
+
+| Decider | Kind | Size | Action right | Read or skip right | Deep or not right | Median per paper |
+|---|---|---|---|---|---|---|
+| `clef-flash` | decision | 10.9 GB | 30/36 | 33/36 | 33/36 | 2.2 s |
+| `nimble` | decision | 9.5 GB | 29/36 | 32/36 | 32/36 | 2.4 s |
+| `tev1` | decision | 4.5 GB | 28/36 | 33/36 | 31/36 | 1.2 s |
+| `gemma4:e4b` | chat | 6.6 GB | 16/36 | 25/36 | 20/36 | 3.1 s |
+| `tev1:0.8b` | decision | 0.8 GB | 7/36 | 16/36 | 8/36 | 0.2 s |
 
 ## Parallel requests
 

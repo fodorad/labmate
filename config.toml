@@ -9,7 +9,7 @@ timeout_s = 900
 # Model roles. Tags must match `ollama list`.
 text = "gemma4:26b-mlx"   # writer: 16.7 GB, a mixture of experts with ~4B active parameters
 critic = "gemma4:26b-mlx" # judge: the same model, so only one model is loaded (16.7 GB)
-decider = "gemma4:e4b"  # triage: a small, fast model that only decides
+decider = "clef-flash"  # triage: a decision model (10 GB), see `ollama show clef-flash`
 embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
 
 # Model profiles: `labmate --profile NAME ...` (or LABMATE_PROFILE=NAME) swaps the writer and the judge.

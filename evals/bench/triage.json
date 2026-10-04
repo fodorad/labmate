@@ -1,0 +1,52 @@
+{
+  "clef-flash": {
+    "model": "clef-flash",
+    "kind": "decision",
+    "cases": 36,
+    "exact": 30,
+    "read": 33,
+    "deep": 33,
+    "median_s": 2.2157924375023867,
+    "error": ""
+  },
+  "nimble": {
+    "model": "nimble",
+    "kind": "decision",
+    "cases": 36,
+    "exact": 29,
+    "read": 32,
+    "deep": 32,
+    "median_s": 2.4181132080011594,
+    "error": ""
+  },
+  "tev1": {
+    "model": "tev1",
+    "kind": "decision",
+    "cases": 36,
+    "exact": 28,
+    "read": 33,
+    "deep": 31,
+    "median_s": 1.1692510414977733,
+    "error": ""
+  },
+  "tev1:0.8b": {
+    "model": "tev1:0.8b",
+    "kind": "decision",
+    "cases": 36,
+    "exact": 7,
+    "read": 16,
+    "deep": 8,
+    "median_s": 0.21558264600025723,
+    "error": ""
+  },
+  "gemma4:e4b": {
+    "model": "gemma4:e4b",
+    "kind": "chat",
+    "cases": 36,
+    "exact": 16,
+    "read": 25,
+    "deep": 20,
+    "median_s": 3.1308661665025284,
+    "error": ""
+  }
+}

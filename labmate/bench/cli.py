@@ -22,6 +22,8 @@ from labmate.bench.micro import (
     unload_all,
 )
 from labmate.bench.report import HEADROOM_GB, machine, memory_gb, micro_markdown, profile_rows
+from labmate.bench.triage import DeciderResult, evaluate, load_golden, triage_markdown
+from labmate.bench.triage import to_dict as decider_dict
 from labmate.config import Config
 
 log = logging.getLogger(__name__)
@@ -53,6 +55,11 @@ def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-ar
     macro.add_argument("--out", **out)
     macro.add_argument("--force", action="store_true", help="run cells already run")
 
+    triage = actions.add_parser("triage", help="compare triage deciders on a labelled set")
+    triage.add_argument("--models", nargs="*", help="default: the decision models and gemma4:e4b")
+    triage.add_argument("--out", **out)
+    triage.add_argument("--force", action="store_true", help="measure models already measured")
+
     report = actions.add_parser("report", help="write docs/benchmarks.md from the saved results")
     report.add_argument("--out", **out)
     report.add_argument("--docs", type=Path, default=Path("docs/benchmarks.md"))
@@ -71,6 +78,17 @@ def profile_models(config: Config) -> tuple[list[str], list[str]]:
     writers = [config.models.text, *(p.text for p in profiles)]
     judges = [config.models.critic, *(p.critic for p in profiles)]
     return list(dict.fromkeys(writers)), list(dict.fromkeys(judges))
+
+
+TRIAGE_NOTE = (
+    "36 cases: 18 arXiv papers, each labelled `deep`, `post` or `skip` by hand for two sets of "
+    "interests (`evals/triage/golden.yaml`). A decision model scores relevance in one pass and "
+    "code maps the score to an action (`>= 3.0` deep, `>= 1.75` post); a chat model is asked for "
+    "the action as validated JSON. The two thresholds were picked on these cases; picked on one "
+    "set of interests and tested on the other, `clef-flash` gets 30, `nimble` 29 and `tev1` 28 of "
+    "36 right. `clef` (27B, 18 GB) does not fit next to the writer."
+)
+"""How the triage deciders were compared."""
 
 
 PARALLEL = (
@@ -123,6 +141,46 @@ def run_micro(config: Config, args: argparse.Namespace) -> int:
     text = micro_markdown(_micro_results(out), config, memory_gb())
     (out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
     print(text)
+    return 0
+
+
+DECIDERS = ("clef-flash", "nimble", "tev1", "tev1:0.8b", "gemma4:e4b")
+"""The decision models on Ollama that fit this Mac, and a chat model as the baseline."""
+
+
+def _deciders(out: Path) -> list[DeciderResult]:
+    file = out / "triage.json"
+    return (
+        [DeciderResult(**d) for d in json.loads(file.read_text()).values()] if file.exists() else []
+    )
+
+
+def run_triage_eval(config: Config, args: argparse.Namespace) -> int:
+    """Rate the labelled papers with each decider, saving as it goes.
+
+    Args:
+        config: Loaded configuration.
+        args: Parsed arguments (``models``, ``out``, ``force``).
+
+    Returns:
+        Exit code 0.
+    """
+    golden = load_golden()
+    out: Path = args.out
+    out.mkdir(parents=True, exist_ok=True)
+    file = out / "triage.json"
+    done = {} if args.force or not file.exists() else json.loads(file.read_text())
+    sizes = model_sizes(config.ollama.host)
+    for tag in args.models or DECIDERS:
+        if tag in done:
+            log.info("  have %s", tag)
+            continue
+        unload_all(config.ollama.host)
+        require_room(sizes.get(tag, 0.0), memory_gb())
+        log.info("rating with %s", tag)
+        done[tag] = decider_dict(evaluate(config, tag, golden))
+        file.write_text(json.dumps(done, indent=2) + "\n")
+    print(triage_markdown(_deciders(out), sizes))
     return 0
 
 
@@ -221,6 +279,13 @@ def run_report(config: Config, args: argparse.Namespace) -> int:
         "",
         cells_markdown(cells) if cells else "No use case has been run yet.",
         "",
+        "## Triage deciders",
+        "",
+        TRIAGE_NOTE,
+        "",
+        triage_markdown(_deciders(args.out), model_sizes(config.ollama.host))
+        if _deciders(args.out)
+        else "Not measured yet (`labmate bench triage`).",
         "## Parallel requests",
         "",
         PARALLEL,
@@ -242,7 +307,12 @@ def main(config: Config, args: argparse.Namespace) -> int:
     """
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    actions = {"micro": run_micro, "macro": run_macro, "report": run_report}
+    actions = {
+        "micro": run_micro,
+        "macro": run_macro,
+        "triage": run_triage_eval,
+        "report": run_report,
+    }
     try:
         return actions[args.action](config, args)
     except NotEnoughMemory as e:

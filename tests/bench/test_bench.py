@@ -124,3 +124,26 @@ def test_the_guard_reads_free_memory_and_refuses_models_that_do_not_fit():
         require_room(models_gb=23.3, ram_gb=32, free_gb=30.0)
     with pytest.raises(NotEnoughMemory, match="only 8.0 GB are free"):
         require_room(models_gb=10.0, ram_gb=32, free_gb=8.0)
+
+
+def test_a_decider_is_scored_against_the_labels(fake):
+    from labmate.bench.triage import evaluate, triage_markdown
+
+    papers = [
+        {"title": "Alpha", "abstract": "a", "expected": {"A": "deep"}},
+        {"title": "Bravo", "abstract": "b", "expected": {"A": "skip"}},
+        {"title": "Charlie", "abstract": "c", "expected": {"A": "post"}},
+    ]
+    golden = {"interests": {"A": "video"}, "papers": papers}
+    scores = {"Alpha": 3.5, "Bravo": 2.5, "Charlie": 2.0}
+    fake.systemone_handler = lambda body: {
+        "answers": {
+            "relevance": {"score": scores[body["state"].split("Paper title: ")[1].split("\n")[0]]}
+        }
+    }
+
+    result = evaluate(Config(), "clef-flash", golden, fake.transport())
+
+    assert result.kind == "decision" and result.cases == 3
+    assert (result.exact, result.read, result.deep) == (2, 2, 3)  # Bravo is rated post, not skip
+    assert "2/3" in triage_markdown([result], {"clef-flash": 10.0})

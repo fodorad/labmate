@@ -16,7 +16,15 @@ from pydantic import BaseModel
 from labmate.config import CacheConfig, Config
 from labmate.core.chat import chat_model
 
-INSTALLED = ("qwen3.8:27b-mlx", "gemma4:26b-mlx", "gemma4:e4b", "embeddinggemma:latest")
+INSTALLED = (
+    "qwen3.8:27b-mlx",
+    "gemma4:26b-mlx",
+    "gemma4:e4b",
+    "embeddinggemma:latest",
+    "clef-flash",
+)
+DECISION_MODELS = ("clef-flash",)
+"""Installed models that Ollama lists with the ``decision`` capability."""
 
 
 class SampleClaim(BaseModel):
@@ -84,6 +92,11 @@ def tool_call(body: dict[str, Any], name: str, **arguments: Any) -> dict[str, An
     return {"model": body["model"], "message": message}
 
 
+def default_systemone(body: dict[str, Any]) -> dict[str, Any]:
+    """A decision model that scores every score question 2.0 (a neighbouring area)."""
+    return {"answers": {name: {"type": "score", "score": 2.0} for name in body["questions"]}}
+
+
 class FakeOllama:
     """In-memory stand-in for an Ollama server, served through ``httpx.MockTransport``."""
 
@@ -91,6 +104,7 @@ class FakeOllama:
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.chat_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_chat
         self.embed_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_embed
+        self.systemone_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_systemone
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -103,6 +117,15 @@ class FakeOllama:
             return httpx.Response(200, json=self.chat_handler(body))
         if path == "/api/embed":
             return httpx.Response(200, json=self.embed_handler(body))
+        if path == "/api/ps":
+            return httpx.Response(200, json={"models": []})
+        if path == "/api/show":
+            capabilities = ["decision"] if model in DECISION_MODELS else ["completion", "tools"]
+            return httpx.Response(200, json={"capabilities": capabilities})
+        if path == "/v1/systemone":
+            if model not in DECISION_MODELS:
+                return httpx.Response(400, json={"error": f"{model} is not a decision model"})
+            return httpx.Response(200, json=self.systemone_handler(body))
         return httpx.Response(404, text="not found")
 
     def transport(self) -> httpx.MockTransport:

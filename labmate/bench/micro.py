@@ -119,11 +119,13 @@ def model_sizes(host: str, transport: httpx.BaseTransport | None = None) -> dict
         transport: An httpx transport to reach it through (tests).
 
     Returns:
-        Model tag to gigabytes.
+        Model tag to gigabytes; a ``name:latest`` model is also listed as ``name``.
     """
     with httpx.Client(transport=transport, timeout=30) as http:
         models = http.get(f"{host}/api/tags").json().get("models", [])
-    return {m["name"]: m["size"] / 1e9 for m in models}
+    sizes = {m["name"]: m["size"] / 1e9 for m in models}
+    sizes.update({name.removesuffix(":latest"): gb for name, gb in sizes.items()})
+    return sizes
 
 
 JUDGE_MAX_TOKENS = 800
