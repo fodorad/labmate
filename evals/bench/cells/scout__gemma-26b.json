@@ -1,0 +1,19 @@
+{
+  "use_case": "scout",
+  "profile": "gemma-26b",
+  "writer": "gemma4:26b-mlx",
+  "judge": "gemma4:26b-mlx",
+  "seconds": 49.06049895800243,
+  "calls": 10,
+  "tokens_in": 14895,
+  "tokens_out": 565,
+  "load_s": 9.141383083000001,
+  "swaps": 0,
+  "peak_gb": 21.999075532,
+  "quality": 80.0,
+  "parts": {
+    "notes written": 1.0,
+    "papers cited (of 5)": 0.6
+  },
+  "error": ""
+}

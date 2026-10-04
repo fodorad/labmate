@@ -1,0 +1,20 @@
+{
+  "use_case": "ask: graph",
+  "profile": "ornith",
+  "writer": "ornith-1.5:9b",
+  "judge": "gemma4:e4b",
+  "seconds": 47.6536840105,
+  "calls": 14,
+  "tokens_in": 26839,
+  "tokens_out": 1699,
+  "load_s": 8.277110376,
+  "swaps": 0,
+  "peak_gb": 7.469541617,
+  "quality": 100.0,
+  "parts": {
+    "right answer or refusal": 1.0,
+    "expected source cited": 1.0,
+    "sentences kept": 1.0
+  },
+  "error": ""
+}

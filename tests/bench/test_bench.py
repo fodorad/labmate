@@ -52,11 +52,11 @@ def test_the_tables_say_which_profiles_fit_in_memory_together():
     rows = {row.profile: row for row in profile_rows(config, sizes, ram_gb=32)}
 
     assert not rows["current"].fits and rows["current"].gb == 37.0  # swaps on a 32 GB Mac
-    assert rows["mixed"].fits and rows["mixed"].gb == 22.6
-    assert rows["single"].gb == 16.0  # one model counts once
+    assert not rows["mixed"].fits and rows["mixed"].gb == 22.6  # the GPU may use 24 GB, minus 5
+    assert rows["single"].gb == 16.0 and rows["single"].fits  # one model counts once
     results = [ModelResult(tag, size_gb=gb, load_s=4, decode_tps=30) for tag, gb in sizes.items()]
     text = micro_markdown(results, config, 32)
-    assert "**no, models are swapped**" in text and "`small`" in text
+    assert "**no, a model is evicted**" in text and "`small`" in text
 
 
 def test_unloading_asks_ollama_to_drop_every_loaded_model():

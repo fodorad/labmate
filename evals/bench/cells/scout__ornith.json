@@ -1,0 +1,19 @@
+{
+  "use_case": "scout",
+  "profile": "ornith",
+  "writer": "ornith-1.5:9b",
+  "judge": "gemma4:e4b",
+  "seconds": 276.1177862080003,
+  "calls": 10,
+  "tokens_in": 48581,
+  "tokens_out": 3835,
+  "load_s": 1.4211742490000001,
+  "swaps": 0,
+  "peak_gb": 6.731585288,
+  "quality": 100.0,
+  "parts": {
+    "notes written": 1.0,
+    "papers cited (of 5)": 1.0
+  },
+  "error": ""
+}

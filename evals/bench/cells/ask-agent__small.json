@@ -1,0 +1,20 @@
+{
+  "use_case": "ask: agent",
+  "profile": "small",
+  "writer": "gemma4:e4b",
+  "judge": "gemma4:e4b",
+  "seconds": 21.73000675000003,
+  "calls": 9,
+  "tokens_in": 14478,
+  "tokens_out": 985,
+  "load_s": 6.9168097500000005,
+  "swaps": 0,
+  "peak_gb": 1.023169001,
+  "quality": 68.4,
+  "parts": {
+    "right answer or refusal": 0.75,
+    "expected source cited": 0.6666666666666666,
+    "sentences kept": 0.6363636363636364
+  },
+  "error": ""
+}

@@ -9,6 +9,10 @@ from dataclasses import dataclass
 from labmate.bench.micro import ModelResult
 from labmate.config import Config
 
+GPU_SHARE = 0.75
+"""Share of the machine's memory the GPU may use (macOS's default limit; Ollama reports about
+26 GB on a 32 GB Mac)."""
+
 HEADROOM_GB = 5.0
 """Memory kept for macOS and other programs when asking whether models fit."""
 
@@ -67,7 +71,11 @@ def profile_rows(config: Config, sizes: dict[str, float], ram_gb: float) -> list
         together = sum(sizes.get(tag, 0.0) for tag in dict.fromkeys([profile.text, profile.critic]))
         rows.append(
             ProfileRow(
-                name, profile.text, profile.critic, together, together <= ram_gb - HEADROOM_GB
+                name,
+                profile.text,
+                profile.critic,
+                together,
+                together <= GPU_SHARE * ram_gb - HEADROOM_GB,
             )
         )
     return rows
@@ -105,12 +113,12 @@ def micro_markdown(results: list[ModelResult], config: Config, ram_gb: float) ->
     sizes = {r.model: r.size_gb for r in results}
     profiles = [
         f"| Profile | Writer | Judge | Together "
-        f"| Fits in {ram_gb:.0f} GB (keeping {HEADROOM_GB:.0f} GB free) |",
+        f"| Fits in {GPU_SHARE * ram_gb:.0f} GB GPU memory (keeping {HEADROOM_GB:.0f} GB free) |",
         "|---|---|---|---|---|",
     ]
     for row in profile_rows(config, sizes, ram_gb):
         profiles.append(
             f"| {row.profile} | `{row.writer}` | `{row.judge}` | {row.gb:.1f} GB "
-            f"| {'yes' if row.fits else '**no, models are swapped**'} |"
+            f"| {'yes' if row.fits else '**no, a model is evicted**'} |"
         )
     return "\n".join(["### Models", "", *models, "", "### Profiles", "", *profiles, ""])

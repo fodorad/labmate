@@ -30,6 +30,14 @@ critic = "gemma4:e2b"
 text = "gemma4:e4b"
 critic = "gemma4:e4b"
 
+[profiles.ornith]         # a 9B writer with a small judge, 13 GB together
+text = "ornith-1.5:9b"
+critic = "gemma4:e4b"
+
+[profiles.ornith-solo]    # one 9B model for both roles, 6.6 GB
+text = "ornith-1.5:9b"
+critic = "ornith-1.5:9b"
+
 [profiles.qwen]           # fallback writer if the gemma writer is not good enough, 24.6 GB together
 text = "qwen3.8:27b-mlx"
 critic = "gemma4:e4b"

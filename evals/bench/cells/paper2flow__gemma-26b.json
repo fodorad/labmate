@@ -1,0 +1,20 @@
+{
+  "use_case": "paper2flow",
+  "profile": "gemma-26b",
+  "writer": "gemma4:26b-mlx",
+  "judge": "gemma4:26b-mlx",
+  "seconds": 416.10256566700264,
+  "calls": 24,
+  "tokens_in": 40485,
+  "tokens_out": 6180,
+  "load_s": 19.057619332,
+  "swaps": 1,
+  "peak_gb": 25.534783692,
+  "quality": 92.6,
+  "parts": {
+    "first-draft bullets passing": 0.8666666666666667,
+    "claims kept": 0.9117647058823529,
+    "cards kept": 1.0
+  },
+  "error": ""
+}

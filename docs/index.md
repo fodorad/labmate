@@ -446,4 +446,5 @@ unchanged requests do not. Delete the file to start fresh.
 :caption: Contents
 
 api
+benchmarks
 ```

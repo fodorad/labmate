@@ -1,0 +1,19 @@
+{
+  "use_case": "cv2job",
+  "profile": "mixed",
+  "writer": "gemma4:26b-mlx",
+  "judge": "gemma4:e4b",
+  "seconds": 71.02316766600416,
+  "calls": 15,
+  "tokens_in": 7922,
+  "tokens_out": 971,
+  "load_s": 8.258559541,
+  "swaps": 0,
+  "peak_gb": 20.838606028,
+  "quality": 100.0,
+  "parts": {
+    "requirements classified right": 1.0,
+    "PDFs produced": 1.0
+  },
+  "error": ""
+}

@@ -1,0 +1,19 @@
+{
+  "use_case": "cv2job",
+  "profile": "ornith",
+  "writer": "ornith-1.5:9b",
+  "judge": "gemma4:e4b",
+  "seconds": 53.6219534999982,
+  "calls": 10,
+  "tokens_in": 4581,
+  "tokens_out": 563,
+  "load_s": 1.5839724160000002,
+  "swaps": 0,
+  "peak_gb": 6.731585288,
+  "quality": 90.0,
+  "parts": {
+    "requirements classified right": 0.8,
+    "PDFs produced": 1.0
+  },
+  "error": ""
+}

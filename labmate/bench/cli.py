@@ -161,16 +161,21 @@ def run_report(config: Config, args: argparse.Namespace) -> int:
         Exit code 0.
     """
     cells: list[Cell] = load(args.out / "cells") if (args.out / "cells").exists() else []
+    intro = (
+        f"Measured on {machine()}, Ollama {_ollama_version(config.ollama.host)}, {date.today()}. "
+        "Every run starts cold (models unloaded) with the reply cache off, so it pays what a "
+        "first request pays. The GPU may use about three quarters of the memory, 'fits' keeps "
+        f"{HEADROOM_GB:.0f} GB of that free for other programs, and a pair that does not fit is "
+        "evicted and loaded again during a run. Quality is the mean of deterministic checks the "
+        "code already has (no model grades another); the parts are listed. Peak memory is read "
+        "from `ollama ps`, which under-reports models run by llama-server (`gemma4:e4b`, "
+        "`gemma4:e2b`). Run-to-run variation is about 30% (the same ask run took 25 and 32 s). "
+        "`make bench-micro`, `make bench` and `make bench-report` reproduce this page."
+    )
     page = [
         "# Models: speed, memory and quality",
         "",
-        f"Measured on {machine()}, Ollama {_ollama_version(config.ollama.host)}, {date.today()}.",
-        "Every run starts cold (models unloaded) with the reply cache off, so it pays what a first",
-        f"request pays. 'Fits' leaves {HEADROOM_GB:.0f} GB for macOS and other programs.",
-        "Quality is",
-        "the mean of deterministic checks the code already has (no model grades another); the",
-        "parts are listed.",
-        "`make bench-micro`, `labmate bench macro` and `labmate bench report` reproduce this page.",
+        intro,
         "",
         "## Single models",
         "",

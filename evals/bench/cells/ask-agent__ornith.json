@@ -1,0 +1,20 @@
+{
+  "use_case": "ask: agent",
+  "profile": "ornith",
+  "writer": "ornith-1.5:9b",
+  "judge": "gemma4:e4b",
+  "seconds": 56.69252001050154,
+  "calls": 13,
+  "tokens_in": 34307,
+  "tokens_out": 2447,
+  "load_s": 4.180440459000001,
+  "swaps": 0,
+  "peak_gb": 7.469541617,
+  "quality": 86.3,
+  "parts": {
+    "right answer or refusal": 1.0,
+    "expected source cited": 1.0,
+    "sentences kept": 0.5882352941176471
+  },
+  "error": ""
+}
