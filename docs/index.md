@@ -15,6 +15,7 @@ each step) or **the model** (an agent that picks its own tools).
 | **paper2flow** | A research paper in, `overview.pdf` out: a cover, four fact-checked cards and data-flow diagrams | code | LangChain chain |
 | **paper2post** | A research paper in, `post.pdf` out: a fact-checked LinkedIn post, its links and the pipeline image | code | LangChain chain |
 | **scout** | A topic in, notes on papers found on arXiv out | the model | LangChain `create_agent` |
+| **triage** | A topic and your interests in, arXiv hits sorted into deep read, post or skip out | code, with a decision per paper from the model | LangChain chain |
 | **cv2job** | A CV and a job posting in, a tailored CV, a cover letter and a gap report out | code, with one agent step | LangChain chain + `create_agent` |
 | **ask** (graph) | A question about a library of PDFs in, a cited answer out | code | LangGraph graph |
 | **ask** (agent) | The same task, with the model choosing its tools | the model | LangChain `create_agent` |
@@ -29,7 +30,7 @@ scout are agents; cv2job is a workflow whose `gaps` step is an agent.
 | Shape and colour | Meaning |
 |---|---|
 | grey box | plain code, no model |
-| blue box | a model call (the writer, `[models].text`) |
+| blue box | a model call (the writer, `[models].text`; in triage the decider, `[models].decider`) |
 | purple box | the judge model (`[models].critic`) |
 | orange trapezoid | an agent: the model chooses the next action |
 | red hexagon | a check in code that can send the model back or drop its output |
@@ -383,6 +384,42 @@ make graphs                                 # Mermaid diagrams of every chain an
 make studio                                 # LangGraph Studio (needs a free LangSmith account)
 ```
 
+## triage
+
+Type: workflow with a decision model
+
+A topic and your interests in, a sorted reading list out. The code searches arXiv and loops over the
+papers; the decider model (`[models].decider`, a small fast one) makes one decision per paper: read
+it deeply, make a post of it, or skip it. The code keeps the deep reads within a budget. With `--run`
+the chosen papers go through paper2flow or paper2post.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 460, "nodeSpacing": 30, "rankSpacing": 38, "padding": 10}}}%%
+flowchart TD
+    classDef code fill:#f1efea,stroke:#8a8478,color:#222b35
+    classDef llm fill:#e3f2f8,stroke:#4c8aa8,color:#222b35
+    classDef guard fill:#fde8e6,stroke:#c0504d,color:#222b35
+    classDef data fill:#fffefd,stroke:#b9b3a8,color:#222b35
+
+    topic(["<b>topic</b> and <b>interests</b><br/>for example efficient attention for video"]):::data
+    search["<b>search</b> · code<br/>live arXiv search, the first --limit papers (default 8)"]:::code
+    decide["<b>decide</b> · decider model, once per paper<br/>reads the title and abstract against the interests<br/>deep, post or skip, relevance 1 to 5, a reason of at most 25 words"]:::llm
+    budget{{"<b>budget</b> · code<br/>only the --budget most relevant deep papers stay deep (default 2), the rest become skip"}}:::guard
+    report(["<b>runs/triage/topic/triage.md</b><br/>and decisions.jsonl"]):::data
+    run["<b>--run</b> · code<br/>deep: paper2flow, post: paper2post"]:::code
+    out(["<b>runs/id/overview.pdf</b> or <b>post.pdf</b>"]):::data
+
+    topic --> search --> decide --> budget --> report
+    budget -.->|"only with --run"| run --> out
+```
+
+```bash
+make triage TOPIC="efficient attention for video" INTEREST="video emotion recognition"
+make triage TOPIC="..." INTERESTS=private/interests.md RUN=1   # also make the PDFs
+```
+
+Without `--run` nothing but the table is made, so a triage costs one short model call per paper.
+
 ## Evaluation
 
 ```bash
@@ -403,6 +440,7 @@ make eval-answers   # ask: graph vs agent on library/golden.yaml -> evals/ask/an
 |---|---|
 | Writer / planner (`[models].text`) | `gemma4:26b-mlx` |
 | Judge (`[models].critic`) | `gemma4:26b-mlx`, the same model, so only one model is loaded |
+| Decider (triage, `[models].decider`) | `gemma4:e4b`, a small model that only decides |
 | Embeddings | `embeddinggemma:latest` |
 
 The model is a 16.7 GB mixture of experts (about 4B active parameters), so it reads and writes

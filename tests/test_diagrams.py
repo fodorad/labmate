@@ -27,7 +27,7 @@ def test_the_readme_shows_the_same_pipeline_diagrams_as_the_docs_page():
     readme = (ROOT / "README.md").read_text()
     index = (ROOT / "docs" / "index.md").read_text()
 
-    assert len(page) == 7  # one per use case; ask has its index, graph and agent
+    assert len(page) == 8  # one per use case; ask has its index, graph and agent
     assert all(block in readme and block in index for block in page)
 
 
@@ -35,7 +35,7 @@ def test_the_readme_gives_every_use_case_the_same_type_as_the_docs_page():
     page = (ROOT / "docs" / "pipelines.md").read_text()
     types = re.findall(r"^## (.+)\n\nType: (.+)\n", page, re.MULTILINE)
 
-    assert len(types) == 7
+    assert len(types) == 8
     for name in ("README.md", "docs/index.md"):
         text = (ROOT / name).read_text()
         for use_case, kind in types:

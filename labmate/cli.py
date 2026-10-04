@@ -3,6 +3,7 @@
 - ``paper2flow`` / ``paper2post``: a paper in, ``overview.pdf`` / ``post.pdf`` out.
 - ``bench``: measure models and use cases (speed, memory, quality); not part of ``make check``.
 - ``scout``: a research agent that searches arXiv and writes notes on a topic.
+- ``triage``: a small decision model sorts arXiv hits into deep read, post or skip.
 - ``cv2job``: a CV and a job posting in, a tailored CV, a cover letter and a gap report out.
 - ``ask``: questions about your research (see :mod:`labmate.ask.cli`).
 - ``eval``: metrics of the finished paper runs.
@@ -120,6 +121,20 @@ def build_parser() -> argparse.ArgumentParser:
     scout.add_argument("--deep", type=int, default=2, help="papers it may look at deeply (slow)")
     scout.add_argument("--out", type=Path, help="output folder (default: runs/scout/<topic>)")
 
+    triage = sub.add_parser("triage", help="a small model sorts arXiv hits: deep read, post, skip")
+    triage.add_argument("topic", help="what to search for, e.g. 'efficient attention for video'")
+    triage.add_argument(
+        "--interests",
+        type=Path,
+        default=Path("private/interests.md"),
+        help="a text file on what you work on (default: private/interests.md)",
+    )
+    triage.add_argument("--interest", help="the interests as text, instead of a file")
+    triage.add_argument("--limit", type=int, default=8, help="papers to look at")
+    triage.add_argument("--budget", type=int, default=2, help="most papers to read deeply")
+    triage.add_argument("--run", action="store_true", help="also make the overviews and posts")
+    triage.add_argument("--out", type=Path, help="output folder (default: runs/triage/<topic>)")
+
     cv = sub.add_parser("cv2job", help="a CV and a job posting -> tailored CV, letter, gap report")
     cv.add_argument("cv", type=Path, help="your CV as YAML (see examples/cv2job/cv.yaml)")
     cv.add_argument("job", type=Path, help="the job posting as a text file")
@@ -182,6 +197,42 @@ def cmd_scout(
         print("error: the agent stopped without writing notes", file=sys.stderr)
         return 1
     print(notes)
+    return 0
+
+
+def cmd_triage(
+    config: Config,
+    args: argparse.Namespace,
+    web: httpx.BaseTransport | None,
+    ollama: httpx.BaseTransport | None,
+) -> int:
+    """Let the decision model sort the arXiv hits for a topic.
+
+    Args:
+        config: Loaded configuration.
+        args: Parsed arguments (``topic``, ``interests``, ``interest``, ``limit``, ``budget``,
+            ``run``, ``out``).
+        web: Transport for arXiv (tests); the network otherwise.
+        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+
+    Returns:
+        Exit code: 0 on success, 1 if there are no interests to judge by.
+    """
+    from labmate.triage.run import run_triage  # noqa: PLC0415 - needs the [ask] extra
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    if args.interest:
+        interests = args.interest
+    elif args.interests.exists():
+        interests = args.interests.read_text().strip()
+    else:
+        print(f"error: say what you work on: --interest TEXT or the file {args.interests}",
+              file=sys.stderr)  # fmt: skip
+        return 1
+    out = args.out or config.tracing.runs_dir / "triage" / slugify(args.topic)
+    run_triage(config, args.topic, interests, out, args.limit, args.budget, args.run, web, ollama)
+    print(out / "triage.md")
     return 0
 
 
@@ -258,6 +309,8 @@ def main(
             return bench_main(config, args)
         if args.command == "scout":
             return cmd_scout(config, args, web, ollama)
+        if args.command == "triage":
+            return cmd_triage(config, args, web, ollama)
         if args.command == "cv2job":
             return cmd_cv2job(config, args, ask, ollama)
         return cmd_paper(config, args, web, ollama)

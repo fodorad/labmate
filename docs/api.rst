@@ -86,6 +86,17 @@ A topic in, notes on arXiv papers out.
 .. automodule:: labmate.scout.agent
    :members:
 
+triage
+------
+
+A topic and your interests in, arXiv hits sorted into deep read, post or skip out.
+
+.. automodule:: labmate.triage
+.. automodule:: labmate.triage.decide
+   :members:
+.. automodule:: labmate.triage.run
+   :members:
+
 cv2job
 ------
 

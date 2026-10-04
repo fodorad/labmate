@@ -52,6 +52,7 @@ import labmate.ask.studio  # noqa: E402,F401
 import labmate.cv2job.chain  # noqa: E402,F401
 import labmate.paper2post.chain  # noqa: E402,F401
 import labmate.scout.agent  # noqa: E402,F401
+import labmate.triage.run  # noqa: E402,F401
 
 
 def _drop_foreign_docstrings(app, what, name, obj, options, lines):
