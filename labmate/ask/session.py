@@ -47,10 +47,12 @@ def open_ask(config: Config, ollama: httpx.BaseTransport | None = None) -> AskSe
         The session.
     """
     models = config.models
+    window = config.generation.model_copy(update={"num_ctx": config.ask.num_ctx})
+    chat_config = config.model_copy(update={"generation": window})
     return AskSession(
         config=config,
-        writer=chat_model(config, models.text, transport=ollama),
-        judge=chat_model(config, models.critic, transport=ollama),
+        writer=chat_model(chat_config, models.text, transport=ollama),
+        judge=chat_model(chat_config, models.critic, transport=ollama),
         embedder=Embedder(embedder(config, transport=ollama), models.embed, config.ask.embed_batch),
         index=Index(config.ask.index_file),
     )

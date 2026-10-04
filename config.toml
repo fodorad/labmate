@@ -7,9 +7,40 @@ timeout_s = 900
 
 [models]
 # Model roles. Tags must match `ollama list`.
-text = "qwen3.6:35b-mlx"
-critic = "gemma4:26b-mlx"
+text = "gemma4:26b-mlx"   # writer: 16.7 GB, a mixture of experts with ~4B active parameters
+critic = "gemma4:26b-mlx" # judge: the same model, so only one model is loaded (16.7 GB)
 embed = "embeddinggemma:latest"  # ask: chunk and query embeddings
+
+# Model profiles: `labmate --profile NAME ...` (or LABMATE_PROFILE=NAME) swaps the writer and the judge.
+# `make bench` compares them. The sizes are what Ollama lists; the GPU can use about 26 GB of this Mac's
+# 32 GB, and only what is not used by other programs counts, so the pair has to be well below that.
+[profiles.gemma-26b]      # the default: one model for both roles, 16.7 GB
+text = "gemma4:26b-mlx"
+critic = "gemma4:26b-mlx"
+
+[profiles.mixed]          # a separate small judge, 23 GB together (tight: Ollama may evict one)
+text = "gemma4:26b-mlx"
+critic = "gemma4:e4b"
+
+[profiles.fast]           # smaller judge, 21 GB together
+text = "gemma4:26b-mlx"
+critic = "gemma4:e2b"
+
+[profiles.small]          # one small model for both roles, 6.6 GB
+text = "gemma4:e4b"
+critic = "gemma4:e4b"
+
+[profiles.ornith]         # a 9B writer with a small judge, 13 GB together
+text = "ornith-1.5:9b"
+critic = "gemma4:e4b"
+
+[profiles.ornith-solo]    # one 9B model for both roles, 6.6 GB
+text = "ornith-1.5:9b"
+critic = "ornith-1.5:9b"
+
+[profiles.qwen]           # fallback writer if the gemma writer is not good enough, 24.6 GB together
+text = "qwen3.8:27b-mlx"
+critic = "gemma4:e4b"
 
 [generation]
 temperature = 0.0
@@ -31,8 +62,9 @@ runs_dir = "runs"
 [ask]
 library = "library"                 # library.toml + the PDFs; index.sqlite is kept inside it
 chunk_words = 180
-top_k = 6
+top_k = 4
 max_loops = 2                       # retrieve -> grade -> rewrite rounds per question
+num_ctx = 8192                      # context window of the ask models (short prompts; keeps both loaded)
 
 [post.links]
 # Your links, shown under every LinkedIn post (label = URL)

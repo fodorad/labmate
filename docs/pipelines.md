@@ -9,8 +9,8 @@ chain step is missing from its diagram. `make graphs` writes LangChain's own dra
 | Shape and colour | Meaning |
 |---|---|
 | grey box | plain code, no model |
-| blue box | a model call (the writer, `qwen3.6:35b-mlx`) |
-| purple box | the judge model (`gemma4:26b-mlx`) |
+| blue box | a model call (the writer, `[models].text`) |
+| purple box | the judge model (`[models].critic`) |
 | orange trapezoid | an agent: the model chooses the next action |
 | red hexagon | a check in code that can send the model back or drop its output |
 | white (rounded or cylinder) | an input, an output or a file |

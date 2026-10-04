@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from labmate.config import CacheConfig, Config
 from labmate.core.chat import chat_model
 
-INSTALLED = ("qwen3.6:35b-mlx", "gemma4:26b-mlx", "embeddinggemma:latest")
+INSTALLED = ("qwen3.8:27b-mlx", "gemma4:26b-mlx", "gemma4:e4b", "embeddinggemma:latest")
 
 
 class SampleClaim(BaseModel):
@@ -120,8 +120,9 @@ def fake() -> FakeOllama:
 
 @pytest.fixture(autouse=True)
 def no_host_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tests never follow the developer's LABMATE_OLLAMA_HOST."""
-    monkeypatch.delenv("LABMATE_OLLAMA_HOST", raising=False)
+    """Tests never follow the developer's LABMATE_* environment."""
+    for name in ("LABMATE_OLLAMA_HOST", "LABMATE_PROFILE", "LABMATE_LIBRARY"):
+        monkeypatch.delenv(name, raising=False)
 
 
 # --- synthetic papers and a fake arXiv ----------------------------------------------------
@@ -353,6 +354,6 @@ def agentic_chat(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def chat(fake: FakeOllama, model: str = "qwen3.6:35b-mlx") -> BaseChatModel:
+def chat(fake: FakeOllama, model: str = "qwen3.8:27b-mlx") -> BaseChatModel:
     """A chat model talking to the fake server, with the reply cache off."""
     return chat_model(Config(cache=CacheConfig(enabled=False)), model, transport=fake.transport())

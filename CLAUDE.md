@@ -12,6 +12,7 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
     `step` (named chain steps), `batch_map`. `structured.py` has the JSON parsing helpers.
   - `ingest.py`, `extract.py`: PDF sections and claim cards with verbatim quotes.
   - `factcheck.py`: the judge ⇄ rewrite loop.
+  - `agents.py`: `run_agent` (reminds an agent that stopped without finishing). `usage.py`: `UsageCollector`, a callback that records time, tokens, loading and memory per model call.
 - `labmate/paper2flow/`: a **LangChain chain**, paper → `overview.pdf`.
   - `chain.py` builds `analyze` (ingest, extract, write, factcheck, flows) and `paper2flow = analyze | render`; `steps/` are the step functions.
   - Diagrams: the model proposes typed graphs, code checks them and writes Mermaid, mermaid-cli renders PNGs.
@@ -27,6 +28,7 @@ M4, 32 GB). Each feature is a workflow (code decides the next step) or an agent 
 - `labmate/cv2job/`: a **LangChain chain with one agent step**, CV + posting → `cv.pdf`, `cover_letter.pdf`, `gap_report.pdf`.
   - `steps.py` (requirements, match, tailor, highlights; the checks), `gaps.py` (the agent), `letter.py` (fixed template), `render.py`, `chain.py`.
   - Input: `cv.yaml` (see `examples/cv2job/`) and a text posting. Your own files go in `private/` (git-ignored).
+- `labmate/bench/`: `labmate bench micro|macro|report`, not part of `make check`. `micro.py` measures each model (and a judge test with planted mistakes, `judge_cases.py`), `macro.py` runs each use case on each profile (`quality.py` scores it from the existing checks), `cells.py`/`report.py` write the tables. Results are in `evals/bench/`, the page is `docs/benchmarks.md`.
 - `labmate/diagrams.py`: Mermaid diagrams drawn by LangChain/LangGraph. `make graphs` writes `docs/graphs.md`.
   The per-use-case pipeline diagrams are hand-drawn in `docs/pipelines.md` and copied into the README and
   `docs/index.md`; `tests/test_diagrams.py` fails if the copies differ or a chain step is missing.
@@ -44,6 +46,9 @@ make cv CV=… JOB=…  # cv2job
 make scout TOPIC=…  # scout (needs the network for arXiv)
 make eval           # paper2flow run metrics
 make eval-answers   # evals/ask/answers.md
+make bench-micro    # per model: load, speed, tools, judging (minutes, needs Ollama)
+make bench          # use cases on each model profile (~1 h; FULL=1 adds paper2*)
+make bench-report   # docs/benchmarks.md from the saved results
 ```
 
 Tests never need Ollama: `tests/conftest.py` has a fake Ollama server (chat, tools,
@@ -60,7 +65,7 @@ a fake model that plays every ask role.
 - GitHub Flow: short-lived `feat/*`/`fix/*` branch → PR into `main` → green CI → merge.
   The gate is `make check` run locally; remote CI (`.github/workflows/ci.yml`) is manual-only for now. No CD, since labmate runs locally.
 - Prompts are Markdown files next to the code (`*/prompts/*.md`), loaded with `load_prompt`.
-- Model roles live in `config.toml`.
+- Model roles live in `config.toml`; `[profiles.*]` are alternative writer/judge pairs (`--profile`, `LABMATE_PROFILE`).
 
 ## Reply cache
 
@@ -71,6 +76,13 @@ stopped and rerun. Delete the file to start fresh.
 
 ## Gotchas
 
+- Ollama evicts a loaded model when another is predicted to exceed the *free* memory
+  (`system_free`, not the 26 GB the GPU may use): two big models, or one and a big context, reload
+  on every call. Look for `predicted to exceed available memory, evicting` in
+  `~/.ollama/logs/server.log`. `[ask].num_ctx` is small for this reason. Changing a setting in
+  the Ollama app restarts the server and kills a running benchmark.
+- `gemma4:26b-mlx` with thinking off sometimes replies with nothing after a tool result;
+  `core/agents.run_agent` sends a reminder.
 - `LABMATE_OLLAMA_HOST` overrides `[ollama].host`, e.g. `http://192.168.0.102:11434`
   when running inside a VM. Tests unset it.
 - `ChatOllama`'s stock cache key is only the class name and stop words; use `chat_model`

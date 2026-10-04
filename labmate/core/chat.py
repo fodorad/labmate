@@ -141,6 +141,7 @@ def chat_model(
         format=json_schema,
         client_kwargs={"timeout": config.ollama.timeout_s, "transport": transport},
         cache=_cache(config) if cache is None else cache,
+        callbacks=config.callbacks or None,
         disable_streaming=True,
     )
 

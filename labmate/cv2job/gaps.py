@@ -15,15 +15,18 @@ from typing import Literal
 
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 
+from labmate.core.agents import run_agent
 from labmate.cv2job.prompts import load_prompt
 from labmate.cv2job.schemas import Cv, Finding, Job, Match
 
 RECURSION_LIMIT = 40
 """Graph steps the agent may take (each tool call is two)."""
+
+NUDGE = "Not every requirement has a finding yet: record one for each with report_finding."
+"""Sent when the agent ends before all requirements have a finding."""
 
 Ask = Callable[[str], str]
 """Asks the candidate a question and returns the answer ('' if there is none)."""
@@ -151,8 +154,11 @@ def find_gaps(
     agent = create_agent(
         model=model, tools=tools, system_prompt=load_prompt("gaps").format(requirements=listing)
     )
-    agent.invoke(
-        {"messages": [HumanMessage("Check the requirements without a match.")]},
+    run_agent(
+        agent,
+        "Check the requirements without a match.",
         {**(config or {}), "recursion_limit": RECURSION_LIMIT},
+        done=lambda _: len(findings) == len(open_reqs),
+        nudge=NUDGE,
     )
     return [findings.get(rid, Finding(requirement_id=rid, status="gap")) for rid in open_reqs]

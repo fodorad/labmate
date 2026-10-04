@@ -1,0 +1,19 @@
+{
+  "use_case": "scout",
+  "profile": "small",
+  "writer": "gemma4:e4b",
+  "judge": "gemma4:e4b",
+  "seconds": 108.70886279199476,
+  "calls": 11,
+  "tokens_in": 23570,
+  "tokens_out": 2495,
+  "load_s": 1.9615042520000001,
+  "swaps": 0,
+  "peak_gb": 0.394191174,
+  "quality": 100.0,
+  "parts": {
+    "notes written": 1.0,
+    "papers cited (of 5)": 1.0
+  },
+  "error": ""
+}

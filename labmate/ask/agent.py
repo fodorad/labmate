@@ -13,7 +13,7 @@ import re
 from typing import Any
 
 from langchain.agents import create_agent
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, AnyMessage
 from langchain_core.tools import BaseTool, tool
 
 from labmate.ask.answer import compose
@@ -22,6 +22,7 @@ from labmate.ask.prompts import load_prompt
 from labmate.ask.schemas import Answer, Sentence
 from labmate.ask.session import AskSession
 from labmate.ask.verify import verify_sentences
+from labmate.core.agents import run_agent
 
 RECURSION_LIMIT = 16
 """Graph steps the agent may take (each tool call is two)."""
@@ -120,6 +121,15 @@ def parse_answer(s: AskSession, question: str, text: str) -> Answer:
     return answer
 
 
+NUDGE = "Answer the question now, from the tool results, citing chunk ids in square brackets."
+"""Sent when the agent ends without an answer."""
+
+
+def _final_text(messages: list[AnyMessage]) -> str:
+    final = next((m for m in reversed(messages) if isinstance(m, AIMessage)), None)
+    return final.content if final is not None and isinstance(final.content, str) else ""
+
+
 def ask_agent(s: AskSession, agent: Any, question: str) -> Answer:
     """Ask the agent one question.
 
@@ -131,9 +141,11 @@ def ask_agent(s: AskSession, agent: Any, question: str) -> Answer:
     Returns:
         The parsed answer.
     """
-    result = agent.invoke(
-        {"messages": [HumanMessage(question)]}, {"recursion_limit": RECURSION_LIMIT}
+    messages = run_agent(
+        agent,
+        question,
+        {"recursion_limit": RECURSION_LIMIT},
+        done=lambda m: bool(_final_text(m)),
+        nudge=NUDGE,
     )
-    final = next((m for m in reversed(result["messages"]) if isinstance(m, AIMessage)), None)
-    text = final.content if final is not None and isinstance(final.content, str) else ""
-    return parse_answer(s, question, text)
+    return parse_answer(s, question, _final_text(messages))

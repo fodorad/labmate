@@ -1,0 +1,20 @@
+{
+  "use_case": "ask: graph",
+  "profile": "fast",
+  "writer": "gemma4:26b-mlx",
+  "judge": "gemma4:e2b",
+  "seconds": 35.68899380199946,
+  "calls": 18,
+  "tokens_in": 29499,
+  "tokens_out": 1396,
+  "load_s": 14.919188833000002,
+  "swaps": 0,
+  "peak_gb": 21.040558446,
+  "quality": 91.7,
+  "parts": {
+    "right answer or refusal": 0.75,
+    "expected source cited": 1.0,
+    "sentences kept": 1.0
+  },
+  "error": ""
+}

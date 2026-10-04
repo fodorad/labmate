@@ -25,8 +25,8 @@ scout are agents; cv2job is a workflow whose `gaps` step is an agent.
 | Shape and colour | Meaning |
 |---|---|
 | grey box | plain code, no model |
-| blue box | a model call (the writer, `qwen3.6:35b-mlx`) |
-| purple box | the judge model (`gemma4:26b-mlx`) |
+| blue box | a model call (the writer, `[models].text`) |
+| purple box | the judge model (`[models].critic`) |
 | orange trapezoid | an agent: the model chooses the next action |
 | red hexagon | a check in code that can send the model back or drop its output |
 | white (rounded or cylinder) | an input, an output or a file |
@@ -397,12 +397,21 @@ make eval-answers   # ask: graph vs agent on library/golden.yaml -> evals/ask/an
 
 | Role | Model |
 |---|---|
-| Writer / planner | `qwen3.6:35b-mlx` |
-| Judge (fact-check, grading, verification) | `gemma4:26b-mlx` |
+| Writer / planner (`[models].text`) | `gemma4:26b-mlx` |
+| Judge (`[models].critic`) | `gemma4:26b-mlx`, the same model, so only one model is loaded |
 | Embeddings | `embeddinggemma:latest` |
 
-Both chat models were checked for structured output and tool calling. The roles are set in
-`config.toml`.
+The model is a 16.7 GB mixture of experts (about 4B active parameters), so it reads and writes
+faster than the smaller dense models and stays loaded. Ollama lets the GPU use about 26 GB of a
+32 GB Mac, and memory used by other programs counts against it: a second large model next to the
+first is evicted and loaded again on every call. `ask` runs in an 8k context window
+(`[ask].num_ctx`) so its models stay small.
+
+`labmate --profile NAME ...` (or `LABMATE_PROFILE`) picks another pair from `config.toml`:
+`mixed` (small `gemma4:e4b` judge), `small` (`gemma4:e4b` only), `fast` (`gemma4:e2b` judge) and
+`qwen` (`qwen3.8:27b-mlx` writer). `make bench-micro` measures each model (load, speed, tool
+calls, structured output, and how many planted mistakes it catches as a judge) and
+`make bench` runs the use cases on each profile; `docs/benchmarks.md` has the tables.
 
 ## Quickstart
 

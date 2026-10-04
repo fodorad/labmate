@@ -1,0 +1,85 @@
+{
+  "gemma4:26b-mlx": {
+    "model": "gemma4:26b-mlx",
+    "size_gb": 16.679502421,
+    "load_s": 8.719250041,
+    "prompt_tps": 413.96147953323117,
+    "decode_tps": 29.882264934842674,
+    "structured_ok": 5,
+    "tools_ok": 3,
+    "judge": {
+      "caught": 15,
+      "mistakes": 15,
+      "false_alarms": 0,
+      "clean": 9,
+      "seconds_per_verdict": 1.53108620312499,
+      "missed": []
+    },
+    "error": ""
+  },
+  "gemma4:e4b": {
+    "model": "gemma4:e4b",
+    "size_gb": 6.583656505,
+    "load_s": 6.933160375000001,
+    "prompt_tps": 333.11398530115594,
+    "decode_tps": 23.69817127274611,
+    "structured_ok": 5,
+    "tools_ok": 3,
+    "judge": {
+      "caught": 15,
+      "mistakes": 15,
+      "false_alarms": 0,
+      "clean": 9,
+      "seconds_per_verdict": 1.9930726510416814,
+      "missed": []
+    },
+    "error": ""
+  },
+  "qwen3.8:27b-mlx": {
+    "model": "qwen3.8:27b-mlx",
+    "size_gb": 18.174721847,
+    "load_s": 9.410760875000001,
+    "prompt_tps": 60.63764076853679,
+    "decode_tps": 10.412106440124472,
+    "structured_ok": 5,
+    "tools_ok": 3,
+    "judge": null,
+    "error": ""
+  },
+  "gemma4:e2b": {
+    "model": "gemma4:e2b",
+    "size_gb": 4.587156505,
+    "load_s": 5.4462966250000004,
+    "prompt_tps": 654.9346555186736,
+    "decode_tps": 35.396410298332746,
+    "structured_ok": 5,
+    "tools_ok": null,
+    "judge": {
+      "caught": 15,
+      "mistakes": 15,
+      "false_alarms": 1,
+      "clean": 9,
+      "seconds_per_verdict": 1.33520473262494,
+      "missed": []
+    },
+    "error": ""
+  },
+  "ornith-1.5:9b": {
+    "model": "ornith-1.5:9b",
+    "size_gb": 6.550813657,
+    "load_s": 1.5508973750000001,
+    "prompt_tps": 198.94756390275887,
+    "decode_tps": 17.88103917678003,
+    "structured_ok": 5,
+    "tools_ok": 3,
+    "judge": {
+      "caught": 15,
+      "mistakes": 15,
+      "false_alarms": 1,
+      "clean": 9,
+      "seconds_per_verdict": 2.9697336111251693,
+      "missed": []
+    },
+    "error": ""
+  }
+}

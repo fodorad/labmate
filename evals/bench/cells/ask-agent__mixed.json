@@ -1,0 +1,20 @@
+{
+  "use_case": "ask: agent",
+  "profile": "mixed",
+  "writer": "gemma4:26b-mlx",
+  "judge": "gemma4:e4b",
+  "seconds": 33.00007608350097,
+  "calls": 10,
+  "tokens_in": 14490,
+  "tokens_out": 981,
+  "load_s": 40.399581126,
+  "swaps": 3,
+  "peak_gb": 18.606398053,
+  "quality": 69.4,
+  "parts": {
+    "right answer or refusal": 0.75,
+    "expected source cited": 0.6666666666666666,
+    "sentences kept": 0.6666666666666666
+  },
+  "error": ""
+}

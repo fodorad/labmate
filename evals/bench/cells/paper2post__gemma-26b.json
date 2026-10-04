@@ -1,0 +1,19 @@
+{
+  "use_case": "paper2post",
+  "profile": "gemma-26b",
+  "writer": "gemma4:26b-mlx",
+  "judge": "gemma4:26b-mlx",
+  "seconds": 476.2179353330066,
+  "calls": 28,
+  "tokens_in": 44626,
+  "tokens_out": 7039,
+  "load_s": 18.832806088,
+  "swaps": 1,
+  "peak_gb": 25.573777612,
+  "quality": 100.0,
+  "parts": {
+    "first-draft sentences passing": 1.0,
+    "sentences kept": 1.0
+  },
+  "error": ""
+}
