@@ -8,11 +8,11 @@ from pathlib import Path
 
 import httpx
 from langchain.agents import create_agent
-from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 
 from labmate.config import Config
+from labmate.core.agents import run_agent
 from labmate.core.chat import chat_model
 from labmate.core.ingest import (
     USER_AGENT,
@@ -68,6 +68,10 @@ def overview_text(
         f"{card.title}: " + " ".join(b.text for b in card.bullets) for card in checked.cards.cards
     ]
     return "\n".join([*lines, f"(overview: {pdf})"])
+
+
+NUDGE = "You are not finished: read what you need, then save the notes with write_notes."
+"""Sent when the agent ends without saving notes."""
 
 
 def run_scout(
@@ -176,7 +180,7 @@ def run_scout(
     )
     config_: RunnableConfig = {"recursion_limit": RECURSION_LIMIT, "run_name": "scout"}
     try:
-        agent.invoke({"messages": [HumanMessage(topic)]}, config_)
+        run_agent(agent, topic, config_, done=lambda _: notes_file.exists(), nudge=NUDGE)
     finally:
         web.close()
     log.info("scout read %d paper(s), %d deeply", len(read), len(deep))

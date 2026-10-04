@@ -34,10 +34,6 @@ critic = "gemma4:e4b"
 text = "qwen3.8:27b-mlx"
 critic = "gemma4:e4b"
 
-[profiles.phi-judge]      # fallback judge if e4b is not good enough, 28 GB together (too tight)
-text = "gemma4:26b-mlx"
-critic = "phi4-reasoning:plus"
-
 [generation]
 temperature = 0.0
 seed = 42
