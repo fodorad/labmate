@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/fodorad/labmate/main/docs/_static/logo.svg" alt="labmate logo" width="128" height="128">
+</p>
+
 # labmate
 
 > Local tools on Ollama: paper overviews and posts, cited answers about a paper library, an arXiv scout, and CV tailoring.

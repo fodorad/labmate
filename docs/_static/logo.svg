@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-labelledby="t">
+  <title id="t">labmate</title>
+  <rect x="2" y="2" width="92" height="92" rx="26" fill="#0a4a3a"/>
+  <g transform="translate(16.8 16.8) scale(0.65)">
+    <path d="M31 3V14M48 3V14M65 3V14M31 82V93M48 82V93M65 82V93M3 31H14M3 48H14M3 65H14M82 31H93M82 48H93M82 65H93" fill="none" stroke="#eaf7f1" stroke-width="5.5" stroke-linecap="round"/>
+    <rect x="14" y="14" width="68" height="68" rx="11" fill="#168a65"/>
+    <path d="M28 32V66M40 66V47l5-5h4l5 5V66M54 47l5-5h4l5 5V66" fill="none" stroke="#f6faf8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="28" cy="32" r="4.2" fill="#f2c14e"/>
+    <circle cx="40" cy="66" r="4.2" fill="#f2c14e"/>
+    <circle cx="54" cy="66" r="4.2" fill="#f2c14e"/>
+    <circle cx="68" cy="66" r="4.2" fill="#f2c14e"/>
+  </g>
+</svg>

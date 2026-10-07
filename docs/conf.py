@@ -34,6 +34,8 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "graphs.md", "pipelines.
 
 html_theme = "furo"
 html_static_path = ["_static"]
+html_logo = "_static/logo.svg"
+html_favicon = "_static/favicon.svg"
 
 source_suffix = {
     ".rst": "restructuredtext",
