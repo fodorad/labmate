@@ -259,6 +259,24 @@ ATOM = """<?xml version="1.0" encoding="UTF-8"?>
 EMPTY_ATOM = '<feed xmlns="http://www.w3.org/2005/Atom"></feed>'
 
 
+def atom_feed(papers: list[tuple[str, str]]) -> str:
+    """An arXiv search result: one entry per ``(arXiv id, title)``, all by Ada Lovelace."""
+    entries = "".join(
+        f"""<entry>
+    <id>http://arxiv.org/abs/{arxiv_id}v1</id>
+    <title>{title}</title>
+    <summary>We study {title.lower()}.</summary>
+    <author><name>Ada Lovelace</name></author>
+    <published>2024-01-02T00:00:00Z</published>
+  </entry>"""
+        for arxiv_id, title in papers
+    )
+    return (
+        f'<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">'
+        f"{entries}</feed>"
+    )
+
+
 class FakeArxiv:
     """Serves the Atom API and the PDF for any id; counts downloads."""
 
