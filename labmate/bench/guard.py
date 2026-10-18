@@ -10,9 +10,11 @@ from __future__ import annotations
 import platform
 import re
 import subprocess
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
-from labmate.bench.report import HEADROOM_GB, MEMORY_SHARE
+from labmate.bench.report import HEADROOM_GB, MEMORY_SHARE, memory_gb
 
 PAGE = re.compile(r"page size of (\d+) bytes")
 """The page size line of ``vm_stat``."""
@@ -116,3 +118,36 @@ def require_room(
             f"only {free:.1f} GB are free, {models_gb + HEADROOM_GB:.1f} GB needed: "
             "close other programs or run fewer models"
         )
+
+
+@dataclass(frozen=True)
+class Memory:
+    """The machine's memory, as the benchmark sees it.
+
+    Attributes:
+        ram_gb: Physical memory.
+        free_gb: Returns the memory that is free now.
+        share: The share of ``ram_gb`` models may use (see
+            :func:`labmate.bench.report.memory_share`).
+    """
+
+    ram_gb: float
+    free_gb: Callable[[], float]
+    share: float = MEMORY_SHARE
+
+    @classmethod
+    def here(cls) -> Memory:
+        """This machine's memory.
+
+        Returns:
+            Its physical memory, a probe of its free memory and its share.
+        """
+        return cls(memory_gb(), free_memory_gb)
+
+    def require_room(self, models_gb: float) -> None:
+        """Refuse to load models that do not fit (see :func:`require_room`).
+
+        Args:
+            models_gb: Size of the models to load together.
+        """
+        require_room(models_gb, self.ram_gb, self.free_gb(), self.share)

@@ -3,7 +3,7 @@ import json
 import pytest
 
 from labmate.bench.cold import ColdRun
-from labmate.bench.guard import NotEnoughMemory
+from labmate.bench.guard import Memory, NotEnoughMemory
 from labmate.config import Config
 from labmate.core.chat import chat_model
 
@@ -11,8 +11,8 @@ from labmate.core.chat import chat_model
 @pytest.fixture
 def cold(fake, tmp_path):
     return ColdRun(
-        Config(), tmp_path / "results.json", transport=fake.transport(), ram_gb=32,
-        free_gb=lambda: 30.0,
+        Config(), tmp_path / "results.json", transport=fake.transport(),
+        memory=Memory(32, lambda: 30.0, share=1.0),
     )  # fmt: skip
 
 
@@ -30,11 +30,15 @@ def test_a_measurement_runs_cold_without_the_cache_and_is_saved_at_once(fake, co
 
 def test_a_saved_result_is_not_measured_again_unless_forced(fake, cold):
     cold.file.write_text(json.dumps({"a": {"n": 1}}))
-    calls = []
+    measured = []
 
-    cold.run("a", 1.0, lambda config, collector: calls.append(1) or {"n": 2})
+    def measure(config, collector):
+        measured.append(True)
+        return {"n": 2}
 
-    assert calls == [] and fake.requests == []
+    cold.run("a", 1.0, measure)
+
+    assert measured == [] and fake.requests == []
     cold.force = True
     cold.run("a", 1.0, lambda config, collector: {"n": 2})
     assert cold.results() == {"a": {"n": 2}}

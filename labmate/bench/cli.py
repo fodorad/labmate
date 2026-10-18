@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 
 from labmate.bench.cells import FULL_USE_CASES, USE_CASES, cell_key, cells_markdown, from_results
 from labmate.bench.cold import ColdRun, load_results
-from labmate.bench.guard import NotEnoughMemory, free_memory_gb
+from labmate.bench.guard import Memory, NotEnoughMemory
 from labmate.bench.micro import ModelResult, from_dict, measure_model, to_dict
-from labmate.bench.report import HEADROOM_GB, machine, memory_gb, micro_markdown, profile_rows
+from labmate.bench.report import HEADROOM_GB, machine, micro_markdown, profile_rows
 from labmate.bench.triage import DeciderResult, evaluate, load_golden, triage_markdown
 from labmate.bench.triage import to_dict as decider_dict
 from labmate.config import Config
@@ -100,9 +100,13 @@ PARALLEL = (
 
 
 def _cold_run(config: Config, file: Path, force: bool, ctx: CliContext) -> ColdRun:
-    """A cold run that reaches Ollama and reads free memory the way ``ctx`` says."""
-    free = ctx.free_gb or free_memory_gb
-    return ColdRun(config, file, force, ctx.ollama, free_gb=free)
+    """A cold run that reaches Ollama and sees the memory the way ``ctx`` says."""
+    return ColdRun(config, file, force, ctx.ollama, _memory(ctx))
+
+
+def _memory(ctx: CliContext) -> Memory:
+    """The memory ``ctx`` gives (tests), else this machine's."""
+    return ctx.memory or Memory.here()
 
 
 def _micro_results(out: Path) -> list[ModelResult]:
@@ -132,7 +136,8 @@ def run_micro(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
             return to_dict(result)
 
         cold.run(tag, size, measure)
-    text = micro_markdown(_micro_results(args.out), config, memory_gb())
+    memory = _memory(ctx)
+    text = micro_markdown(_micro_results(args.out), config, memory.ram_gb, memory.share)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
     print(text)
@@ -172,18 +177,19 @@ def run_triage_eval(config: Config, args: argparse.Namespace, ctx: CliContext) -
     return 0
 
 
-def fitting_profiles(config: Config, out: Path) -> list[str]:
+def fitting_profiles(config: Config, out: Path, memory: Memory) -> list[str]:
     """The profiles whose models fit in memory together.
 
     Args:
         config: Loaded configuration.
         out: Results folder holding ``micro.json``.
+        memory: The machine's memory.
 
     Returns:
         Profile names.
     """
     sizes = {r.model: r.size_gb for r in _micro_results(out)}
-    rows = profile_rows(config, sizes, memory_gb())
+    rows = profile_rows(config, sizes, memory.ram_gb, memory.share)
     return [r.profile for r in rows if r.fits]
 
 
@@ -200,7 +206,7 @@ def run_macro(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
     """
     from labmate.bench.macro import run_cell  # noqa: PLC0415 - runs every use case ([ask] extra)
 
-    profiles = args.profiles or fitting_profiles(config, args.out)
+    profiles = args.profiles or fitting_profiles(config, args.out, _memory(ctx))
     use_cases = args.use_cases or (FULL_USE_CASES if args.full else USE_CASES)
     cold = _cold_run(config, args.out / "macro.json", args.force, ctx)
     sizes = cold.server.sizes()
@@ -231,6 +237,7 @@ def run_report(config: Config, args: argparse.Namespace, ctx: CliContext) -> int
         Exit code 0.
     """
     server = OllamaServer.from_config(config, ctx.ollama)
+    memory = _memory(ctx)
     cells = from_results(load_results(args.out / "macro.json"))
     intro = (
         f"Measured on {machine()}, Ollama {server.version()}, {date.today()}. "
@@ -250,7 +257,7 @@ def run_report(config: Config, args: argparse.Namespace, ctx: CliContext) -> int
         "",
         "## Single models",
         "",
-        micro_markdown(_micro_results(args.out), config, memory_gb()),
+        micro_markdown(_micro_results(args.out), config, memory.ram_gb, memory.share),
         "## Use cases",
         "",
         cells_markdown(cells) if cells else "No use case has been run yet.",

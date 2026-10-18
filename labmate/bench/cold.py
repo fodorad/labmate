@@ -17,8 +17,7 @@ from typing import Any
 
 import httpx
 
-from labmate.bench.guard import free_memory_gb, require_room
-from labmate.bench.report import memory_gb
+from labmate.bench.guard import Memory
 from labmate.config import CacheConfig, Config
 from labmate.core.ollama import OllamaServer
 from labmate.core.usage import UsageCollector
@@ -66,16 +65,14 @@ class ColdRun:
         file: The results file (key to result).
         force: Measure keys that already have a result.
         transport: Transport to Ollama (the configured host if omitted; tests).
-        ram_gb: The machine's memory.
-        free_gb: Returns the memory that is free now.
+        memory: The machine's memory (this machine's if omitted).
     """
 
     config: Config
     file: Path
     force: bool = False
     transport: httpx.BaseTransport | None = None
-    ram_gb: float = field(default_factory=memory_gb)
-    free_gb: Callable[[], float] = free_memory_gb
+    memory: Memory = field(default_factory=Memory.here)
 
     @property
     def server(self) -> OllamaServer:
@@ -107,7 +104,7 @@ class ColdRun:
             return
         server = self.server
         server.unload_all()
-        require_room(models_gb, self.ram_gb, self.free_gb())
+        self.memory.require_room(models_gb)
         log.info("measuring %s", key)
         collector = UsageCollector(server.resident_gb)
         try:
