@@ -124,3 +124,10 @@ def test_three_pdfs_come_out_and_the_gap_report_says_what_the_cv_lacks(
     assert "Kubernetes" not in cv_pdf and "Kubernetes" not in letter
     not_covered = gaps.split("NOT COVERED")[1].split(" COVERED ")[0]
     assert "Kubernetes" in not_covered and "PyTorch" not in not_covered
+
+
+def test_a_missing_cv_is_an_error(tmp_path, capsys):
+    argv = ["cv2job", str(tmp_path / "cv.yaml"), str(EXAMPLES / "job.txt"), "--out", str(tmp_path)]
+
+    assert main(argv) == 1
+    assert "cv.yaml" in capsys.readouterr().err

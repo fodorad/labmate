@@ -162,6 +162,7 @@ def measure_model(
     size_gb: float,
     tools: bool,
     judging: bool,
+    transport: httpx.BaseTransport | None = None,
 ) -> ModelResult:
     """Measure a model that is not loaded yet.
 
@@ -172,19 +173,19 @@ def measure_model(
         size_gb: Its size.
         tools: Also test tool calling (for models that will be a writer or an agent).
         judging: Also run the judge test.
+        transport: Transport to Ollama (the configured host if omitted; tests).
 
     Returns:
         The measurements; ``error`` is set if the model failed in a way that stops the test.
     """
-    model = chat_model(config, tag)
+    model = chat_model(config, tag, transport=transport)
     result = ModelResult(tag, size_gb=size_gb)
     try:
         model.invoke("Say OK.")  # the cold start: its load time is what a first request pays
         result.load_s = collector.summary().load_s
         probe = UsageCollector()
-        reader = chat_model(config.model_copy(update={"callbacks": [probe]}), tag).model_copy(
-            update={"num_predict": 96}
-        )
+        probed = config.model_copy(update={"callbacks": [probe]})
+        reader = chat_model(probed, tag, transport=transport).model_copy(update={"num_predict": 96})
         reader.invoke(f"{PASSAGE}\nSummarise the passage in two sentences.")
         speed = probe.summary()
         result.prompt_tps, result.decode_tps = speed.prompt_tps, speed.decode_tps

@@ -9,11 +9,9 @@ from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import httpx
-
 from labmate.bench.cells import FULL_USE_CASES, USE_CASES, cell_key, cells_markdown, from_results
 from labmate.bench.cold import ColdRun, load_results
-from labmate.bench.guard import NotEnoughMemory
+from labmate.bench.guard import NotEnoughMemory, free_memory_gb
 from labmate.bench.micro import ModelResult, from_dict, measure_model, to_dict
 from labmate.bench.report import HEADROOM_GB, machine, memory_gb, micro_markdown, profile_rows
 from labmate.bench.triage import DeciderResult, evaluate, load_golden, triage_markdown
@@ -26,9 +24,6 @@ if TYPE_CHECKING:
     from labmate.cli import CliContext
 
 log = logging.getLogger(__name__)
-
-Transport = httpx.BaseTransport | None
-"""A transport to Ollama (tests), or ``None`` for the configured host."""
 
 
 def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-arg,unused-ignore]
@@ -104,32 +99,39 @@ PARALLEL = (
 """What was measured about parallel requests (a 200-token reply, same prompt)."""
 
 
+def _cold_run(config: Config, file: Path, force: bool, ctx: CliContext) -> ColdRun:
+    """A cold run that reaches Ollama and reads free memory the way ``ctx`` says."""
+    free = ctx.free_gb or free_memory_gb
+    return ColdRun(config, file, force, ctx.ollama, free_gb=free)
+
+
 def _micro_results(out: Path) -> list[ModelResult]:
     return [from_dict(d) for d in load_results(out / "micro.json").values()]
 
 
-def run_micro(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
+def run_micro(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
     """Measure every model, writing the results as they come in.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``models``, ``out``, ``force``).
-        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+        ctx: The transports and the free-memory probe (tests); the real ones otherwise.
 
     Returns:
         Exit code 0.
     """
     writers, judges = profile_models(config)
     tags = args.models or list(dict.fromkeys([*writers, *judges]))
-    cold = ColdRun(config, args.out / "micro.json", args.force, ollama)
+    cold = _cold_run(config, args.out / "micro.json", args.force, ctx)
     sizes = cold.server.sizes()
     for tag in tags:
-        size, tools, judging = sizes.get(tag, 0.0), tag in writers, tag in judges
-        cold.run(
-            tag,
-            size,
-            lambda cfg, usage: to_dict(measure_model(cfg, usage, tag, size, tools, judging)),  # noqa: B023 - called at once
-        )
+        size = sizes.get(tag, 0.0)
+
+        def measure(cfg: Config, usage: UsageCollector, tag: str = tag, size: float = size) -> dict:
+            result = measure_model(cfg, usage, tag, size, tag in writers, tag in judges, ctx.ollama)
+            return to_dict(result)
+
+        cold.run(tag, size, measure)
     text = micro_markdown(_micro_results(args.out), config, memory_gb())
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
@@ -145,25 +147,25 @@ def _deciders(out: Path) -> list[DeciderResult]:
     return [DeciderResult(**d) for d in load_results(out / "triage.json").values()]
 
 
-def run_triage_eval(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
+def run_triage_eval(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
     """Rate the labelled papers with each decider, saving as it goes.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``models``, ``out``, ``force``).
-        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+        ctx: The transports and the free-memory probe (tests); the real ones otherwise.
 
     Returns:
         Exit code 0.
     """
     golden = load_golden()
-    cold = ColdRun(config, args.out / "triage.json", args.force, ollama)
+    cold = _cold_run(config, args.out / "triage.json", args.force, ctx)
     sizes = cold.server.sizes()
     for tag in args.models or DECIDERS:
         size = sizes.get(tag, 0.0)
 
         def rate(cfg: Config, usage: UsageCollector, tag: str = tag, size: float = size) -> dict:
-            return decider_dict(replace(evaluate(cfg, tag, golden, ollama), size_gb=size))
+            return decider_dict(replace(evaluate(cfg, tag, golden, ctx.ollama), size_gb=size))
 
         cold.run(tag, size, rate)
     print(triage_markdown(_deciders(args.out)))
@@ -185,13 +187,13 @@ def fitting_profiles(config: Config, out: Path) -> list[str]:
     return [r.profile for r in rows if r.fits]
 
 
-def run_macro(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
+def run_macro(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
     """Run each use case on each profile and save the cells.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``profiles``, ``use_cases``, ``full``, ``out``, ``force``).
-        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+        ctx: The transports and the free-memory probe (tests); the real ones otherwise.
 
     Returns:
         Exit code 0.
@@ -200,33 +202,35 @@ def run_macro(config: Config, args: argparse.Namespace, ollama: Transport) -> in
 
     profiles = args.profiles or fitting_profiles(config, args.out)
     use_cases = args.use_cases or (FULL_USE_CASES if args.full else USE_CASES)
-    cold = ColdRun(config, args.out / "macro.json", args.force, ollama)
+    cold = _cold_run(config, args.out / "macro.json", args.force, ctx)
     sizes = cold.server.sizes()
     for use_case in use_cases:
         for profile in profiles:
             chosen = config.profiles[profile]
             gb = sum(sizes.get(tag, 0.0) for tag in dict.fromkeys([chosen.text, chosen.critic]))
-            cold.run(
-                cell_key(use_case, profile),
-                gb,
-                lambda cfg, usage: asdict(run_cell(use_case, profile, cfg, usage)),  # noqa: B023 - called at once
-            )
+
+            def run(
+                cfg: Config, usage: UsageCollector, case: str = use_case, name: str = profile
+            ) -> dict:
+                return asdict(run_cell(case, name, cfg, usage, ctx))
+
+            cold.run(cell_key(use_case, profile), gb, run)
     print(cells_markdown(from_results(cold.results())))
     return 0
 
 
-def run_report(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
+def run_report(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
     """Write the benchmark page from the saved micro results and cells.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``out``, ``docs``).
-        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+        ctx: The transports and the free-memory probe (tests); the real ones otherwise.
 
     Returns:
         Exit code 0.
     """
-    server = OllamaServer.from_config(config, ollama)
+    server = OllamaServer.from_config(config, ctx.ollama)
     cells = from_results(load_results(args.out / "macro.json"))
     intro = (
         f"Measured on {machine()}, Ollama {server.version()}, {date.today()}. "
@@ -285,7 +289,7 @@ def main(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
         "report": run_report,
     }
     try:
-        return actions[args.action](config, args, ctx.ollama)
+        return actions[args.action](config, args, ctx)
     except NotEnoughMemory as e:
         log.error("stopped before loading anything more: %s", e)
         return 1

@@ -114,3 +114,10 @@ def test_a_decider_that_is_not_installed_says_how_to_get_it(
                 web=arxiv_five.transport(), ollama=fake.transport())  # fmt: skip
 
     assert code == 2 and "ollama pull nope" in capsys.readouterr().err
+
+
+def test_triage_needs_to_know_what_you_work_on(tmp_path, capsys):
+    argv = ["triage", "attention", "--interests", str(tmp_path / "none.md")]
+
+    assert main(argv) == 1
+    assert "say what you work on" in capsys.readouterr().err
