@@ -61,3 +61,25 @@ def test_eval_writes_results(fake, arxiv, workdir, capsys):
     assert [r["paper_id"] for r in results] == ["2401.00001"]
     assert main(["eval", "runs/2401.00001", "--out", "e2"]) == 0
     assert (workdir / "e2" / "results.md").exists()
+
+
+def test_an_unknown_profile_is_refused_before_anything_runs(workdir, capsys):
+    assert main(["--profile", "nope", "eval"]) == 1
+    assert "unknown profile 'nope'" in capsys.readouterr().err
+
+
+def test_a_model_ollama_does_not_have_is_explained(fake, arxiv, workdir, capsys):
+    (workdir / "config.toml").write_text('[cache]\nenabled = false\n[models]\ntext = "nope"\n')
+
+    assert main(["paper2flow", "2401.00001"], web=arxiv.transport(), ollama=fake.transport()) == 2
+    assert "Pulled the models?" in capsys.readouterr().err
+
+
+def test_a_paper_that_cannot_be_found_is_an_error(workdir, capsys):
+    assert main(["paper2flow", str(workdir / "missing.pdf")]) == 1
+    assert "missing.pdf" in capsys.readouterr().err
+
+
+def test_eval_without_a_finished_run_says_what_it_needs(workdir, capsys):
+    assert main(["eval"]) == 1
+    assert "no finished runs" in capsys.readouterr().err

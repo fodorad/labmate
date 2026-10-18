@@ -57,11 +57,13 @@ class CliContext:
         web: Transport for arXiv and downloads (tests); the network if ``None``.
         ollama: Transport to the Ollama server (tests); the configured host if ``None``.
         ask: How cv2job's agent asks the candidate a question.
+        free_gb: Returns the free memory, for the benchmark's guard (tests); measured if ``None``.
     """
 
     web: httpx.BaseTransport | None = None
     ollama: httpx.BaseTransport | None = None
     ask: Callable[[str], str] = terminal_ask
+    free_gb: Callable[[], float] | None = None
 
 
 def run_graphs(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
@@ -104,6 +106,7 @@ def main(
     web: httpx.BaseTransport | None = None,
     ollama: httpx.BaseTransport | None = None,
     ask: Callable[[str], str] = terminal_ask,
+    free_gb: Callable[[], float] | None = None,
 ) -> int:
     """Entry point.
 
@@ -112,6 +115,7 @@ def main(
         web: Injected web transport (tests); the network otherwise.
         ollama: Injected transport to Ollama (tests); the configured host otherwise.
         ask: How cv2job's agent asks you a question (default: in the terminal).
+        free_gb: Returns the free memory for ``bench`` (tests); measured otherwise.
 
     Returns:
         Process exit code.
@@ -125,7 +129,7 @@ def main(
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
-        return int(args.handler(config, args, CliContext(web, ollama, ask)))
+        return int(args.handler(config, args, CliContext(web, ollama, ask, free_gb)))
     except httpx.TransportError as e:
         print(f"error: {e} (is Ollama running at {config.ollama.host}?)", file=sys.stderr)
         return 2

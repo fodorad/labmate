@@ -11,6 +11,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 
@@ -37,6 +38,9 @@ from labmate.paper2post.chain import POST_ARTIFACT, paper2post
 from labmate.paper2post.schemas import Post
 from labmate.scout.agent import cited_ids, run_scout
 
+if TYPE_CHECKING:
+    from labmate.cli import CliContext
+
 ASK_QUESTIONS = (0, 2, 5, 11)
 """Golden questions used: a definition, a number, a list of datasets, and an off-topic one."""
 
@@ -45,7 +49,9 @@ PAPER = "1706.03762"
 EXAMPLES = Path("examples/cv2job")
 
 
-def run_cell(use_case: str, profile: str, config: Config, collector: UsageCollector) -> Cell:
+def run_cell(
+    use_case: str, profile: str, config: Config, collector: UsageCollector, ctx: CliContext
+) -> Cell:
     """Run one use case on one profile and measure it.
 
     Args:
@@ -53,6 +59,7 @@ def run_cell(use_case: str, profile: str, config: Config, collector: UsageCollec
         profile: A key of ``[profiles]``, applied to ``config``.
         config: A cold configuration (see :func:`labmate.bench.cold.cold_config`).
         collector: The collector ``config`` reports to.
+        ctx: The transports to the web and to Ollama.
 
     Returns:
         The measured cell; ``error`` is set if the run failed.
@@ -62,7 +69,7 @@ def run_cell(use_case: str, profile: str, config: Config, collector: UsageCollec
     started = time.perf_counter()
     try:
         with tempfile.TemporaryDirectory() as tmp:
-            quality, divisor = _RUNNERS[use_case](config, Path(tmp))
+            quality, divisor = _RUNNERS[use_case](config, Path(tmp), ctx)
     except (httpx.HTTPError, ValueError, RuntimeError, OSError) as e:
         cell.error = f"{type(e).__name__}: {e}"[:160]
         return cell
@@ -74,8 +81,8 @@ def run_cell(use_case: str, profile: str, config: Config, collector: UsageCollec
     return cell
 
 
-def _ask_graph(config: Config, tmp: Path) -> tuple[Quality, int]:
-    s = open_ask(config)
+def _ask_graph(config: Config, tmp: Path, ctx: CliContext) -> tuple[Quality, int]:
+    s = open_ask(config, ctx.ollama)
     try:
         golden = load_golden(config.ask.library / "golden.yaml")
         graph, cases = compile_graph(s), []
@@ -87,8 +94,8 @@ def _ask_graph(config: Config, tmp: Path) -> tuple[Quality, int]:
     return ask_quality(cases), len(ASK_QUESTIONS)
 
 
-def _ask_agent(config: Config, tmp: Path) -> tuple[Quality, int]:
-    s = open_ask(config)
+def _ask_agent(config: Config, tmp: Path, ctx: CliContext) -> tuple[Quality, int]:
+    s = open_ask(config, ctx.ollama)
     try:
         golden = load_golden(config.ask.library / "golden.yaml")
         agent, cases = build_agent(s), []
@@ -100,27 +107,29 @@ def _ask_agent(config: Config, tmp: Path) -> tuple[Quality, int]:
     return ask_quality(cases), len(ASK_QUESTIONS)
 
 
-def _cv2job(config: Config, tmp: Path) -> tuple[Quality, int]:
-    pdfs = cv2job(config, EXAMPLES / "cv.yaml", EXAMPLES / "job.txt", tmp, ask=lambda q: "")
+def _cv2job(config: Config, tmp: Path, ctx: CliContext) -> tuple[Quality, int]:
+    pdfs = cv2job(
+        config, EXAMPLES / "cv.yaml", EXAMPLES / "job.txt", tmp, ask=lambda q: "", ollama=ctx.ollama
+    )
     app = Application.model_validate_json((tmp / "application.json").read_text())
     return cv2job_quality(app, sum(p.exists() for p in pdfs)), 1
 
 
-def _scout(config: Config, tmp: Path) -> tuple[Quality, int]:
-    notes = run_scout(config, SCOUT_TOPIC, tmp, max_deep=0)
+def _scout(config: Config, tmp: Path, ctx: CliContext) -> tuple[Quality, int]:
+    notes = run_scout(config, SCOUT_TOPIC, tmp, 0, ctx.web, ctx.ollama)
     text = notes.read_text() if notes else None
     return scout_quality(text, len(cited_ids(text)) if text else 0), 1
 
 
-def _paper2flow(config: Config, tmp: Path) -> tuple[Quality, int]:
+def _paper2flow(config: Config, tmp: Path, ctx: CliContext) -> tuple[Quality, int]:
     config.tracing.runs_dir = tmp
-    pdf = paper2flow(config, PAPER)
+    pdf = paper2flow(config, PAPER, web=ctx.web, ollama=ctx.ollama)
     return flow_quality(run_metrics(pdf.parent)), 1
 
 
-def _paper2post(config: Config, tmp: Path) -> tuple[Quality, int]:
+def _paper2post(config: Config, tmp: Path, ctx: CliContext) -> tuple[Quality, int]:
     config.tracing.runs_dir = tmp
-    pdf = paper2post(config, PAPER)
+    pdf = paper2post(config, PAPER, web=ctx.web, ollama=ctx.ollama)
     post = Post.model_validate(json.loads((pdf.parent / POST_ARTIFACT).read_text()))
     return post_quality(post), 1
 

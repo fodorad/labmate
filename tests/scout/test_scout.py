@@ -6,7 +6,10 @@ NOTES_BOTH = "Two ways to cut attention cost: [2401.00001] and [2401.00002]."
 NOTES_ONE = "Linear attention keeps accuracy while cutting memory [2401.00001]."
 
 
-def test_the_notes_may_only_cite_papers_the_agent_has_read(fake, arxiv_two, config, tmp_path):
+def test_the_notes_may_only_cite_papers_the_agent_has_read(fake, arxiv_two, tmp_path, capsys):
+    config = tmp_path / "config.toml"
+    config.write_text(f'[cache]\npath = "{tmp_path / "cache.sqlite"}"\n')
+    out = tmp_path / "out"
     fake.chat_handler = scripted(
         ("search_arxiv", {"query": "attention"}),
         ("write_notes", {"notes": NOTES_BOTH}),  # it only searched: not allowed
@@ -14,10 +17,11 @@ def test_the_notes_may_only_cite_papers_the_agent_has_read(fake, arxiv_two, conf
         ("write_notes", {"notes": NOTES_ONE}),
     )
 
-    notes = run_scout(config, "attention", tmp_path / "out", http=arxiv_two.transport(),
-                      ollama=fake.transport())  # fmt: skip
+    code = main(["--config", str(config), "scout", "attention", "--out", str(out)],
+                web=arxiv_two.transport(), ollama=fake.transport())  # fmt: skip
 
-    assert notes is not None and notes.read_text().strip() == NOTES_ONE
+    assert code == 0 and str(out / "notes.md") in capsys.readouterr().out
+    assert (out / "notes.md").read_text().strip() == NOTES_ONE
     results = tool_results(fake)
     assert "you have not read" in results[1] and "2401.00001" in results[0]  # search hit listed
     assert results[-1] == "saved"
