@@ -15,13 +15,15 @@ API Reference
 Core
 ----
 
-Shared by every feature: chat models with a reply cache, the LangChain building blocks,
+Shared by every feature: chat models with a reply cache, the Ollama server, the LangChain building blocks,
 ingest, claim extraction and the fact-check loop.
 
 .. automodule:: labmate.core
 .. automodule:: labmate.core.chat
    :members:
    :show-inheritance:
+.. automodule:: labmate.core.ollama
+   :members:
 .. automodule:: labmate.core.structured
    :members:
 .. automodule:: labmate.core.lc

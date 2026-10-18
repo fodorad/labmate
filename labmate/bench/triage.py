@@ -17,11 +17,10 @@ from typing import Any
 import httpx
 import yaml
 
-from labmate.bench.micro import unload_all
 from labmate.config import CacheConfig, Config
 from labmate.core.ingest import ArxivMetadata
+from labmate.core.ollama import DecisionError, OllamaServer
 from labmate.triage.decide import decide, is_decision_model
-from labmate.triage.systemone import DecisionError
 
 GOLDEN = Path("evals/triage/golden.yaml")
 """The labelled papers."""
@@ -84,7 +83,8 @@ def evaluate(
     cfg = config.model_copy(deep=True)
     cfg.cache, cfg.models.decider = CacheConfig(enabled=False), model
     result = DeciderResult(model)
-    unload_all(cfg.ollama.host, transport)
+    server = OllamaServer.from_config(cfg, transport)
+    server.unload_all()
     times: list[float] = []
     try:
         decision_model = is_decision_model(cfg, transport)
@@ -105,7 +105,7 @@ def evaluate(
     except (httpx.HTTPError, DecisionError, ValueError, RuntimeError) as e:
         result.error = f"{type(e).__name__}: {e}"[:160]
     finally:
-        unload_all(cfg.ollama.host, transport)
+        server.unload_all()
     result.median_s = statistics.median(times) if times else 0.0
     return result
 

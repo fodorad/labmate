@@ -18,8 +18,11 @@ from labmate.config import Config
 from labmate.core.chat import chat_model
 from labmate.core.ingest import ArxivMetadata
 from labmate.core.lc import prompt, structured
+from labmate.core.ollama import OllamaServer
 from labmate.triage.prompts import load_prompt
-from labmate.triage.systemone import has_decision_capability, systemone
+
+DECISION = "decision"
+"""The capability Ollama lists for a decision model."""
 
 MAX_REASON_WORDS = 25
 """Longest reason a chat model may give, in words."""
@@ -117,7 +120,8 @@ def is_decision_model(config: Config, transport: httpx.BaseTransport | None = No
     Returns:
         ``True`` if Ollama lists the ``decision`` capability for it.
     """
-    return has_decision_capability(config, config.models.decider, transport)
+    server = OllamaServer.from_config(config, transport)
+    return DECISION in server.capabilities(config.models.decider)
 
 
 def decide(
@@ -147,9 +151,8 @@ def decide(
             f"Reader's interests: {interests}\n\n"
             f"Paper title: {meta.title}\nAbstract: {meta.abstract}"
         )
-        answers = systemone(
-            config, config.models.decider, state, {"relevance": QUESTION}, transport
-        )
+        server = OllamaServer.from_config(config, transport)
+        answers = server.systemone(config.models.decider, state, {"relevance": QUESTION})
         return decision_from_score(float(answers["relevance"]["score"]))
     model = chat_model(config, config.models.decider, transport=transport)
     chain = prompt(load_prompt("triage")) | structured(model, Decision, check=reason_problems)

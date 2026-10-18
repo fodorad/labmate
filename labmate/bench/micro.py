@@ -21,9 +21,10 @@ from labmate.config import CacheConfig, Config
 from labmate.core.chat import chat_model
 from labmate.core.factcheck import judge_card
 from labmate.core.lc import prompt, structured
+from labmate.core.ollama import OllamaServer
 from labmate.core.schemas import Bullet, Card, ClaimCard
 from labmate.core.structured import StructuredOutputError
-from labmate.core.usage import UsageCollector, ollama_resident
+from labmate.core.usage import UsageCollector
 
 MAX_BULLETS = 4
 """Bullets per card, as in a real run."""
@@ -97,35 +98,6 @@ class JudgeResult:
     clean: int
     seconds_per_verdict: float
     missed: list[str] = field(default_factory=list)
-
-
-def unload_all(host: str, transport: httpx.BaseTransport | None = None) -> None:
-    """Unload every model Ollama has loaded, so the next call is a cold start.
-
-    Args:
-        host: The Ollama server address.
-        transport: An httpx transport to reach it through (tests).
-    """
-    with httpx.Client(transport=transport, timeout=60) as http:
-        for loaded in http.get(f"{host}/api/ps").json().get("models", []):
-            http.post(f"{host}/api/generate", json={"model": loaded["name"], "keep_alive": 0})
-
-
-def model_sizes(host: str, transport: httpx.BaseTransport | None = None) -> dict[str, float]:
-    """The size in gigabytes of every installed model.
-
-    Args:
-        host: The Ollama server address.
-        transport: An httpx transport to reach it through (tests).
-
-    Returns:
-        Model tag to gigabytes; a ``name:latest`` model is also listed as ``name``.
-    """
-    with httpx.Client(transport=transport, timeout=30) as http:
-        models = http.get(f"{host}/api/tags").json().get("models", [])
-    sizes = {m["name"]: m["size"] / 1e9 for m in models}
-    sizes.update({name.removesuffix(":latest"): gb for name, gb in sizes.items()})
-    return sizes
 
 
 JUDGE_MAX_TOKENS = 800
@@ -203,11 +175,12 @@ def measure_model(config: Config, tag: str, tools: bool, judging: bool) -> Model
     Returns:
         The measurements; ``error`` is set if the model failed in a way that stops the test.
     """
-    unload_all(config.ollama.host)
-    collector = UsageCollector(ollama_resident(config.ollama.host))
+    server = OllamaServer.from_config(config)
+    server.unload_all()
+    collector = UsageCollector(server.resident_gb)
     cfg = _bench_config(config, collector)
     model = chat_model(cfg, tag)
-    result = ModelResult(tag, size_gb=model_sizes(config.ollama.host).get(tag, 0.0))
+    result = ModelResult(tag, size_gb=server.sizes().get(tag, 0.0))
     try:
         model.invoke("Say OK.")  # the cold start: its load time is what a first request pays
         result.load_s = collector.summary().load_s
