@@ -7,11 +7,13 @@ import logging
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from labmate.bench.cells import cell_key, cells_markdown, from_results
+import httpx
+
+from labmate.bench.cells import FULL_USE_CASES, USE_CASES, cell_key, cells_markdown, from_results
 from labmate.bench.cold import ColdRun, load_results
 from labmate.bench.guard import NotEnoughMemory
-from labmate.bench.macro import FULL_USE_CASES, USE_CASES, run_cell
 from labmate.bench.micro import ModelResult, from_dict, measure_model, to_dict
 from labmate.bench.report import HEADROOM_GB, machine, memory_gb, micro_markdown, profile_rows
 from labmate.bench.triage import DeciderResult, evaluate, load_golden, triage_markdown
@@ -19,7 +21,13 @@ from labmate.bench.triage import to_dict as decider_dict
 from labmate.config import Config
 from labmate.core.ollama import OllamaServer
 
+if TYPE_CHECKING:
+    from labmate.cli import CliContext
+
 log = logging.getLogger(__name__)
+
+Transport = httpx.BaseTransport | None
+"""A transport to Ollama (tests), or ``None`` for the configured host."""
 
 
 def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-arg,unused-ignore]
@@ -56,6 +64,7 @@ def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-ar
     report = actions.add_parser("report", help="write docs/benchmarks.md from the saved results")
     report.add_argument("--out", **out)
     report.add_argument("--docs", type=Path, default=Path("docs/benchmarks.md"))
+    bench.set_defaults(handler=main)
 
 
 def profile_models(config: Config) -> tuple[list[str], list[str]]:
@@ -98,19 +107,20 @@ def _micro_results(out: Path) -> list[ModelResult]:
     return [from_dict(d) for d in load_results(out / "micro.json").values()]
 
 
-def run_micro(config: Config, args: argparse.Namespace) -> int:
+def run_micro(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
     """Measure every model, writing the results as they come in.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``models``, ``out``, ``force``).
+        ollama: Transport to the Ollama server (tests); the configured host otherwise.
 
     Returns:
         Exit code 0.
     """
     writers, judges = profile_models(config)
     tags = args.models or list(dict.fromkeys([*writers, *judges]))
-    cold = ColdRun(config, args.out / "micro.json", args.force)
+    cold = ColdRun(config, args.out / "micro.json", args.force, ollama)
     sizes = cold.server.sizes()
     for tag in tags:
         size, tools, judging = sizes.get(tag, 0.0), tag in writers, tag in judges
@@ -133,24 +143,25 @@ def _deciders(out: Path) -> list[DeciderResult]:
     return [DeciderResult(**d) for d in load_results(out / "triage.json").values()]
 
 
-def run_triage_eval(config: Config, args: argparse.Namespace) -> int:
+def run_triage_eval(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
     """Rate the labelled papers with each decider, saving as it goes.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``models``, ``out``, ``force``).
+        ollama: Transport to the Ollama server (tests); the configured host otherwise.
 
     Returns:
         Exit code 0.
     """
     golden = load_golden()
-    cold = ColdRun(config, args.out / "triage.json", args.force)
+    cold = ColdRun(config, args.out / "triage.json", args.force, ollama)
     sizes = cold.server.sizes()
     for tag in args.models or DECIDERS:
         cold.run(
             tag,
             sizes.get(tag, 0.0),
-            lambda cfg, usage: decider_dict(evaluate(cfg, tag, golden)),  # noqa: B023 - called at once
+            lambda cfg, usage: decider_dict(evaluate(cfg, tag, golden, ollama)),  # noqa: B023 - called at once
         )
     print(triage_markdown(_deciders(args.out), sizes))
     return 0
@@ -171,19 +182,22 @@ def fitting_profiles(config: Config, out: Path) -> list[str]:
     return [r.profile for r in rows if r.fits]
 
 
-def run_macro(config: Config, args: argparse.Namespace) -> int:
+def run_macro(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
     """Run each use case on each profile and save the cells.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``profiles``, ``use_cases``, ``full``, ``out``, ``force``).
+        ollama: Transport to the Ollama server (tests); the configured host otherwise.
 
     Returns:
         Exit code 0.
     """
+    from labmate.bench.macro import run_cell  # noqa: PLC0415 - runs every use case ([ask] extra)
+
     profiles = args.profiles or fitting_profiles(config, args.out)
     use_cases = args.use_cases or (FULL_USE_CASES if args.full else USE_CASES)
-    cold = ColdRun(config, args.out / "macro.json", args.force)
+    cold = ColdRun(config, args.out / "macro.json", args.force, ollama)
     sizes = cold.server.sizes()
     for use_case in use_cases:
         for profile in profiles:
@@ -198,17 +212,18 @@ def run_macro(config: Config, args: argparse.Namespace) -> int:
     return 0
 
 
-def run_report(config: Config, args: argparse.Namespace) -> int:
+def run_report(config: Config, args: argparse.Namespace, ollama: Transport) -> int:
     """Write the benchmark page from the saved micro results and cells.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments (``out``, ``docs``).
+        ollama: Transport to the Ollama server (tests); the configured host otherwise.
 
     Returns:
         Exit code 0.
     """
-    server = OllamaServer.from_config(config)
+    server = OllamaServer.from_config(config, ollama)
     cells = from_results(load_results(args.out / "macro.json"))
     intro = (
         f"Measured on {machine()}, Ollama {server.version()}, {date.today()}. "
@@ -249,18 +264,17 @@ def run_report(config: Config, args: argparse.Namespace) -> int:
     return 0
 
 
-def main(config: Config, args: argparse.Namespace) -> int:
+def main(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
     """Run a bench action.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments.
+        ctx: The transport to Ollama.
 
     Returns:
         Exit code.
     """
-    logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
     actions = {
         "micro": run_micro,
         "macro": run_macro,
@@ -268,7 +282,7 @@ def main(config: Config, args: argparse.Namespace) -> int:
         "report": run_report,
     }
     try:
-        return actions[args.action](config, args)
+        return actions[args.action](config, args, ctx.ollama)
     except NotEnoughMemory as e:
         log.error("stopped before loading anything more: %s", e)
         return 1

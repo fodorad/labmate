@@ -44,15 +44,12 @@ SCOUT_TOPIC = "linear attention for long sequences"
 PAPER = "1706.03762"
 EXAMPLES = Path("examples/cv2job")
 
-USE_CASES = ("ask: graph", "ask: agent", "cv2job", "scout")
-FULL_USE_CASES = (*USE_CASES, "paper2flow", "paper2post")
-
 
 def run_cell(use_case: str, profile: str, config: Config, collector: UsageCollector) -> Cell:
     """Run one use case on one profile and measure it.
 
     Args:
-        use_case: One of :data:`FULL_USE_CASES`.
+        use_case: One of :data:`labmate.bench.cells.FULL_USE_CASES`.
         profile: A key of ``[profiles]``, applied to ``config``.
         config: A cold configuration (see :func:`labmate.bench.cold.cold_config`).
         collector: The collector ``config`` reports to.

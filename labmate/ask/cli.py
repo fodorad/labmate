@@ -4,19 +4,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-import httpx
 
 from labmate.config import Config
 
 if TYPE_CHECKING:
     from labmate.ask.schemas import Answer
     from labmate.ask.session import AskSession
+    from labmate.cli import CliContext
 
 
 def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-arg,unused-ignore]
@@ -40,6 +38,7 @@ def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-ar
     ans = actions.add_parser("eval-answers", help="graph vs agent on library/golden.yaml")
     ans.add_argument("--golden", type=Path, default=None, help="default: <library>/golden.yaml")
     ans.add_argument("--out", type=Path, default=Path("evals/ask"))
+    ask.set_defaults(handler=main)
 
 
 def print_answer(answer: Answer) -> None:
@@ -55,13 +54,13 @@ def print_answer(answer: Answer) -> None:
         print(f"  ({answer.dropped} unsupported sentence(s) removed)")
 
 
-def main(config: Config, args: argparse.Namespace, ollama: httpx.BaseTransport | None) -> int:
+def main(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
     """Run an ask action.
 
     Args:
         config: Loaded configuration.
         args: Parsed arguments.
-        ollama: Transport to the Ollama server (tests); the configured host otherwise.
+        ctx: The transport to Ollama.
 
     Returns:
         Exit code.
@@ -69,11 +68,9 @@ def main(config: Config, args: argparse.Namespace, ollama: httpx.BaseTransport |
     from labmate.ask.library import LibraryError, load_library  # noqa: PLC0415
     from labmate.ask.session import open_ask  # noqa: PLC0415
 
-    logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
     if args.library:
         config.ask.library = args.library
-    s = open_ask(config, ollama)
+    s = open_ask(config, ctx.ollama)
     try:
         if args.action == "index":
             from labmate.ask.build import build_index  # noqa: PLC0415

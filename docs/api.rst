@@ -63,6 +63,8 @@ A paper in, ``overview.pdf`` out: a LangChain chain.
    :members:
 .. automodule:: labmate.paper2flow.evals.metrics
    :members:
+.. automodule:: labmate.paper2flow.cli
+   :members:
 
 paper2post
 ----------
@@ -78,6 +80,8 @@ A paper in, ``post.pdf`` out: a LangChain chain that extends paper2flow's analys
    :members:
 .. automodule:: labmate.paper2post.render
    :members:
+.. automodule:: labmate.paper2post.cli
+   :members:
 
 scout
 -----
@@ -86,6 +90,8 @@ A topic in, notes on arXiv papers out.
 
 .. automodule:: labmate.scout
 .. automodule:: labmate.scout.agent
+   :members:
+.. automodule:: labmate.scout.cli
    :members:
 
 triage
@@ -97,6 +103,8 @@ A topic and your interests in, arXiv hits sorted into deep read, post or skip ou
 .. automodule:: labmate.triage.decide
    :members:
 .. automodule:: labmate.triage.run
+   :members:
+.. automodule:: labmate.triage.cli
    :members:
 
 cv2job
@@ -116,6 +124,8 @@ A CV and a job posting in, a tailored CV, a cover letter and a gap report out.
 .. automodule:: labmate.cv2job.render
    :members:
 .. automodule:: labmate.cv2job.chain
+   :members:
+.. automodule:: labmate.cv2job.cli
    :members:
 
 ask
