@@ -97,11 +97,25 @@ def default_systemone(body: dict[str, Any]) -> dict[str, Any]:
     return {"answers": {name: {"type": "score", "score": 2.0} for name in body["questions"]}}
 
 
+SIZES_GB = {
+    "qwen3.8:27b-mlx": 21.0,
+    "gemma4:26b-mlx": 16.0,
+    "gemma4:e4b": 6.6,
+    "embeddinggemma:latest": 0.6,
+    "clef-flash": 2.0,
+}
+"""What the fake reports for each installed model (``/api/tags``, ``/api/ps``)."""
+
+
 class FakeOllama:
-    """In-memory stand-in for an Ollama server, served through ``httpx.MockTransport``."""
+    """In-memory stand-in for an Ollama server, served through ``httpx.MockTransport``.
+
+    A chat or decision call loads its model; ``keep_alive: 0`` unloads it, as Ollama does.
+    """
 
     def __init__(self) -> None:
         self.requests: list[tuple[str, dict[str, Any]]] = []
+        self.loaded: set[str] = set()
         self.chat_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_chat
         self.embed_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_embed
         self.systemone_handler: Callable[[dict[str, Any]], dict[str, Any]] = default_systemone
@@ -114,17 +128,28 @@ class FakeOllama:
         if model is not None and model not in INSTALLED:
             return httpx.Response(404, json={"error": f"model '{model}' not found"})
         if path == "/api/chat":
+            self.loaded.add(model)
             return httpx.Response(200, json=self.chat_handler(body))
+        if path == "/api/generate" and body.get("keep_alive") == 0:
+            self.loaded.discard(model)
+            return httpx.Response(200, json={"model": model, "done": True})
         if path == "/api/embed":
             return httpx.Response(200, json=self.embed_handler(body))
         if path == "/api/ps":
-            return httpx.Response(200, json={"models": []})
+            loaded = [{"name": m, "size": int(SIZES_GB[m] * 1e9)} for m in sorted(self.loaded)]
+            return httpx.Response(200, json={"models": loaded})
+        if path == "/api/tags":
+            tags = [{"name": m, "size": int(gb * 1e9)} for m, gb in SIZES_GB.items()]
+            return httpx.Response(200, json={"models": tags})
+        if path == "/api/version":
+            return httpx.Response(200, json={"version": "0.30.0"})
         if path == "/api/show":
             capabilities = ["decision"] if model in DECISION_MODELS else ["completion", "tools"]
             return httpx.Response(200, json={"capabilities": capabilities})
         if path == "/v1/systemone":
             if model not in DECISION_MODELS:
                 return httpx.Response(400, json={"error": f"{model} is not a decision model"})
+            self.loaded.add(model)
             return httpx.Response(200, json=self.systemone_handler(body))
         return httpx.Response(404, text="not found")
 

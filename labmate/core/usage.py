@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-import httpx
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 
@@ -80,33 +79,12 @@ class Usage:
     decode_tps: float
 
 
-def ollama_resident(host: str, transport: httpx.BaseTransport | None = None) -> Callable[[], float]:
-    """A function that returns the gigabytes of models Ollama has loaded right now.
-
-    Args:
-        host: The Ollama server address.
-        transport: An httpx transport to reach it through (tests).
-
-    Returns:
-        ``() -> GB``; 0.0 if the server cannot be asked.
-    """
-
-    def resident() -> float:
-        try:
-            with httpx.Client(transport=transport, timeout=5) as http:
-                loaded = http.get(f"{host}/api/ps").json().get("models", [])
-        except (httpx.HTTPError, ValueError):
-            return 0.0
-        return sum(m.get("size", 0) for m in loaded) / 1e9
-
-    return resident
-
-
 class UsageCollector(BaseCallbackHandler):
     """Records every chat-model call of a run.
 
     Args:
-        resident: Returns the gigabytes of models loaded now (see :func:`ollama_resident`);
+        resident: Returns the gigabytes of models loaded now (e.g.
+            :meth:`labmate.core.ollama.OllamaServer.resident_gb`);
             polled after each call to find the peak.
     """
 

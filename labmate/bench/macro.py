@@ -19,7 +19,6 @@ from labmate.ask.evals import load_golden, score_answer
 from labmate.ask.graph import ask, compile_graph
 from labmate.ask.session import open_ask
 from labmate.bench.cells import Cell
-from labmate.bench.micro import unload_all
 from labmate.bench.quality import (
     Quality,
     ask_quality,
@@ -29,7 +28,8 @@ from labmate.bench.quality import (
     scout_quality,
 )
 from labmate.config import CacheConfig, Config, apply_profile
-from labmate.core.usage import UsageCollector, ollama_resident
+from labmate.core.ollama import OllamaServer
+from labmate.core.usage import UsageCollector
 from labmate.cv2job.chain import cv2job
 from labmate.cv2job.schemas import Application
 from labmate.paper2flow.chain import paper2flow
@@ -62,10 +62,11 @@ def run_cell(use_case: str, profile: str, base: Config) -> Cell:
     """
     config = base.model_copy(deep=True)
     apply_profile(config, profile)
-    collector = UsageCollector(ollama_resident(config.ollama.host))
+    server = OllamaServer.from_config(config)
+    collector = UsageCollector(server.resident_gb)
     config.cache, config.callbacks = CacheConfig(enabled=False), [collector]
     cell = Cell(use_case, profile, config.models.text, config.models.critic)
-    unload_all(config.ollama.host)
+    server.unload_all()
     started = time.perf_counter()
     try:
         with tempfile.TemporaryDirectory() as tmp:

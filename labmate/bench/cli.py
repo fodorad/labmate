@@ -8,23 +8,15 @@ import logging
 from datetime import date
 from pathlib import Path
 
-import httpx
-
 from labmate.bench.cells import Cell, cells_markdown, load, save
 from labmate.bench.guard import NotEnoughMemory, require_room
 from labmate.bench.macro import FULL_USE_CASES, USE_CASES, run_cell
-from labmate.bench.micro import (
-    ModelResult,
-    from_dict,
-    measure_model,
-    model_sizes,
-    to_dict,
-    unload_all,
-)
+from labmate.bench.micro import ModelResult, from_dict, measure_model, to_dict
 from labmate.bench.report import HEADROOM_GB, machine, memory_gb, micro_markdown, profile_rows
 from labmate.bench.triage import DeciderResult, evaluate, load_golden, triage_markdown
 from labmate.bench.triage import to_dict as decider_dict
 from labmate.config import Config
+from labmate.core.ollama import OllamaServer
 
 log = logging.getLogger(__name__)
 
@@ -124,19 +116,20 @@ def run_micro(config: Config, args: argparse.Namespace) -> int:
     done: dict[str, dict] = {}
     if file.exists() and not args.force:
         done = json.loads(file.read_text())
+    server = OllamaServer.from_config(config)
     for tag in tags:
         if tag in done:
             log.info("  have %s", tag)
             continue
-        unload_all(config.ollama.host)
-        require_room(model_sizes(config.ollama.host).get(tag, 0.0), memory_gb())
+        server.unload_all()
+        require_room(server.sizes().get(tag, 0.0), memory_gb())
         log.info("measuring %s", tag)
         try:
             done[tag] = to_dict(
                 measure_model(config, tag, tools=tag in writers, judging=tag in judges)
             )
         finally:
-            unload_all(config.ollama.host)
+            server.unload_all()
         file.write_text(json.dumps(done, indent=2) + "\n")
     text = micro_markdown(_micro_results(out), config, memory_gb())
     (out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
@@ -170,12 +163,13 @@ def run_triage_eval(config: Config, args: argparse.Namespace) -> int:
     out.mkdir(parents=True, exist_ok=True)
     file = out / "triage.json"
     done = {} if args.force or not file.exists() else json.loads(file.read_text())
-    sizes = model_sizes(config.ollama.host)
+    server = OllamaServer.from_config(config)
+    sizes = server.sizes()
     for tag in args.models or DECIDERS:
         if tag in done:
             log.info("  have %s", tag)
             continue
-        unload_all(config.ollama.host)
+        server.unload_all()
         require_room(sizes.get(tag, 0.0), memory_gb())
         log.info("rating with %s", tag)
         done[tag] = decider_dict(evaluate(config, tag, golden))
@@ -202,7 +196,7 @@ def fitting_profiles(config: Config, out: Path) -> list[str]:
 def _profile_gb(config: Config, profile: str) -> float:
     """Size of the models a profile loads together."""
     chosen = config.profiles[profile]
-    sizes = model_sizes(config.ollama.host)
+    sizes = OllamaServer.from_config(config).sizes()
     return sum(sizes.get(tag, 0.0) for tag in dict.fromkeys([chosen.text, chosen.critic]))
 
 
@@ -219,30 +213,24 @@ def run_macro(config: Config, args: argparse.Namespace) -> int:
     profiles = args.profiles or fitting_profiles(config, args.out)
     use_cases = args.use_cases or (FULL_USE_CASES if args.full else USE_CASES)
     directory = args.out / "cells"
+    server = OllamaServer.from_config(config)
     for use_case in use_cases:
         for profile in profiles:
             name = f"{use_case.replace(': ', '-')}__{profile}.json"
             if (directory / name).exists() and not args.force:
                 log.info("  have %s on %s", use_case, profile)
                 continue
-            unload_all(config.ollama.host)
+            server.unload_all()
             require_room(_profile_gb(config, profile), memory_gb())
             log.info("running %s on %s", use_case, profile)
             try:
                 cell = run_cell(use_case, profile, config)
             finally:
-                unload_all(config.ollama.host)
+                server.unload_all()
             save(cell, directory)
             log.info("  %.0f s, quality %.0f%% %s", cell.seconds, cell.quality, cell.error)
     print(cells_markdown(load(directory)))
     return 0
-
-
-def _ollama_version(host: str) -> str:
-    try:
-        return str(httpx.get(f"{host}/api/version", timeout=5).json().get("version", "unknown"))
-    except (httpx.HTTPError, ValueError):
-        return "unknown"
 
 
 def run_report(config: Config, args: argparse.Namespace) -> int:
@@ -255,9 +243,10 @@ def run_report(config: Config, args: argparse.Namespace) -> int:
     Returns:
         Exit code 0.
     """
+    server = OllamaServer.from_config(config)
     cells: list[Cell] = load(args.out / "cells") if (args.out / "cells").exists() else []
     intro = (
-        f"Measured on {machine()}, Ollama {_ollama_version(config.ollama.host)}, {date.today()}. "
+        f"Measured on {machine()}, Ollama {server.version()}, {date.today()}. "
         "Every run starts cold (models unloaded) with the reply cache off, so it pays what a "
         "first request pays. The GPU may use about three quarters of the memory, 'fits' keeps "
         f"{HEADROOM_GB:.0f} GB of that free for other programs, and a pair that does not fit is "
@@ -283,7 +272,7 @@ def run_report(config: Config, args: argparse.Namespace) -> int:
         "",
         TRIAGE_NOTE,
         "",
-        triage_markdown(_deciders(args.out), model_sizes(config.ollama.host))
+        triage_markdown(_deciders(args.out), server.sizes())
         if _deciders(args.out)
         else "Not measured yet (`labmate bench triage`).",
         "## Parallel requests",

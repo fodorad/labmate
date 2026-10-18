@@ -2,7 +2,7 @@ import httpx
 
 from labmate.config import CacheConfig, Config
 from labmate.core.chat import chat_model
-from labmate.core.usage import UsageCollector, ollama_resident
+from labmate.core.usage import UsageCollector
 
 
 def test_the_collector_sums_the_calls_and_counts_the_models_that_had_to_be_loaded_again(fake):
@@ -23,18 +23,3 @@ def test_the_collector_sums_the_calls_and_counts_the_models_that_had_to_be_loade
     assert usage.loads == 3 and usage.swaps == 1 and usage.load_s == 6.0
     assert usage.peak_gb == 37.0  # both did not fit at the same time on a 32 GB Mac
     assert usage.decode_tps == 50.0  # 150 tokens in 3 s
-
-
-def test_the_resident_memory_is_what_ollama_says_is_loaded():
-    def ps(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/ps"
-        sizes = [{"name": "a", "size": 21_000_000_000}, {"name": "b", "size": 6_600_000_000}]
-        return httpx.Response(200, json={"models": sizes})
-
-    resident = ollama_resident("http://ollama", httpx.MockTransport(ps))
-
-    assert resident() == 27.6
-    assert (
-        ollama_resident("http://ollama", httpx.MockTransport(lambda r: httpx.Response(500)))()
-        == 0.0
-    )

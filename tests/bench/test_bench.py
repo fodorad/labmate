@@ -1,12 +1,11 @@
 import json
 
-import httpx
 import pytest
 
 from labmate.ask.evals import AnswerCase
 from labmate.bench.cells import Cell, cells_markdown, load, save
 from labmate.bench.guard import NotEnoughMemory, parse_vm_stat, require_room
-from labmate.bench.micro import ModelResult, judge_test, unload_all
+from labmate.bench.micro import ModelResult, judge_test
 from labmate.bench.quality import ask_quality
 from labmate.bench.report import micro_markdown, profile_rows
 from labmate.config import Config, ProfileConfig
@@ -59,20 +58,6 @@ def test_the_tables_say_which_profiles_fit_in_memory_together():
     results = [ModelResult(tag, size_gb=gb, load_s=4, decode_tps=30) for tag, gb in sizes.items()]
     text = micro_markdown(results, config, 32)
     assert "**no, a model is evicted**" in text and "`small`" in text
-
-
-def test_unloading_asks_ollama_to_drop_every_loaded_model():
-    asked = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path == "/api/ps":
-            return httpx.Response(200, json={"models": [{"name": "a"}, {"name": "b"}]})
-        asked.append(request.content)
-        return httpx.Response(200, json={})
-
-    unload_all("http://ollama", httpx.MockTransport(handler))
-
-    assert len(asked) == 2 and all(b'"keep_alive":0' in a.replace(b" ", b"") for a in asked)
 
 
 def test_ask_quality_averages_answer_source_and_kept_sentences():
