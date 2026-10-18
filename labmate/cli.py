@@ -23,12 +23,16 @@ import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 from ollama import ResponseError
 
 from labmate.config import Config, load_config
 from labmate.core.ollama import DecisionError
+
+if TYPE_CHECKING:
+    from labmate.bench.guard import Memory
 
 FEATURES = ("paper2flow", "paper2post", "scout", "triage", "cv2job", "ask", "bench")
 """The packages that register commands (``labmate.<name>.cli``), in help order."""
@@ -57,13 +61,13 @@ class CliContext:
         web: Transport for arXiv and downloads (tests); the network if ``None``.
         ollama: Transport to the Ollama server (tests); the configured host if ``None``.
         ask: How cv2job's agent asks the candidate a question.
-        free_gb: Returns the free memory, for the benchmark's guard (tests); measured if ``None``.
+        memory: The machine's memory as the benchmark sees it (tests); measured if ``None``.
     """
 
     web: httpx.BaseTransport | None = None
     ollama: httpx.BaseTransport | None = None
     ask: Callable[[str], str] = terminal_ask
-    free_gb: Callable[[], float] | None = None
+    memory: Memory | None = None
 
 
 def run_graphs(config: Config, args: argparse.Namespace, ctx: CliContext) -> int:
@@ -106,7 +110,7 @@ def main(
     web: httpx.BaseTransport | None = None,
     ollama: httpx.BaseTransport | None = None,
     ask: Callable[[str], str] = terminal_ask,
-    free_gb: Callable[[], float] | None = None,
+    memory: Memory | None = None,
 ) -> int:
     """Entry point.
 
@@ -115,7 +119,7 @@ def main(
         web: Injected web transport (tests); the network otherwise.
         ollama: Injected transport to Ollama (tests); the configured host otherwise.
         ask: How cv2job's agent asks you a question (default: in the terminal).
-        free_gb: Returns the free memory for ``bench`` (tests); measured otherwise.
+        memory: The machine's memory for ``bench`` (tests); measured otherwise.
 
     Returns:
         Process exit code.
@@ -129,7 +133,7 @@ def main(
     logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
-        return int(args.handler(config, args, CliContext(web, ollama, ask, free_gb)))
+        return int(args.handler(config, args, CliContext(web, ollama, ask, memory)))
     except httpx.TransportError as e:
         print(f"error: {e} (is Ollama running at {config.ollama.host}?)", file=sys.stderr)
         return 2

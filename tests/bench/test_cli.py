@@ -3,24 +3,26 @@ import json
 import httpx
 import yaml
 
+from labmate.bench.guard import Memory
 from labmate.cli import main
 from tests.cv2job.conftest import cv_chat
 
-ENOUGH = lambda: 64.0  # noqa: E731 - free memory the guard sees
+ENOUGH = Memory(32, lambda: 64.0, share=0.75)
+"""A 32 GB Mac with plenty free, whatever machine runs the tests."""
 
 
 def test_micro_measures_each_model_cold_and_a_rerun_resumes(fake, tmp_path):
     out = tmp_path / "bench"
     argv = ["bench", "micro", "--models", "gemma4:e4b", "--out", str(out)]
 
-    assert main(argv, ollama=fake.transport(), free_gb=ENOUGH) == 0
+    assert main(argv, ollama=fake.transport(), memory=ENOUGH) == 0
 
     saved = json.loads((out / "micro.json").read_text())["gemma4:e4b"]
     assert saved["size_gb"] == 6.6 and saved["load_s"] == 2.0  # the fake reports a 2 s load
     assert "`gemma4:e4b`" in (out / "micro.md").read_text()
     assert fake.loaded == set()  # unloaded when it ended
     chats = fake.paths().count("/api/chat")
-    assert main(argv, ollama=fake.transport(), free_gb=ENOUGH) == 0
+    assert main(argv, ollama=fake.transport(), memory=ENOUGH) == 0
     assert fake.paths().count("/api/chat") == chats  # saved, not measured again
 
 
@@ -30,7 +32,7 @@ def test_triage_scores_each_decider_against_the_labels(fake, tmp_path):
     out = tmp_path / "bench"
 
     assert main(["bench", "triage", "--models", "clef-flash", "--out", str(out)],
-                ollama=fake.transport(), free_gb=ENOUGH) == 0  # fmt: skip
+                ollama=fake.transport(), memory=ENOUGH) == 0  # fmt: skip
 
     result = json.loads((out / "triage.json").read_text())["clef-flash"]
     assert result["kind"] == "decision" and result["size_gb"] == 2.0
@@ -44,7 +46,7 @@ def test_macro_runs_a_use_case_on_each_profile_that_fits_and_scores_it(fake, tmp
     out = tmp_path / "bench"
     argv = ["--config", str(config), "bench", "macro", "--use-cases", "cv2job", "--out", str(out)]
 
-    assert main(argv, ollama=fake.transport(), free_gb=ENOUGH) == 0
+    assert main(argv, ollama=fake.transport(), memory=ENOUGH) == 0
 
     cell = json.loads((out / "macro.json").read_text())["cv2job__small"]
     assert cell["error"] == "" and cell["calls"] > 0 and cell["quality"] > 0
@@ -54,7 +56,7 @@ def test_macro_runs_a_use_case_on_each_profile_that_fits_and_scores_it(fake, tmp
 def test_the_benchmark_stops_before_loading_models_that_do_not_fit(fake, tmp_path, capsys):
     argv = ["bench", "micro", "--models", "gemma4:e4b", "--out", str(tmp_path)]
 
-    assert main(argv, ollama=fake.transport(), free_gb=lambda: 1.0) == 1
+    assert main(argv, ollama=fake.transport(), memory=Memory(32, lambda: 1.0, share=0.75)) == 1
 
     assert "/api/chat" not in fake.paths() and "only 1.0 GB are free" in capsys.readouterr().err
 

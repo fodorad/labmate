@@ -8,6 +8,7 @@ cv2job, one topic for scout, and one paper for paper2flow and paper2post (only w
 from __future__ import annotations
 
 import json
+import logging
 import tempfile
 import time
 from pathlib import Path
@@ -41,6 +42,8 @@ from labmate.scout.agent import cited_ids, run_scout
 if TYPE_CHECKING:
     from labmate.cli import CliContext
 
+log = logging.getLogger(__name__)
+
 ASK_QUESTIONS = (0, 2, 5, 11)
 """Golden questions used: a definition, a number, a list of datasets, and an off-topic one."""
 
@@ -72,12 +75,14 @@ def run_cell(
             quality, divisor = _RUNNERS[use_case](config, Path(tmp), ctx)
     except (httpx.HTTPError, ValueError, RuntimeError, OSError) as e:
         cell.error = f"{type(e).__name__}: {e}"[:160]
+        log.info("  %s on %s failed: %s", use_case, profile, cell.error)
         return cell
     cell.seconds = (time.perf_counter() - started) / divisor
     usage = collector.summary()
     cell.calls, cell.tokens_in, cell.tokens_out = usage.calls, usage.tokens_in, usage.tokens_out
     cell.load_s, cell.swaps, cell.peak_gb = usage.load_s, usage.swaps, usage.peak_gb
     cell.quality, cell.parts = quality.score, quality.parts
+    log.info("  %s on %s: %.0f s, quality %.0f%%", use_case, profile, cell.seconds, cell.quality)
     return cell
 
 

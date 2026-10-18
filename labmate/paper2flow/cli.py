@@ -5,17 +5,31 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
+
+import httpx
 
 from labmate.config import Config
 
 if TYPE_CHECKING:
     from labmate.cli import CliContext
 
-PaperChain = Callable[..., Path]
-"""``paper2flow`` or ``paper2post``: ``(config, source, title, web, ollama) -> PDF``."""
+
+class PaperChain(Protocol):
+    """``paper2flow`` or ``paper2post``: one paper in, the path of its PDF out."""
+
+    def __call__(
+        self,
+        config: Config,
+        source: str,
+        title: str | None = None,
+        web: httpx.BaseTransport | None = None,
+        ollama: httpx.BaseTransport | None = None,
+    ) -> Path:
+        """Turn ``source`` into a PDF (see :func:`labmate.paper2flow.chain.paper2flow`)."""
+        ...
 
 
 def add_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-arg,unused-ignore]
