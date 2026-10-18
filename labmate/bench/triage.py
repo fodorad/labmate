@@ -33,6 +33,7 @@ class DeciderResult:
     Attributes:
         model: Model tag.
         kind: ``decision`` or ``chat``.
+        size_gb: Size of the model, as Ollama reported it when it was rated.
         cases: Number of paper and interest pairs.
         exact: Cases where the action equals the label.
         read: Cases where "read it (deep or post) or skip it" equals the label's.
@@ -43,6 +44,7 @@ class DeciderResult:
 
     model: str
     kind: str = ""
+    size_gb: float = 0.0
     cases: int = 0
     exact: int = 0
     read: int = 0
@@ -102,12 +104,11 @@ def evaluate(
     return result
 
 
-def triage_markdown(results: list[DeciderResult], sizes: dict[str, float]) -> str:
+def triage_markdown(results: list[DeciderResult]) -> str:
     """The deciders as a table, best first.
 
     Args:
         results: One entry per decider.
-        sizes: Model tag to gigabytes.
 
     Returns:
         Markdown.
@@ -122,7 +123,7 @@ def triage_markdown(results: list[DeciderResult], sizes: dict[str, float]) -> st
             rows.append(f"| `{r.model}` | {r.kind} | | failed: {r.error} | | | |")
             continue
         rows.append(
-            f"| `{r.model}` | {r.kind} | {sizes.get(r.model, 0.0):.1f} GB "
+            f"| `{r.model}` | {r.kind} | {r.size_gb:.1f} GB "
             f"| {r.exact}/{r.cases} | {r.read}/{r.cases} | {r.deep}/{r.cases} "
             f"| {r.median_s:.1f} s |"
         )

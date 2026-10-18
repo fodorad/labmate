@@ -102,3 +102,15 @@ def test_a_decision_model_scores_every_paper_in_one_request_and_code_picks_the_a
     assert "/api/chat" not in fake.paths() and fake.paths().count("/v1/systemone") == 5
     sent = next(b for p, b in fake.requests if p == "/v1/systemone")
     assert sent["model"] == "clef-flash" and "video" in sent["state"]
+
+
+def test_a_decider_that_is_not_installed_says_how_to_get_it(
+    fake, arxiv_five, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config.toml").write_text('[models]\ndecider = "nope"\n')
+
+    code = main(["triage", "attention", "--interest", "video", "--out", str(tmp_path / "out")],
+                web=arxiv_five.transport(), ollama=fake.transport())  # fmt: skip
+
+    assert code == 2 and "ollama pull nope" in capsys.readouterr().err
