@@ -1,0 +1,393 @@
+{
+  "ask-agent__gemma-26b": {
+    "use_case": "ask: agent",
+    "profile": "gemma-26b",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:26b-mlx",
+    "seconds": 22.65267022899934,
+    "calls": 10,
+    "tokens_in": 14498,
+    "tokens_out": 857,
+    "load_s": 8.972661584,
+    "swaps": 0,
+    "peak_gb": 21.276273253,
+    "quality": 69.4,
+    "parts": {
+      "right answer or refusal": 0.75,
+      "expected source cited": 0.6666666666666666,
+      "sentences kept": 0.6666666666666666
+    },
+    "error": ""
+  },
+  "ask-agent__mixed": {
+    "use_case": "ask: agent",
+    "profile": "mixed",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:e4b",
+    "seconds": 33.00007608350097,
+    "calls": 10,
+    "tokens_in": 14490,
+    "tokens_out": 981,
+    "load_s": 40.399581126,
+    "swaps": 3,
+    "peak_gb": 18.606398053,
+    "quality": 69.4,
+    "parts": {
+      "right answer or refusal": 0.75,
+      "expected source cited": 0.6666666666666666,
+      "sentences kept": 0.6666666666666666
+    },
+    "error": ""
+  },
+  "ask-agent__ornith": {
+    "use_case": "ask: agent",
+    "profile": "ornith",
+    "writer": "ornith-1.5:9b",
+    "judge": "gemma4:e4b",
+    "seconds": 56.69252001050154,
+    "calls": 13,
+    "tokens_in": 34307,
+    "tokens_out": 2447,
+    "load_s": 4.180440459000001,
+    "swaps": 0,
+    "peak_gb": 7.469541617,
+    "quality": 86.3,
+    "parts": {
+      "right answer or refusal": 1.0,
+      "expected source cited": 1.0,
+      "sentences kept": 0.5882352941176471
+    },
+    "error": ""
+  },
+  "ask-agent__small": {
+    "use_case": "ask: agent",
+    "profile": "small",
+    "writer": "gemma4:e4b",
+    "judge": "gemma4:e4b",
+    "seconds": 21.73000675000003,
+    "calls": 9,
+    "tokens_in": 14478,
+    "tokens_out": 985,
+    "load_s": 6.9168097500000005,
+    "swaps": 0,
+    "peak_gb": 1.023169001,
+    "quality": 68.4,
+    "parts": {
+      "right answer or refusal": 0.75,
+      "expected source cited": 0.6666666666666666,
+      "sentences kept": 0.6363636363636364
+    },
+    "error": ""
+  },
+  "ask-graph__fast": {
+    "use_case": "ask: graph",
+    "profile": "fast",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:e2b",
+    "seconds": 35.68899380199946,
+    "calls": 18,
+    "tokens_in": 29499,
+    "tokens_out": 1396,
+    "load_s": 14.919188833000002,
+    "swaps": 0,
+    "peak_gb": 21.040558446,
+    "quality": 91.7,
+    "parts": {
+      "right answer or refusal": 0.75,
+      "expected source cited": 1.0,
+      "sentences kept": 1.0
+    },
+    "error": ""
+  },
+  "ask-graph__gemma-26b": {
+    "use_case": "ask: graph",
+    "profile": "gemma-26b",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:26b-mlx",
+    "seconds": 32.304609854250884,
+    "calls": 14,
+    "tokens_in": 23190,
+    "tokens_out": 997,
+    "load_s": 9.282296249000002,
+    "swaps": 0,
+    "peak_gb": 23.459289701,
+    "quality": 100.0,
+    "parts": {
+      "right answer or refusal": 1.0,
+      "expected source cited": 1.0,
+      "sentences kept": 1.0
+    },
+    "error": ""
+  },
+  "ask-graph__mixed": {
+    "use_case": "ask: graph",
+    "profile": "mixed",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:e4b",
+    "seconds": 44.938705989499795,
+    "calls": 15,
+    "tokens_in": 26636,
+    "tokens_out": 1233,
+    "load_s": 19.407918625,
+    "swaps": 0,
+    "peak_gb": 20.447337223,
+    "quality": 100.0,
+    "parts": {
+      "right answer or refusal": 1.0,
+      "expected source cited": 1.0,
+      "sentences kept": 1.0
+    },
+    "error": ""
+  },
+  "ask-graph__ornith-solo": {
+    "use_case": "ask: graph",
+    "profile": "ornith-solo",
+    "writer": "ornith-1.5:9b",
+    "judge": "ornith-1.5:9b",
+    "seconds": 55.05825372925028,
+    "calls": 14,
+    "tokens_in": 27010,
+    "tokens_out": 1421,
+    "load_s": 1.3904350410000001,
+    "swaps": 0,
+    "peak_gb": 7.125692577,
+    "quality": 100.0,
+    "parts": {
+      "right answer or refusal": 1.0,
+      "expected source cited": 1.0,
+      "sentences kept": 1.0
+    },
+    "error": ""
+  },
+  "ask-graph__ornith": {
+    "use_case": "ask: graph",
+    "profile": "ornith",
+    "writer": "ornith-1.5:9b",
+    "judge": "gemma4:e4b",
+    "seconds": 47.6536840105,
+    "calls": 14,
+    "tokens_in": 26839,
+    "tokens_out": 1699,
+    "load_s": 8.277110376,
+    "swaps": 0,
+    "peak_gb": 7.469541617,
+    "quality": 100.0,
+    "parts": {
+      "right answer or refusal": 1.0,
+      "expected source cited": 1.0,
+      "sentences kept": 1.0
+    },
+    "error": ""
+  },
+  "ask-graph__small": {
+    "use_case": "ask: graph",
+    "profile": "small",
+    "writer": "gemma4:e4b",
+    "judge": "gemma4:e4b",
+    "seconds": 43.48279618750166,
+    "calls": 16,
+    "tokens_in": 31876,
+    "tokens_out": 1236,
+    "load_s": 7.740090912,
+    "swaps": 0,
+    "peak_gb": 1.023169001,
+    "quality": 100.0,
+    "parts": {
+      "right answer or refusal": 1.0,
+      "expected source cited": 1.0,
+      "sentences kept": 1.0
+    },
+    "error": ""
+  },
+  "cv2job__gemma-26b": {
+    "use_case": "cv2job",
+    "profile": "gemma-26b",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:26b-mlx",
+    "seconds": 72.67239529200015,
+    "calls": 15,
+    "tokens_in": 7922,
+    "tokens_out": 971,
+    "load_s": 9.267477334,
+    "swaps": 0,
+    "peak_gb": 20.838606028,
+    "quality": 100.0,
+    "parts": {
+      "requirements classified right": 1.0,
+      "PDFs produced": 1.0
+    },
+    "error": ""
+  },
+  "cv2job__mixed": {
+    "use_case": "cv2job",
+    "profile": "mixed",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:e4b",
+    "seconds": 71.02316766600416,
+    "calls": 15,
+    "tokens_in": 7922,
+    "tokens_out": 971,
+    "load_s": 8.258559541,
+    "swaps": 0,
+    "peak_gb": 20.838606028,
+    "quality": 100.0,
+    "parts": {
+      "requirements classified right": 1.0,
+      "PDFs produced": 1.0
+    },
+    "error": ""
+  },
+  "cv2job__ornith": {
+    "use_case": "cv2job",
+    "profile": "ornith",
+    "writer": "ornith-1.5:9b",
+    "judge": "gemma4:e4b",
+    "seconds": 53.6219534999982,
+    "calls": 10,
+    "tokens_in": 4581,
+    "tokens_out": 563,
+    "load_s": 1.5839724160000002,
+    "swaps": 0,
+    "peak_gb": 6.731585288,
+    "quality": 90.0,
+    "parts": {
+      "requirements classified right": 0.8,
+      "PDFs produced": 1.0
+    },
+    "error": ""
+  },
+  "cv2job__small": {
+    "use_case": "cv2job",
+    "profile": "small",
+    "writer": "gemma4:e4b",
+    "judge": "gemma4:e4b",
+    "seconds": 39.11838841700228,
+    "calls": 10,
+    "tokens_in": 4735,
+    "tokens_out": 649,
+    "load_s": 2.638846667,
+    "swaps": 0,
+    "peak_gb": 0.394191174,
+    "quality": 90.0,
+    "parts": {
+      "requirements classified right": 0.8,
+      "PDFs produced": 1.0
+    },
+    "error": ""
+  },
+  "paper2flow__gemma-26b": {
+    "use_case": "paper2flow",
+    "profile": "gemma-26b",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:26b-mlx",
+    "seconds": 416.10256566700264,
+    "calls": 24,
+    "tokens_in": 40485,
+    "tokens_out": 6180,
+    "load_s": 19.057619332,
+    "swaps": 1,
+    "peak_gb": 25.534783692,
+    "quality": 92.6,
+    "parts": {
+      "first-draft bullets passing": 0.8666666666666667,
+      "claims kept": 0.9117647058823529,
+      "cards kept": 1.0
+    },
+    "error": ""
+  },
+  "paper2post__gemma-26b": {
+    "use_case": "paper2post",
+    "profile": "gemma-26b",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:26b-mlx",
+    "seconds": 476.2179353330066,
+    "calls": 28,
+    "tokens_in": 44626,
+    "tokens_out": 7039,
+    "load_s": 18.832806088,
+    "swaps": 1,
+    "peak_gb": 25.573777612,
+    "quality": 100.0,
+    "parts": {
+      "first-draft sentences passing": 1.0,
+      "sentences kept": 1.0
+    },
+    "error": ""
+  },
+  "scout__gemma-26b": {
+    "use_case": "scout",
+    "profile": "gemma-26b",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:26b-mlx",
+    "seconds": 49.06049895800243,
+    "calls": 10,
+    "tokens_in": 14895,
+    "tokens_out": 565,
+    "load_s": 9.141383083000001,
+    "swaps": 0,
+    "peak_gb": 21.999075532,
+    "quality": 80.0,
+    "parts": {
+      "notes written": 1.0,
+      "papers cited (of 5)": 0.6
+    },
+    "error": ""
+  },
+  "scout__mixed": {
+    "use_case": "scout",
+    "profile": "mixed",
+    "writer": "gemma4:26b-mlx",
+    "judge": "gemma4:e4b",
+    "seconds": 49.33047958300449,
+    "calls": 10,
+    "tokens_in": 14895,
+    "tokens_out": 565,
+    "load_s": 8.443010625,
+    "swaps": 0,
+    "peak_gb": 21.999075532,
+    "quality": 80.0,
+    "parts": {
+      "notes written": 1.0,
+      "papers cited (of 5)": 0.6
+    },
+    "error": ""
+  },
+  "scout__ornith": {
+    "use_case": "scout",
+    "profile": "ornith",
+    "writer": "ornith-1.5:9b",
+    "judge": "gemma4:e4b",
+    "seconds": 276.1177862080003,
+    "calls": 10,
+    "tokens_in": 48581,
+    "tokens_out": 3835,
+    "load_s": 1.4211742490000001,
+    "swaps": 0,
+    "peak_gb": 6.731585288,
+    "quality": 100.0,
+    "parts": {
+      "notes written": 1.0,
+      "papers cited (of 5)": 1.0
+    },
+    "error": ""
+  },
+  "scout__small": {
+    "use_case": "scout",
+    "profile": "small",
+    "writer": "gemma4:e4b",
+    "judge": "gemma4:e4b",
+    "seconds": 108.70886279199476,
+    "calls": 11,
+    "tokens_in": 23570,
+    "tokens_out": 2495,
+    "load_s": 1.9615042520000001,
+    "swaps": 0,
+    "peak_gb": 0.394191174,
+    "quality": 100.0,
+    "parts": {
+      "notes written": 1.0,
+      "papers cited (of 5)": 1.0
+    },
+    "error": ""
+  }
+}

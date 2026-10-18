@@ -17,11 +17,10 @@ from langchain_core.tools import tool
 from pydantic import BaseModel
 
 from labmate.bench.judge_cases import CASES, JudgeCase
-from labmate.config import CacheConfig, Config
+from labmate.config import Config
 from labmate.core.chat import chat_model
 from labmate.core.factcheck import judge_card
 from labmate.core.lc import prompt, structured
-from labmate.core.ollama import OllamaServer
 from labmate.core.schemas import Bullet, Card, ClaimCard
 from labmate.core.structured import StructuredOutputError
 from labmate.core.usage import UsageCollector
@@ -106,13 +105,6 @@ for as long as it likes (the client timeout only fires when the stream goes quie
 reply is not valid JSON and the judge test fails with an error instead of hanging."""
 
 
-def _bench_config(config: Config, collector: UsageCollector) -> Config:
-    """A copy of the configuration that reports to ``collector`` and does not use the cache."""
-    return config.model_copy(
-        update={"cache": CacheConfig(enabled=False), "callbacks": [collector]}, deep=True
-    )
-
-
 def judge_test(judge: Any, config: RunnableConfig | None = None) -> JudgeResult:
     """Send the planted mistakes through the pipeline's real judge prompt.
 
@@ -163,29 +155,34 @@ def judge_test(judge: Any, config: RunnableConfig | None = None) -> JudgeResult:
     )
 
 
-def measure_model(config: Config, tag: str, tools: bool, judging: bool) -> ModelResult:
-    """Cold-load a model and measure it.
+def measure_model(
+    config: Config,
+    collector: UsageCollector,
+    tag: str,
+    size_gb: float,
+    tools: bool,
+    judging: bool,
+) -> ModelResult:
+    """Measure a model that is not loaded yet.
 
     Args:
-        config: Loaded configuration.
+        config: A cold configuration (see :func:`labmate.bench.cold.cold_config`).
+        collector: The collector ``config`` reports to.
         tag: Model tag.
+        size_gb: Its size.
         tools: Also test tool calling (for models that will be a writer or an agent).
         judging: Also run the judge test.
 
     Returns:
         The measurements; ``error`` is set if the model failed in a way that stops the test.
     """
-    server = OllamaServer.from_config(config)
-    server.unload_all()
-    collector = UsageCollector(server.resident_gb)
-    cfg = _bench_config(config, collector)
-    model = chat_model(cfg, tag)
-    result = ModelResult(tag, size_gb=server.sizes().get(tag, 0.0))
+    model = chat_model(config, tag)
+    result = ModelResult(tag, size_gb=size_gb)
     try:
         model.invoke("Say OK.")  # the cold start: its load time is what a first request pays
         result.load_s = collector.summary().load_s
         probe = UsageCollector()
-        reader = chat_model(_bench_config(config, probe), tag).model_copy(
+        reader = chat_model(config.model_copy(update={"callbacks": [probe]}), tag).model_copy(
             update={"num_predict": 96}
         )
         reader.invoke(f"{PASSAGE}\nSummarise the passage in two sentences.")

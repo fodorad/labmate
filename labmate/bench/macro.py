@@ -27,8 +27,7 @@ from labmate.bench.quality import (
     post_quality,
     scout_quality,
 )
-from labmate.config import CacheConfig, Config, apply_profile
-from labmate.core.ollama import OllamaServer
+from labmate.config import Config, apply_profile
 from labmate.core.usage import UsageCollector
 from labmate.cv2job.chain import cv2job
 from labmate.cv2job.schemas import Application
@@ -49,24 +48,20 @@ USE_CASES = ("ask: graph", "ask: agent", "cv2job", "scout")
 FULL_USE_CASES = (*USE_CASES, "paper2flow", "paper2post")
 
 
-def run_cell(use_case: str, profile: str, base: Config) -> Cell:
-    """Run one use case on one profile, cold, and measure it.
+def run_cell(use_case: str, profile: str, config: Config, collector: UsageCollector) -> Cell:
+    """Run one use case on one profile and measure it.
 
     Args:
         use_case: One of :data:`FULL_USE_CASES`.
-        profile: A key of ``[profiles]``.
-        base: Loaded configuration.
+        profile: A key of ``[profiles]``, applied to ``config``.
+        config: A cold configuration (see :func:`labmate.bench.cold.cold_config`).
+        collector: The collector ``config`` reports to.
 
     Returns:
         The measured cell; ``error`` is set if the run failed.
     """
-    config = base.model_copy(deep=True)
     apply_profile(config, profile)
-    server = OllamaServer.from_config(config)
-    collector = UsageCollector(server.resident_gb)
-    config.cache, config.callbacks = CacheConfig(enabled=False), [collector]
     cell = Cell(use_case, profile, config.models.text, config.models.critic)
-    server.unload_all()
     started = time.perf_counter()
     try:
         with tempfile.TemporaryDirectory() as tmp:

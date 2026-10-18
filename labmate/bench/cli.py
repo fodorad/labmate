@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 
-from labmate.bench.cells import Cell, cells_markdown, load, save
-from labmate.bench.guard import NotEnoughMemory, require_room
+from labmate.bench.cells import cell_key, cells_markdown, from_results
+from labmate.bench.cold import ColdRun, load_results
+from labmate.bench.guard import NotEnoughMemory
 from labmate.bench.macro import FULL_USE_CASES, USE_CASES, run_cell
 from labmate.bench.micro import ModelResult, from_dict, measure_model, to_dict
 from labmate.bench.report import HEADROOM_GB, machine, memory_gb, micro_markdown, profile_rows
@@ -94,8 +95,7 @@ PARALLEL = (
 
 
 def _micro_results(out: Path) -> list[ModelResult]:
-    file = out / "micro.json"
-    return [from_dict(d) for d in json.loads(file.read_text()).values()] if file.exists() else []
+    return [from_dict(d) for d in load_results(out / "micro.json").values()]
 
 
 def run_micro(config: Config, args: argparse.Namespace) -> int:
@@ -110,29 +110,17 @@ def run_micro(config: Config, args: argparse.Namespace) -> int:
     """
     writers, judges = profile_models(config)
     tags = args.models or list(dict.fromkeys([*writers, *judges]))
-    out: Path = args.out
-    out.mkdir(parents=True, exist_ok=True)
-    file = out / "micro.json"
-    done: dict[str, dict] = {}
-    if file.exists() and not args.force:
-        done = json.loads(file.read_text())
-    server = OllamaServer.from_config(config)
+    cold = ColdRun(config, args.out / "micro.json", args.force)
+    sizes = cold.server.sizes()
     for tag in tags:
-        if tag in done:
-            log.info("  have %s", tag)
-            continue
-        server.unload_all()
-        require_room(server.sizes().get(tag, 0.0), memory_gb())
-        log.info("measuring %s", tag)
-        try:
-            done[tag] = to_dict(
-                measure_model(config, tag, tools=tag in writers, judging=tag in judges)
-            )
-        finally:
-            server.unload_all()
-        file.write_text(json.dumps(done, indent=2) + "\n")
-    text = micro_markdown(_micro_results(out), config, memory_gb())
-    (out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
+        size, tools, judging = sizes.get(tag, 0.0), tag in writers, tag in judges
+        cold.run(
+            tag,
+            size,
+            lambda cfg, usage: to_dict(measure_model(cfg, usage, tag, size, tools, judging)),  # noqa: B023 - called at once
+        )
+    text = micro_markdown(_micro_results(args.out), config, memory_gb())
+    (args.out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
     print(text)
     return 0
 
@@ -142,10 +130,7 @@ DECIDERS = ("clef-flash", "nimble", "tev1", "tev1:0.8b", "gemma4:e4b")
 
 
 def _deciders(out: Path) -> list[DeciderResult]:
-    file = out / "triage.json"
-    return (
-        [DeciderResult(**d) for d in json.loads(file.read_text()).values()] if file.exists() else []
-    )
+    return [DeciderResult(**d) for d in load_results(out / "triage.json").values()]
 
 
 def run_triage_eval(config: Config, args: argparse.Namespace) -> int:
@@ -159,22 +144,15 @@ def run_triage_eval(config: Config, args: argparse.Namespace) -> int:
         Exit code 0.
     """
     golden = load_golden()
-    out: Path = args.out
-    out.mkdir(parents=True, exist_ok=True)
-    file = out / "triage.json"
-    done = {} if args.force or not file.exists() else json.loads(file.read_text())
-    server = OllamaServer.from_config(config)
-    sizes = server.sizes()
+    cold = ColdRun(config, args.out / "triage.json", args.force)
+    sizes = cold.server.sizes()
     for tag in args.models or DECIDERS:
-        if tag in done:
-            log.info("  have %s", tag)
-            continue
-        server.unload_all()
-        require_room(sizes.get(tag, 0.0), memory_gb())
-        log.info("rating with %s", tag)
-        done[tag] = decider_dict(evaluate(config, tag, golden))
-        file.write_text(json.dumps(done, indent=2) + "\n")
-    print(triage_markdown(_deciders(out), sizes))
+        cold.run(
+            tag,
+            sizes.get(tag, 0.0),
+            lambda cfg, usage: decider_dict(evaluate(cfg, tag, golden)),  # noqa: B023 - called at once
+        )
+    print(triage_markdown(_deciders(args.out), sizes))
     return 0
 
 
@@ -193,13 +171,6 @@ def fitting_profiles(config: Config, out: Path) -> list[str]:
     return [r.profile for r in rows if r.fits]
 
 
-def _profile_gb(config: Config, profile: str) -> float:
-    """Size of the models a profile loads together."""
-    chosen = config.profiles[profile]
-    sizes = OllamaServer.from_config(config).sizes()
-    return sum(sizes.get(tag, 0.0) for tag in dict.fromkeys([chosen.text, chosen.critic]))
-
-
 def run_macro(config: Config, args: argparse.Namespace) -> int:
     """Run each use case on each profile and save the cells.
 
@@ -212,24 +183,18 @@ def run_macro(config: Config, args: argparse.Namespace) -> int:
     """
     profiles = args.profiles or fitting_profiles(config, args.out)
     use_cases = args.use_cases or (FULL_USE_CASES if args.full else USE_CASES)
-    directory = args.out / "cells"
-    server = OllamaServer.from_config(config)
+    cold = ColdRun(config, args.out / "macro.json", args.force)
+    sizes = cold.server.sizes()
     for use_case in use_cases:
         for profile in profiles:
-            name = f"{use_case.replace(': ', '-')}__{profile}.json"
-            if (directory / name).exists() and not args.force:
-                log.info("  have %s on %s", use_case, profile)
-                continue
-            server.unload_all()
-            require_room(_profile_gb(config, profile), memory_gb())
-            log.info("running %s on %s", use_case, profile)
-            try:
-                cell = run_cell(use_case, profile, config)
-            finally:
-                server.unload_all()
-            save(cell, directory)
-            log.info("  %.0f s, quality %.0f%% %s", cell.seconds, cell.quality, cell.error)
-    print(cells_markdown(load(directory)))
+            chosen = config.profiles[profile]
+            gb = sum(sizes.get(tag, 0.0) for tag in dict.fromkeys([chosen.text, chosen.critic]))
+            cold.run(
+                cell_key(use_case, profile),
+                gb,
+                lambda cfg, usage: asdict(run_cell(use_case, profile, cfg, usage)),  # noqa: B023 - called at once
+            )
+    print(cells_markdown(from_results(cold.results())))
     return 0
 
 
@@ -244,7 +209,7 @@ def run_report(config: Config, args: argparse.Namespace) -> int:
         Exit code 0.
     """
     server = OllamaServer.from_config(config)
-    cells: list[Cell] = load(args.out / "cells") if (args.out / "cells").exists() else []
+    cells = from_results(load_results(args.out / "macro.json"))
     intro = (
         f"Measured on {machine()}, Ollama {server.version()}, {date.today()}. "
         "Every run starts cold (models unloaded) with the reply cache off, so it pays what a "
