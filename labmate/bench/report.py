@@ -13,6 +13,23 @@ GPU_SHARE = 0.75
 """Share of the machine's memory the GPU may use (macOS's default limit; Ollama reports about
 26 GB on a 32 GB Mac)."""
 
+
+def memory_share(system: str | None = None) -> float:
+    """The share of the machine's memory that models may use.
+
+    Args:
+        system: ``platform.system()`` (the running one if omitted).
+
+    Returns:
+        :data:`GPU_SHARE` on macOS, where the GPU shares the memory; 1.0 elsewhere (Linux runs
+        models on the CPU or on a GPU with its own memory).
+    """
+    return GPU_SHARE if (system or platform.system()) == "Darwin" else 1.0
+
+
+MEMORY_SHARE = memory_share()
+"""The share of this machine's memory that models may use (see :func:`memory_share`)."""
+
 HEADROOM_GB = 5.0
 """Memory kept for macOS and other programs when asking whether models fit."""
 
@@ -55,13 +72,16 @@ class ProfileRow:
     fits: bool
 
 
-def profile_rows(config: Config, sizes: dict[str, float], ram_gb: float) -> list[ProfileRow]:
+def profile_rows(
+    config: Config, sizes: dict[str, float], ram_gb: float, share: float = MEMORY_SHARE
+) -> list[ProfileRow]:
     """Which profiles fit in memory together.
 
     Args:
         config: Configuration with its ``[profiles]``.
         sizes: Model tag to gigabytes.
         ram_gb: The machine's memory.
+        share: The share of it models may use (see :func:`memory_share`).
 
     Returns:
         One row per profile: writer, judge, gigabytes together and whether that fits.
@@ -75,19 +95,22 @@ def profile_rows(config: Config, sizes: dict[str, float], ram_gb: float) -> list
                 profile.text,
                 profile.critic,
                 together,
-                together <= GPU_SHARE * ram_gb - HEADROOM_GB,
+                together <= share * ram_gb - HEADROOM_GB,
             )
         )
     return rows
 
 
-def micro_markdown(results: list[ModelResult], config: Config, ram_gb: float) -> str:
+def micro_markdown(
+    results: list[ModelResult], config: Config, ram_gb: float, share: float = MEMORY_SHARE
+) -> str:
     """The micro benchmark as tables.
 
     Args:
         results: One entry per model.
         config: Configuration with its ``[profiles]``.
         ram_gb: The machine's memory.
+        share: The share of it models may use (see :func:`memory_share`).
 
     Returns:
         Markdown: one table of models, one of profiles.
@@ -113,10 +136,11 @@ def micro_markdown(results: list[ModelResult], config: Config, ram_gb: float) ->
     sizes = {r.model: r.size_gb for r in results}
     profiles = [
         f"| Profile | Writer | Judge | Together "
-        f"| Fits in {GPU_SHARE * ram_gb:.0f} GB GPU memory (keeping {HEADROOM_GB:.0f} GB free) |",
+        f"| Fits in {share * ram_gb:.0f} GB {'GPU memory' if share < 1 else 'memory'} "
+        f"(keeping {HEADROOM_GB:.0f} GB free) |",
         "|---|---|---|---|---|",
     ]
-    for row in profile_rows(config, sizes, ram_gb):
+    for row in profile_rows(config, sizes, ram_gb, share):
         profiles.append(
             f"| {row.profile} | `{row.writer}` | `{row.judge}` | {row.gb:.1f} GB "
             f"| {'yes' if row.fits else '**no, a model is evicted**'} |"

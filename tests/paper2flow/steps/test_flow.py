@@ -16,6 +16,7 @@ from labmate.paper2flow.schemas import (
 )
 from labmate.paper2flow.steps.flow import (
     assemble_flows,
+    browser_options,
     check_detail,
     check_graph,
     check_overview,
@@ -174,6 +175,11 @@ def test_all_diagrams_of_a_paper_render_to_png(tmp_path):
     assert all(
         (tmp_path / n).read_bytes().startswith(b"\x89PNG") for n in ("flow.png", "flow-a.png")
     )
+
+
+def test_chromium_runs_without_its_sandbox_only_on_linux():
+    assert browser_options("Linux") == {"args": ["--no-sandbox"]}
+    assert browser_options("Darwin") == {}
 
 
 def test_rendering_explains_a_missing_node(tmp_path, monkeypatch):

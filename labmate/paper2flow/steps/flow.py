@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import platform
 import shutil
 import subprocess
 import tempfile
@@ -40,6 +41,23 @@ log = logging.getLogger(__name__)
 
 MERMAID_CLI = ("npx", "--yes", "@mermaid-js/mermaid-cli@12.0.0")
 """The pinned mermaid-cli (``make install`` downloads it once; it runs a headless Chromium)."""
+
+
+def browser_options(system: str | None = None) -> dict[str, list[str]]:
+    """Launch options for mermaid-cli's headless Chromium (its ``-p`` puppeteer config).
+
+    On Linux, Chromium's sandbox needs unprivileged user namespaces, which Ubuntu 23.10 and later
+    (AppArmor) and containers running as root refuse; there it runs without the sandbox. It only
+    opens the local page mermaid-cli builds from the diagram source, never a remote page.
+
+    Args:
+        system: ``platform.system()`` (the running one if omitted).
+
+    Returns:
+        ``{"args": ["--no-sandbox"]}`` on Linux, else no options.
+    """
+    return {"args": ["--no-sandbox"]} if (system or platform.system()) == "Linux" else {}
+
 
 MERMAID_TIMEOUT_S = 120
 """Render timeout for one mermaid-cli call (all diagrams of a paper at once)."""
@@ -524,11 +542,12 @@ def render_mermaid(sources: list[str], out: list[Path]) -> list[Path]:
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         (work / "config.json").write_text(json.dumps(MERMAID_THEME))
+        (work / "browser.json").write_text(json.dumps(browser_options()))
         blocks = "\n".join(f"```mermaid\n{s}```\n" for s in sources)
         (work / "flows.md").write_text(blocks)
         proc = subprocess.run(
             [*MERMAID_CLI, "--quiet", "-i", "flows.md", "-o", "out.md", "-e", "png",
-             "-s", str(SCALE), "-b", "transparent", "-c", "config.json"],
+             "-s", str(SCALE), "-b", "transparent", "-c", "config.json", "-p", "browser.json"],
             cwd=work, capture_output=True, text=True, timeout=MERMAID_TIMEOUT_S,
         )  # fmt: skip
         if proc.returncode != 0:

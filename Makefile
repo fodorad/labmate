@@ -3,7 +3,8 @@
 install:
 	uv sync --extra dev
 	uv run pre-commit install
-	npx --yes @mermaid-js/mermaid-cli@12.0.0 --version  # diagram renderer (needs Node.js)
+	npx --yes @mermaid-js/mermaid-cli@12.0.0 --version  # diagram renderer (needs Node.js >= 20)
+	$(if $(PUPPETEER_EXECUTABLE_PATH),,npx --yes --package=@mermaid-js/mermaid-cli@12.0.0 -- puppeteer browsers install chrome-headless-shell)  # its Chromium, unless you point to one
 
 lint:
 	uv run ruff check .
