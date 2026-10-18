@@ -17,9 +17,9 @@ from typing import Any
 import httpx
 import yaml
 
-from labmate.config import CacheConfig, Config
+from labmate.config import Config
 from labmate.core.ingest import ArxivMetadata
-from labmate.core.ollama import DecisionError, OllamaServer
+from labmate.core.ollama import DecisionError
 from labmate.triage.decide import decide, is_decision_model
 
 GOLDEN = Path("evals/triage/golden.yaml")
@@ -72,7 +72,7 @@ def evaluate(
     """Run one decider over every labelled case.
 
     Args:
-        config: Loaded configuration.
+        config: A cold configuration (see :func:`labmate.bench.cold.cold_config`).
         model: The decider model tag.
         golden: The labelled set (see :func:`load_golden`).
         transport: Transport to Ollama (the configured host if omitted; tests).
@@ -80,21 +80,18 @@ def evaluate(
     Returns:
         The scores; ``error`` is set if the model could not answer.
     """
-    cfg = config.model_copy(deep=True)
-    cfg.cache, cfg.models.decider = CacheConfig(enabled=False), model
+    config.models.decider = model
     result = DeciderResult(model)
-    server = OllamaServer.from_config(cfg, transport)
-    server.unload_all()
     times: list[float] = []
     try:
-        decision_model = is_decision_model(cfg, transport)
+        decision_model = is_decision_model(config, transport)
         result.kind = "decision" if decision_model else "chat"
         for key, interests in golden["interests"].items():
             for paper in golden["papers"]:
                 meta = ArxivMetadata(title=paper["title"], authors=[], abstract=paper["abstract"])
                 started = time.perf_counter()
                 action = decide(
-                    cfg, meta, interests, decision_model=decision_model, transport=transport
+                    config, meta, interests, decision_model=decision_model, transport=transport
                 ).action
                 times.append(time.perf_counter() - started)
                 label = paper["expected"][key]
@@ -104,8 +101,6 @@ def evaluate(
                 result.deep += (action == "deep") == (label == "deep")
     except (httpx.HTTPError, DecisionError, ValueError, RuntimeError) as e:
         result.error = f"{type(e).__name__}: {e}"[:160]
-    finally:
-        server.unload_all()
     result.median_s = statistics.median(times) if times else 0.0
     return result
 

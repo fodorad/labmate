@@ -1,9 +1,10 @@
 import json
+from dataclasses import asdict
 
 import pytest
 
 from labmate.ask.evals import AnswerCase
-from labmate.bench.cells import Cell, cells_markdown, load, save
+from labmate.bench.cells import Cell, cell_key, cells_markdown, from_results
 from labmate.bench.guard import NotEnoughMemory, parse_vm_stat, require_room
 from labmate.bench.micro import ModelResult, judge_test
 from labmate.bench.quality import ask_quality
@@ -77,13 +78,12 @@ def test_ask_quality_averages_answer_source_and_kept_sentences():
     assert quality.score == 66.7
 
 
-def test_the_table_marks_runs_over_the_target_and_cells_survive_a_round_trip(tmp_path):
+def test_the_table_marks_runs_over_the_target_and_cells_survive_a_round_trip():
     fast = Cell("cv2job", "mixed", "a", "b", seconds=40, quality=90, parts={"x": 0.9})
     slow = Cell("cv2job", "current", "a", "c", seconds=83, quality=95, parts={"x": 0.95})
-    save(fast, tmp_path)
-    save(slow, tmp_path)
+    saved = {cell_key(c.use_case, c.profile): asdict(c) for c in (fast, slow)}
 
-    cells = load(tmp_path)
+    cells = from_results(json.loads(json.dumps(saved)))
     table = cells_markdown(cells)
 
     assert sorted(c.profile for c in cells) == ["current", "mixed"]

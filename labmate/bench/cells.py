@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from dataclasses import dataclass, field
 
 TARGETS_S = {
     "ask: graph": 30.0,
@@ -55,33 +53,29 @@ class Cell:
     error: str = ""
 
 
-def save(cell: Cell, directory: Path) -> Path:
-    """Write a cell as JSON.
+def cell_key(use_case: str, profile: str) -> str:
+    """The key a cell is saved under in ``macro.json``.
 
     Args:
-        cell: The cell.
-        directory: ``evals/bench/cells``.
+        use_case: The use case, e.g. ``ask: graph``.
+        profile: Model profile name.
 
     Returns:
-        The file.
+        e.g. ``ask-graph__mixed``.
     """
-    directory.mkdir(parents=True, exist_ok=True)
-    name = f"{cell.use_case.replace(': ', '-')}__{cell.profile}.json"
-    file = directory / name
-    file.write_text(json.dumps(asdict(cell), indent=2) + "\n")
-    return file
+    return f"{use_case.replace(': ', '-')}__{profile}"
 
 
-def load(directory: Path) -> list[Cell]:
-    """Read every saved cell.
+def from_results(results: dict[str, dict]) -> list[Cell]:
+    """The cells of ``macro.json``.
 
     Args:
-        directory: ``evals/bench/cells``.
+        results: Key to saved cell.
 
     Returns:
-        The cells, in file-name order.
+        The cells, in key order.
     """
-    return [Cell(**json.loads(f.read_text())) for f in sorted(directory.glob("*.json"))]
+    return [Cell(**results[key]) for key in sorted(results)]
 
 
 def verdict(cell: Cell) -> str:
