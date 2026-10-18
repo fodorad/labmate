@@ -1,17 +1,19 @@
 """The decision of one paper: read it deeply, make a post of it, or skip it.
 
-Two kinds of model can be the ``decider``. A decision model (``clef-flash``, ``nimble``,
-``tev1``) scores the paper on a five-level relevance scale in one pass and code turns the score
-into an action. An ordinary chat model is asked for the action, the relevance and a reason as
-validated JSON. Which kind it is comes from the capabilities Ollama lists for it.
+Two kinds of model can be the ``decider``, behind one :class:`Decider` interface. A decision model
+(``clef-flash``, ``nimble``, ``tev1``) scores the paper on a five-level relevance scale in one pass
+and code turns the score into an action. An ordinary chat model is asked for the action, the
+relevance and a reason as validated JSON. :func:`open_decider` asks Ollama once which kind a model
+is.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from dataclasses import dataclass
+from typing import Any, Literal, Protocol
 
 import httpx
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import Runnable, RunnableConfig
 from pydantic import BaseModel, Field
 
 from labmate.config import Config
@@ -110,58 +112,99 @@ def decision_from_score(score: float) -> Decision:
     )
 
 
-def is_decision_model(config: Config, transport: httpx.BaseTransport | None = None) -> bool:
-    """Whether the configured decider is a decision model.
+class Decider(Protocol):
+    """Rates papers against the reader's interests."""
 
-    Args:
-        config: Loaded configuration (the ``decider`` model role).
-        transport: Transport to Ollama (the configured host if omitted; tests).
+    @property
+    def kind(self) -> str:
+        """``decision`` (a decision model) or ``chat`` (a chat model)."""
+        ...
 
-    Returns:
-        ``True`` if Ollama lists the ``decision`` capability for it.
+    def decide(
+        self, meta: ArxivMetadata, interests: str, run_config: RunnableConfig | None = None
+    ) -> Decision:
+        """Rate one paper.
+
+        Args:
+            meta: The paper's title and abstract.
+            interests: What the reader works on.
+            run_config: The calling step's config (carries the callbacks).
+
+        Returns:
+            The validated decision.
+        """
+        ...
+
+
+@dataclass(frozen=True)
+class DecisionModelDecider:
+    """A decision model scores the paper in one pass; code turns the score into an action.
+
+    Attributes:
+        server: The Ollama server it runs on.
+        model: Model tag.
+        kind: Always ``decision``.
     """
-    server = OllamaServer.from_config(config, transport)
-    return DECISION in server.capabilities(config.models.decider)
 
+    server: OllamaServer
+    model: str
+    kind: str = DECISION
 
-def decide(
-    config: Config,
-    meta: ArxivMetadata,
-    interests: str,
-    *,
-    decision_model: bool,
-    run_config: RunnableConfig | None = None,
-    transport: httpx.BaseTransport | None = None,
-) -> Decision:
-    """Let the decider model rate one paper against the reader's interests.
-
-    Args:
-        config: Loaded configuration (the ``decider`` model role).
-        meta: The paper's title and abstract.
-        interests: What the reader works on.
-        decision_model: Whether the decider is a decision model (see :func:`is_decision_model`).
-        run_config: The calling step's config (carries the callbacks).
-        transport: Transport to Ollama (the configured host if omitted; tests).
-
-    Returns:
-        The validated decision.
-    """
-    if decision_model:
+    def decide(
+        self, meta: ArxivMetadata, interests: str, run_config: RunnableConfig | None = None
+    ) -> Decision:
+        """Rate one paper (see :class:`Decider`)."""
         state = (
             f"Reader's interests: {interests}\n\n"
             f"Paper title: {meta.title}\nAbstract: {meta.abstract}"
         )
-        server = OllamaServer.from_config(config, transport)
-        answers = server.systemone(config.models.decider, state, {"relevance": QUESTION})
+        answers = self.server.systemone(self.model, state, {"relevance": QUESTION})
         return decision_from_score(float(answers["relevance"]["score"]))
-    model = chat_model(config, config.models.decider, transport=transport)
-    chain = prompt(load_prompt("triage")) | structured(model, Decision, check=reason_problems)
-    return chain.invoke(
-        {
+
+
+@dataclass(frozen=True)
+class ChatDecider:
+    """A chat model is asked for the action, the relevance and a reason as validated JSON.
+
+    Attributes:
+        chain: The prompt piped into the structured model.
+        kind: Always ``chat``.
+    """
+
+    chain: Runnable[dict[str, Any], Decision]
+    kind: str = "chat"
+
+    def decide(
+        self, meta: ArxivMetadata, interests: str, run_config: RunnableConfig | None = None
+    ) -> Decision:
+        """Rate one paper (see :class:`Decider`)."""
+        values = {
             "interests": interests,
             "title": meta.title,
             "abstract": meta.abstract,
             "max_words": MAX_REASON_WORDS,
-        },
-        run_config,
+        }
+        return self.chain.invoke(values, run_config)
+
+
+def open_decider(
+    config: Config, model: str | None = None, transport: httpx.BaseTransport | None = None
+) -> Decider:
+    """The decider for a model; which kind it is comes from the capabilities Ollama lists.
+
+    Args:
+        config: Loaded configuration.
+        model: Model tag (default: the ``decider`` model role).
+        transport: Transport to Ollama (the configured host if omitted; tests).
+
+    Returns:
+        A :class:`DecisionModelDecider` or a :class:`ChatDecider`.
+    """
+    tag = model or config.models.decider
+    server = OllamaServer.from_config(config, transport)
+    if DECISION in server.capabilities(tag):
+        return DecisionModelDecider(server, tag)
+    chat = chat_model(config, tag, transport=transport)
+    return ChatDecider(
+        prompt(load_prompt("triage")) | structured(chat, Decision, check=reason_problems)
     )
