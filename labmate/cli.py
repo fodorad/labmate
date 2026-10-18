@@ -28,6 +28,7 @@ import httpx
 from ollama import ResponseError
 
 from labmate.config import Config, load_config
+from labmate.core.ollama import DecisionError
 
 FEATURES = ("paper2flow", "paper2post", "scout", "triage", "cv2job", "ask", "bench")
 """The packages that register commands (``labmate.<name>.cli``), in help order."""
@@ -127,6 +128,9 @@ def main(
         return int(args.handler(config, args, CliContext(web, ollama, ask)))
     except httpx.TransportError as e:
         print(f"error: {e} (is Ollama running at {config.ollama.host}?)", file=sys.stderr)
+        return 2
+    except DecisionError as e:  # a decision model not pulled, or refused
+        print(f"error: {e}", file=sys.stderr)
         return 2
     except ResponseError as e:  # a model not pulled, or a reply Ollama could not parse
         print(f"error: Ollama refused the request: {e}. Pulled the models? Run again.",

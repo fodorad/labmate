@@ -7,7 +7,8 @@
     "read": 33,
     "deep": 33,
     "median_s": 2.2157924375023867,
-    "error": ""
+    "error": "",
+    "size_gb": 10.932739373
   },
   "nimble": {
     "model": "nimble",
@@ -17,7 +18,8 @@
     "read": 32,
     "deep": 32,
     "median_s": 2.4181132080011594,
-    "error": ""
+    "error": "",
+    "size_gb": 9.527502277
   },
   "tev1": {
     "model": "tev1",
@@ -27,7 +29,8 @@
     "read": 33,
     "deep": 31,
     "median_s": 1.1692510414977733,
-    "error": ""
+    "error": "",
+    "size_gb": 4.482415847
   },
   "tev1:0.8b": {
     "model": "tev1:0.8b",
@@ -37,7 +40,8 @@
     "read": 16,
     "deep": 8,
     "median_s": 0.21558264600025723,
-    "error": ""
+    "error": "",
+    "size_gb": 0.811856202
   },
   "gemma4:e4b": {
     "model": "gemma4:e4b",
@@ -47,6 +51,7 @@
     "read": 25,
     "deep": 20,
     "median_s": 3.1308661665025284,
-    "error": ""
+    "error": "",
+    "size_gb": 6.583656505
   }
 }

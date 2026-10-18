@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,6 +20,7 @@ from labmate.bench.triage import DeciderResult, evaluate, load_golden, triage_ma
 from labmate.bench.triage import to_dict as decider_dict
 from labmate.config import Config
 from labmate.core.ollama import OllamaServer
+from labmate.core.usage import UsageCollector
 
 if TYPE_CHECKING:
     from labmate.cli import CliContext
@@ -130,6 +131,7 @@ def run_micro(config: Config, args: argparse.Namespace, ollama: Transport) -> in
             lambda cfg, usage: to_dict(measure_model(cfg, usage, tag, size, tools, judging)),  # noqa: B023 - called at once
         )
     text = micro_markdown(_micro_results(args.out), config, memory_gb())
+    args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "micro.md").write_text(f"# Model micro benchmark\n\n{machine()}\n\n{text}")
     print(text)
     return 0
@@ -158,12 +160,13 @@ def run_triage_eval(config: Config, args: argparse.Namespace, ollama: Transport)
     cold = ColdRun(config, args.out / "triage.json", args.force, ollama)
     sizes = cold.server.sizes()
     for tag in args.models or DECIDERS:
-        cold.run(
-            tag,
-            sizes.get(tag, 0.0),
-            lambda cfg, usage: decider_dict(evaluate(cfg, tag, golden, ollama)),  # noqa: B023 - called at once
-        )
-    print(triage_markdown(_deciders(args.out), sizes))
+        size = sizes.get(tag, 0.0)
+
+        def rate(cfg: Config, usage: UsageCollector, tag: str = tag, size: float = size) -> dict:
+            return decider_dict(replace(evaluate(cfg, tag, golden, ollama), size_gb=size))
+
+        cold.run(tag, size, rate)
+    print(triage_markdown(_deciders(args.out)))
     return 0
 
 
@@ -252,7 +255,7 @@ def run_report(config: Config, args: argparse.Namespace, ollama: Transport) -> i
         "",
         TRIAGE_NOTE,
         "",
-        triage_markdown(_deciders(args.out), server.sizes())
+        triage_markdown(_deciders(args.out))
         if _deciders(args.out)
         else "Not measured yet (`labmate bench triage`).",
         "## Parallel requests",

@@ -1,6 +1,7 @@
 import json
 from dataclasses import asdict
 
+import httpx
 import pytest
 
 from labmate.ask.evals import AnswerCase
@@ -131,7 +132,7 @@ def test_a_decider_is_scored_against_the_labels(fake):
 
     assert result.kind == "decision" and result.cases == 3
     assert (result.exact, result.read, result.deep) == (2, 2, 3)  # Bravo is rated post, not skip
-    assert "2/3" in triage_markdown([result], {"clef-flash": 10.0})
+    assert "2/3" in triage_markdown([result])
 
 
 def test_the_report_is_written_from_the_saved_results(fake, tmp_path):
@@ -146,4 +147,19 @@ def test_the_report_is_written_from_the_saved_results(fake, tmp_path):
     assert "Ollama 0.30.0" in text  # asked the server
     for section in ("## Single models", "### ask: graph", "### scout", "## Triage deciders"):
         assert section in text
-    assert "| `clef-flash` | decision | 2.0 GB | 30/36 |" in text  # size from the server
+    assert "| `clef-flash` | decision | 10.9 GB | 30/36 |" in text  # size saved when rated
+
+
+def test_the_report_needs_no_running_ollama(tmp_path):
+    from labmate.cli import main
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    page = tmp_path / "benchmarks.md"
+
+    assert main(["bench", "report", "--out", "evals/bench", "--docs", str(page)],
+                ollama=httpx.MockTransport(refuse)) == 0  # fmt: skip
+
+    text = page.read_text()
+    assert "Ollama unknown" in text and "| `clef-flash` | decision | 10.9 GB | 30/36 |" in text
