@@ -1,21 +1,28 @@
 """Guards that stop a benchmark before it can exhaust the machine's memory.
 
-Loading models that do not fit makes macOS swap and can kill other programs, so the benchmark
-checks the free memory before it loads anything and unloads every model when it stops.
+Loading models that do not fit makes the machine swap and can kill other programs, so the
+benchmark checks the free memory before it loads anything and unloads every model when it stops.
+The free memory comes from ``vm_stat`` on macOS and from ``/proc/meminfo`` on Linux.
 """
 
 from __future__ import annotations
 
+import platform
 import re
 import subprocess
+from pathlib import Path
 
-from labmate.bench.report import GPU_SHARE, HEADROOM_GB
+from labmate.bench.report import HEADROOM_GB, MEMORY_SHARE
 
 PAGE = re.compile(r"page size of (\d+) bytes")
 """The page size line of ``vm_stat``."""
 
 COUNTED = ("Pages free", "Pages inactive", "Pages speculative", "Pages purgeable")
 """The ``vm_stat`` counters that macOS can hand out without swapping."""
+
+
+MEMINFO = Path("/proc/meminfo")
+"""Where Linux reports its memory."""
 
 
 class NotEnoughMemory(RuntimeError):
@@ -41,33 +48,67 @@ def parse_vm_stat(text: str) -> float:
     return pages * size / 1e9
 
 
-def free_memory_gb() -> float:
-    """The memory that is free now.
+def parse_meminfo(text: str) -> float:
+    """Free memory from Linux's ``/proc/meminfo``.
+
+    Args:
+        text: The file's content.
 
     Returns:
-        Gigabytes, from ``vm_stat``.
+        Gigabytes the kernel can hand out without swapping (``MemAvailable``).
+
+    Raises:
+        ValueError: If there is no ``MemAvailable`` line.
     """
-    out = subprocess.run(["vm_stat"], capture_output=True, text=True, check=True).stdout  # noqa: S607
-    return parse_vm_stat(out)
+    for line in text.splitlines():
+        name, _, value = line.partition(":")
+        if name == "MemAvailable":
+            return int(value.split()[0]) * 1024 / 1e9
+    raise ValueError("no MemAvailable in /proc/meminfo")
 
 
-def require_room(models_gb: float, ram_gb: float, free_gb: float | None = None) -> None:
+def free_memory_gb(system: str | None = None) -> float:
+    """The memory that is free now.
+
+    Args:
+        system: ``platform.system()`` (the running one if omitted).
+
+    Returns:
+        Gigabytes, from ``vm_stat`` on macOS and ``/proc/meminfo`` on Linux.
+
+    Raises:
+        NotEnoughMemory: On another system, where free memory cannot be read.
+    """
+    system = system or platform.system()
+    if system == "Darwin":
+        out = subprocess.run(["vm_stat"], capture_output=True, text=True, check=True).stdout  # noqa: S607
+        return parse_vm_stat(out)
+    if system == "Linux":
+        return parse_meminfo(MEMINFO.read_text())
+    raise NotEnoughMemory(f"cannot read the free memory on {system}")
+
+
+def require_room(
+    models_gb: float, ram_gb: float, free_gb: float | None = None, share: float = MEMORY_SHARE
+) -> None:
     """Refuse to load models that do not fit.
 
     Args:
         models_gb: Size of the models to load together.
         ram_gb: The machine's memory.
         free_gb: Memory that is free now (measured if omitted).
+        share: The share of ``ram_gb`` models may use (see
+            :func:`labmate.bench.report.memory_share`).
 
     Raises:
         NotEnoughMemory: If they exceed what the GPU may use (less the headroom), or what is
             free now (plus the headroom).
     """
-    limit = GPU_SHARE * ram_gb - HEADROOM_GB
+    limit = share * ram_gb - HEADROOM_GB
     if models_gb > limit:
         raise NotEnoughMemory(
             f"{models_gb:.1f} GB of models do not fit in {limit:.1f} GB "
-            f"({GPU_SHARE:.0%} of {ram_gb:.0f} GB, keeping {HEADROOM_GB:.0f} GB free)"
+            f"({share:.0%} of {ram_gb:.0f} GB, keeping {HEADROOM_GB:.0f} GB free)"
         )
     free = free_memory_gb() if free_gb is None else free_gb
     if models_gb + HEADROOM_GB > free:

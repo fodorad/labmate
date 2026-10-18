@@ -466,8 +466,21 @@ calls, structured output, and how many planted mistakes it catches as a judge) a
 
 ## Quickstart
 
+Runs on macOS and Linux. Needs [uv](https://docs.astral.sh/uv/), [Ollama](https://ollama.com) and
+Node.js 20 or later (mermaid-cli renders the diagrams in a headless Chromium). On Linux, Chromium
+also needs `unzip` to install and a few system libraries; on Debian or Ubuntu:
+
 ```bash
-make install     # uv sync + pre-commit hooks + mermaid-cli (needs Node.js)
+sudo apt install unzip libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 \
+  libcairo2 libasound2t64
+```
+
+There is no downloadable Chromium for Linux on ARM: install the distribution's `chromium` and set
+`PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium` before `make install`.
+
+```bash
+make install     # uv sync + pre-commit hooks + mermaid-cli and its Chromium
 make check       # lint + type-check + tests + docs (no Ollama needed)
 
 # with Ollama running and the models pulled:

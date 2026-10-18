@@ -19,6 +19,7 @@ jobs:
         run: |
           uv sync --extra dev --locked
           npx --yes @mermaid-js/mermaid-cli@12.0.0 --version
+          npx --yes --package=@mermaid-js/mermaid-cli@12.0.0 -- puppeteer browsers install chrome-headless-shell
       - name: Lint
         run: uv run ruff check . && uv run ruff format --check .
       - name: Type-check
