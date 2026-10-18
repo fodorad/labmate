@@ -31,3 +31,9 @@ tmp/
 library/*.sqlite
 library/*.sqlite-*
 library/cache/
+
+# Agent instructions and planning notes stay local
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.mcp.json
