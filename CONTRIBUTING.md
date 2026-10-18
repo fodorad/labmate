@@ -26,6 +26,20 @@ Target ≥90% coverage (`make test-cov`).
 `tests/` mirrors the `labmate/` source layout: `labmate/ask/index.py` is tested in
 `tests/ask/test_index.py`.
 
+## Adding a use case
+
+A use case is one package under `labmate/` with the same shape as the others:
+
+- the pipeline (`chain.py` for a LangChain chain, `graph.py` for a LangGraph graph, `agent.py`
+  for a tool-calling agent), with its prompts as Markdown files in `prompts/`;
+- `cli.py`: `add_parser(sub)` adds its command and sets `handler`, the function that runs it with
+  `(config, args, ctx)`. Import the pipeline inside that function, so `labmate --help` works
+  without the `[ask]` extra.
+
+Then add the package name to `FEATURES` in `labmate/cli.py` and a target to the `Makefile`.
+Shared plumbing lives in `labmate/core/`: chat models and the reply cache, the Ollama server,
+arXiv and PDF ingest. To benchmark it, add a runner to `labmate/bench/macro.py`.
+
 ## Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/) — `feat:`,

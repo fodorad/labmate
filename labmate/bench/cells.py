@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+USE_CASES = ("ask: graph", "ask: agent", "cv2job", "scout")
+"""The use cases ``bench macro`` runs by default."""
+
+FULL_USE_CASES = (*USE_CASES, "paper2flow", "paper2post")
+"""Every use case ``bench macro`` can run (``--full`` adds the slow paper ones)."""
+
 TARGETS_S = {
     "ask: graph": 30.0,
     "ask: agent": 30.0,
