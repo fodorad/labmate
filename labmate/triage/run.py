@@ -11,7 +11,7 @@ import httpx
 from langchain_core.runnables import RunnableConfig
 
 from labmate.config import Config
-from labmate.core.ingest import USER_AGENT, ArxivMetadata, search_arxiv
+from labmate.core.ingest import ArxivMetadata, search_arxiv, web_client
 from labmate.core.lc import batch_map
 from labmate.paper2flow.chain import paper2flow
 from labmate.paper2post.chain import paper2post
@@ -122,12 +122,7 @@ def run_triage(
     Returns:
         One verdict per paper, in search order.
     """
-    with httpx.Client(
-        transport=http or httpx.HTTPTransport(retries=2),
-        timeout=60,
-        follow_redirects=True,
-        headers={"User-Agent": USER_AGENT},
-    ) as web:
+    with web_client(http) as web:
         hits = search_arxiv(topic, web, limit)
 
     decision_model = is_decision_model(config, ollama)

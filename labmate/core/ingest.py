@@ -48,6 +48,31 @@ _ARXIV_ID = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
 _REFERENCES = re.compile(r"\n\s*(References|Bibliography|REFERENCES)\s*\n")
 
 
+WEB_RETRIES = 2
+"""Connection retries of the web client (failed connects, not HTTP errors)."""
+
+
+def web_client(transport: httpx.BaseTransport | None = None, timeout: float = 60) -> httpx.Client:
+    """The HTTP client for arXiv and paper downloads.
+
+    It names labmate in the User-Agent (arXiv asks API clients to), follows redirects and retries
+    failed connections.
+
+    Args:
+        transport: A transport to use instead of the network (tests).
+        timeout: Seconds to wait for a response.
+
+    Returns:
+        The client; close it when done (or use it as a context manager).
+    """
+    return httpx.Client(
+        transport=transport or httpx.HTTPTransport(retries=WEB_RETRIES),
+        timeout=timeout,
+        follow_redirects=True,
+        headers={"User-Agent": USER_AGENT},
+    )
+
+
 class IngestError(RuntimeError):
     """Raised when a paper cannot be fetched or parsed."""
 

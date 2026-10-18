@@ -15,11 +15,11 @@ from labmate.config import Config
 from labmate.core.agents import run_agent
 from labmate.core.chat import chat_model
 from labmate.core.ingest import (
-    USER_AGENT,
     IngestError,
     fetch_metadata,
     parse_arxiv_id,
     search_arxiv,
+    web_client,
 )
 from labmate.paper2flow.chain import ARTIFACTS, paper2flow
 from labmate.paper2flow.schemas import FactChecked
@@ -95,12 +95,7 @@ def run_scout(
     Returns:
         The notes file, or ``None`` if the agent stopped without writing notes.
     """
-    web = httpx.Client(
-        transport=http or httpx.HTTPTransport(retries=2),
-        timeout=60,
-        follow_redirects=True,
-        headers={"User-Agent": USER_AGENT},
-    )
+    web = web_client(http)
     seen: dict[str, str] = {}  # arXiv id -> title, from searches
     read: set[str] = set()
     deep: list[str] = []

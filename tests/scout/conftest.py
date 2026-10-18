@@ -7,24 +7,11 @@ from typing import Any
 import pytest
 
 from labmate.config import CacheConfig, Config, TracingConfig
-from tests.conftest import FakeArxiv, agentic_chat, make_pdf, reply, tool_call
+from tests.conftest import FakeArxiv, agentic_chat, atom_feed, make_pdf, reply, tool_call
 
-
-def entry(arxiv_id: str, title: str) -> str:
-    return f"""<entry>
-    <id>http://arxiv.org/abs/{arxiv_id}v1</id>
-    <title>{title}</title>
-    <summary>We study {title.lower()}.</summary>
-    <author><name>Ada Lovelace</name></author>
-    <published>2024-01-02T00:00:00Z</published>
-  </entry>"""
-
-
-FEED = f"""<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  {entry("2401.00001", "Linear Attention Revisited")}
-  {entry("2401.00002", "Sparse Attention at Scale")}
-</feed>"""
+FEED = atom_feed(
+    [("2401.00001", "Linear Attention Revisited"), ("2401.00002", "Sparse Attention at Scale")]
+)
 
 
 @pytest.fixture

@@ -33,7 +33,6 @@ from labmate.core.chat import chat_model
 from labmate.core.extract import extract_claims
 from labmate.core.factcheck import fact_check
 from labmate.core.ingest import (
-    USER_AGENT,
     IngestError,
     download_url,
     ingest_arxiv,
@@ -42,6 +41,7 @@ from labmate.core.ingest import (
     parse_arxiv_id,
     slugify,
     url_stem,
+    web_client,
 )
 from labmate.core.lc import step
 from labmate.paper2flow.schemas import Analysis, FactChecked, Outline
@@ -226,12 +226,7 @@ def open_run(
     """
     run_dir = config.tracing.runs_dir / run_id_for(source)
     run_dir.mkdir(parents=True, exist_ok=True)
-    http = httpx.Client(
-        transport=web or httpx.HTTPTransport(retries=2),
-        timeout=120,
-        follow_redirects=True,
-        headers={"User-Agent": USER_AGENT},
-    )
+    http = web_client(web, timeout=120)
     models = config.models
     return PaperRun(
         config=config,

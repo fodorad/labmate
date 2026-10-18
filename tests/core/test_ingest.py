@@ -3,6 +3,7 @@ import pymupdf
 import pytest
 
 from labmate.core.ingest import (
+    USER_AGENT,
     IngestError,
     download_pdf,
     download_url,
@@ -12,6 +13,7 @@ from labmate.core.ingest import (
     parse_arxiv_id,
     search_arxiv,
     split_sections,
+    web_client,
 )
 from tests.conftest import EMPTY_ATOM, FakeArxiv, make_pdf
 from tests.scout.conftest import FEED
@@ -203,3 +205,18 @@ def test_a_search_lists_every_hit_with_its_arxiv_id_and_skips_empty_entries():
         ("2401.00002", "Sparse Attention at Scale"),
     ]
     assert hits[0][1].published == "2024-01-02"
+
+
+def test_the_web_client_names_labmate_and_follows_redirects():
+    seen = []
+
+    def site(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["User-Agent"])
+        if request.url.path == "/old":
+            return httpx.Response(301, headers={"Location": "/new"})
+        return httpx.Response(200, text="here")
+
+    with web_client(httpx.MockTransport(site)) as http:
+        assert http.get("https://example.org/old").text == "here"
+
+    assert seen == [USER_AGENT, USER_AGENT]

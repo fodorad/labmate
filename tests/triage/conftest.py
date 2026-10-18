@@ -9,26 +9,12 @@ from typing import Any
 import pytest
 
 from labmate.config import CacheConfig, Config, ModelsConfig, TracingConfig
-from tests.conftest import FakeArxiv, agentic_chat, make_pdf, reply
+from tests.conftest import FakeArxiv, agentic_chat, atom_feed, make_pdf, reply
 
 TITLES = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"]
 
 
-def entry(number: int, title: str) -> str:
-    return f"""<entry>
-    <id>http://arxiv.org/abs/2401.0000{number}v1</id>
-    <title>{title}</title>
-    <summary>We study {title.lower()}.</summary>
-    <author><name>Ada Lovelace</name></author>
-    <published>2024-01-02T00:00:00Z</published>
-  </entry>"""
-
-
-FEED = (
-    '<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">'
-    + "".join(entry(i, t) for i, t in enumerate(TITLES, start=1))
-    + "</feed>"
-)
+FEED = atom_feed([(f"2401.0000{i}", t) for i, t in enumerate(TITLES, start=1)])
 
 
 @pytest.fixture
