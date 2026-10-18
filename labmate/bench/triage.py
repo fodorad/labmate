@@ -20,7 +20,7 @@ import yaml
 from labmate.config import Config
 from labmate.core.ingest import ArxivMetadata
 from labmate.core.ollama import DecisionError
-from labmate.triage.decide import decide, is_decision_model
+from labmate.triage.decide import open_decider
 
 GOLDEN = Path("evals/triage/golden.yaml")
 """The labelled papers."""
@@ -80,19 +80,16 @@ def evaluate(
     Returns:
         The scores; ``error`` is set if the model could not answer.
     """
-    config.models.decider = model
     result = DeciderResult(model)
     times: list[float] = []
     try:
-        decision_model = is_decision_model(config, transport)
-        result.kind = "decision" if decision_model else "chat"
+        decider = open_decider(config, model, transport)
+        result.kind = decider.kind
         for key, interests in golden["interests"].items():
             for paper in golden["papers"]:
                 meta = ArxivMetadata(title=paper["title"], authors=[], abstract=paper["abstract"])
                 started = time.perf_counter()
-                action = decide(
-                    config, meta, interests, decision_model=decision_model, transport=transport
-                ).action
+                action = decider.decide(meta, interests).action
                 times.append(time.perf_counter() - started)
                 label = paper["expected"][key]
                 result.cases += 1

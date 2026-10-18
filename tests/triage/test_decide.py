@@ -1,7 +1,7 @@
 import json
 
 from labmate.core.ingest import ArxivMetadata
-from labmate.triage.decide import decide, decision_from_score
+from labmate.triage.decide import decision_from_score, open_decider
 from tests.conftest import reply
 
 META = ArxivMetadata(title="Alpha", authors=["Ada"], abstract="We study alpha.")
@@ -17,9 +17,9 @@ def test_a_reply_that_is_too_wordy_is_sent_back_for_a_shorter_reason(fake, confi
     short = json.dumps({"action": "deep", "relevance": 4, "reason": "Short."})
     fake.chat_handler = answers(wordy, short)
 
-    decision = decide(config, META, "video", decision_model=False, transport=fake.transport())
+    decision = open_decider(config, transport=fake.transport()).decide(META, "video")
 
-    assert decision.reason == "Short." and len(fake.requests) == 2
+    assert decision.reason == "Short." and fake.paths().count("/api/chat") == 2
 
 
 def test_a_score_becomes_an_action_at_the_documented_levels():
@@ -29,3 +29,14 @@ def test_a_score_becomes_an_action_at_the_documented_levels():
     assert skipped.action == "skip" and skipped.relevance == 3
     assert decision_from_score(0.0).relevance == 1 and decision_from_score(4.0).relevance == 5
     assert "closely related" in decision_from_score(3.2).reason
+
+
+def test_the_decider_asks_ollama_once_which_kind_of_model_it_is(fake, config):
+    decision = open_decider(config, "clef-flash", fake.transport())
+    chat = open_decider(config, "gemma4:e4b", fake.transport())
+
+    assert (decision.kind, chat.kind) == ("decision", "chat")
+    assert decision.decide(META, "video").action == "post"  # the fake scores 2.0
+    decision.decide(META, "video")
+    assert fake.paths().count("/api/show") == 2  # once per decider, not per paper
+    assert "/api/chat" not in fake.paths()
